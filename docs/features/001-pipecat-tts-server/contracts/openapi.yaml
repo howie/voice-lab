@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Voice Lab TTS API
+  description: Unified Text-to-Speech API supporting multiple providers
+  version: 1.0.0
+servers:
+  - url: /api/v1
+tags:
+  - name: TTS
+    description: Text-to-Speech operations
+
+paths:
+  /tts/synthesize:
+    post:
+      tags:
+        - TTS
+      summary: Synthesize speech from text
+      operationId: synthesize_speech
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TTSRequest'
+      responses:
+        '200':
+          description: Successful synthesis
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+        '500':
+          description: Server Error
+
+  /tts/voices:
+    get:
+      tags:
+        - TTS
+      summary: List available voices
+      operationId: list_voices
+      parameters:
+        - name: language
+          in: query
+          description: Filter by language code (e.g., zh-TW)
+          schema:
+            type: string
+        - name: provider
+          in: query
+          description: Filter by provider
+          schema:
+            type: string
+            enum: [azure, gcp, elevenlabs]
+      responses:
+        '200':
+          description: List of voices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VoiceProfile'
+
+components:
+  schemas:
+    TTSRequest:
+      type: object
+      required:
+        - text
+        - provider
+        - voice_id
+      properties:
+        text:
+          type: string
+          maxLength: 5000
+          example: "你好，世界"
+        provider:
+          type: string
+          enum: [azure, gcp, elevenlabs]
+          example: "azure"
+        voice_id:
+          type: string
+          example: "zh-TW-HsiaoChenNeural"
+        language:
+          type: string
+          default: "zh-TW"
+        speed:
+          type: number
+          format: float
+          minimum: 0.5
+          maximum: 2.0
+          default: 1.0
+        pitch:
+          type: number
+          format: float
+          minimum: -20
+          maximum: 20
+          default: 0.0
+        volume:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 2.0
+          default: 1.0
+        output_format:
+          type: string
+          enum: [mp3, wav, pcm]
+          default: "mp3"
+
+    VoiceProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        language:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, neutral, unknown]
+        styles:
+          type: array
+          items:
+            type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string

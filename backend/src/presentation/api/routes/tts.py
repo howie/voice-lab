@@ -1,121 +1,212 @@
-"""TTS API Routes."""
+"""TTS API Routes.
 
+T030: Update TTS API route POST /tts/synthesize (batch mode)
+T031: Add TTS API route POST /tts/stream (streaming mode)
+"""
+
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import Response, StreamingResponse
 import base64
-from fastapi import APIRouter, Depends, HTTPException
 
-from src.presentation.schemas.tts import (
-    TTSSynthesizeRequest,
-    TTSSynthesizeResponse,
-    VoiceListResponse,
-    VoiceResponse,
+from src.presentation.api.schemas.tts import (
+    SynthesizeRequest,
+    SynthesizeResponse,
+    StreamRequest,
 )
-from src.presentation.api.dependencies import (
-    get_synthesize_speech_use_case,
-    get_tts_providers,
+from src.domain.entities.tts import TTSRequest
+from src.domain.entities.audio import AudioFormat, OutputMode
+from src.domain.errors import (
+    InvalidProviderError,
+    SynthesisError,
+    ProviderError,
 )
-from src.application.use_cases.synthesize_speech import (
-    SynthesizeSpeechUseCase,
-    SynthesizeSpeechInput,
-)
-from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioFormat
+from src.infrastructure.providers.tts.azure import AzureTTSProvider
+from src.infrastructure.providers.tts.google import GoogleTTSProvider
+from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
+from src.infrastructure.providers.tts.voai import VoAITTSProvider
+from src.infrastructure.storage.local_storage import LocalStorage
+from src.application.use_cases.synthesize_speech import SynthesizeSpeech
 
-router = APIRouter()
+router = APIRouter(prefix="/tts", tags=["tts"])
+
+# Provider instances
+PROVIDERS = {
+    "azure": AzureTTSProvider,
+    "gcp": GoogleTTSProvider,
+    "elevenlabs": ElevenLabsTTSProvider,
+    "voai": VoAITTSProvider,
+}
+
+VALID_PROVIDERS = list(PROVIDERS.keys())
 
 
-@router.post("/synthesize", response_model=TTSSynthesizeResponse)
-async def synthesize_speech(
-    request: TTSSynthesizeRequest,
-    use_case: SynthesizeSpeechUseCase = Depends(get_synthesize_speech_use_case),
-):
-    """Synthesize speech from text."""
+def get_provider(provider_name: str):
+    """Get TTS provider instance by name."""
+    provider_class = PROVIDERS.get(provider_name)
+    if not provider_class:
+        raise InvalidProviderError(provider_name, VALID_PROVIDERS)
+    return provider_class()
+
+
+def get_storage() -> LocalStorage:
+    """Get storage service."""
+    return LocalStorage()
+
+
+@router.post("/synthesize", response_model=SynthesizeResponse)
+async def synthesize(request: SynthesizeRequest):
+    """Synthesize speech from text (batch mode).
+
+    Returns complete audio data as base64 encoded string.
+    """
     try:
+        provider = get_provider(request.provider)
+        storage = get_storage()
+        use_case = SynthesizeSpeech(provider, storage=storage)
+
         # Map output format
         try:
             output_format = AudioFormat(request.output_format)
         except ValueError:
             output_format = AudioFormat.MP3
 
-        input_data = SynthesizeSpeechInput(
+        domain_request = TTSRequest(
             text=request.text,
-            provider_name=request.provider,
             voice_id=request.voice_id,
+            provider=request.provider,
             language=request.language,
             speed=request.speed,
             pitch=request.pitch,
             volume=request.volume,
             output_format=output_format,
-            user_id="anonymous",  # TODO: Get from auth
-            save_to_storage=True,
-            save_to_history=request.save_to_history,
+            output_mode=OutputMode.BATCH,
         )
 
-        output = await use_case.execute(input_data)
+        result = await use_case.execute(domain_request)
 
-        return TTSSynthesizeResponse(
-            audio_base64=base64.b64encode(output.result.audio.data).decode("utf-8"),
-            audio_format=output.result.audio.format.value,
-            provider=output.result.provider,
-            voice_id=output.result.voice_id,
-            latency_ms=output.result.latency_ms,
-            text_length=output.result.text_length,
-            audio_url=output.audio_url,
-            record_id=output.record_id,
+        # Return base64 encoded audio
+        audio_b64 = base64.b64encode(result.audio.data).decode("utf-8")
+
+        return SynthesizeResponse(
+            audio_content=audio_b64,
+            content_type=result.audio.format.mime_type,
+            duration_ms=result.duration_ms,
+            latency_ms=result.latency_ms,
+            storage_path=result.storage_path,
         )
+
+    except InvalidProviderError as e:
+        raise HTTPException(status_code=400, detail=e.to_dict())
+    except (SynthesisError, ProviderError) as e:
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail={"error": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
-@router.get("/voices", response_model=VoiceListResponse)
-async def list_voices(
-    provider: str | None = None,
-    language: str | None = None,
-    tts_providers: dict[str, ITTSProvider] = Depends(get_tts_providers),
-):
-    """List available voices."""
-    voices = []
+@router.post("/stream")
+async def stream(request: StreamRequest):
+    """Synthesize speech from text (streaming mode).
 
-    providers_to_query = (
-        {provider: tts_providers[provider]}
-        if provider and provider in tts_providers
-        else tts_providers
-    )
+    Returns audio data as a streaming response.
+    """
+    try:
+        provider = get_provider(request.provider)
+        use_case = SynthesizeSpeech(provider)
 
-    for name, p in providers_to_query.items():
+        # Map output format
         try:
-            provider_voices = await p.list_voices(language=language)
-            for v in provider_voices:
-                voices.append(
-                    VoiceResponse(
-                        voice_id=v.voice_id,
-                        name=v.name,
-                        provider=v.provider,
-                        language=v.language,
-                        gender=v.gender.value,
-                        sample_audio_url=v.sample_audio_url,
-                        description=v.description,
-                    )
-                )
-        except Exception:
-            # Skip providers that fail
-            continue
+            output_format = AudioFormat(request.output_format)
+        except ValueError:
+            output_format = AudioFormat.MP3
 
-    return VoiceListResponse(
-        voices=voices,
-        total=len(voices),
-        provider=provider,
-        language=language,
-    )
+        domain_request = TTSRequest(
+            text=request.text,
+            voice_id=request.voice_id,
+            provider=request.provider,
+            language=request.language,
+            speed=request.speed,
+            pitch=request.pitch,
+            volume=request.volume,
+            output_format=output_format,
+            output_mode=OutputMode.STREAMING,
+        )
+
+        async def audio_stream():
+            """Generate audio chunks for streaming response."""
+            async for chunk in use_case.execute_stream(domain_request):
+                yield chunk
+
+        # Determine content type based on format
+        content_type = output_format.mime_type
+
+        return StreamingResponse(
+            audio_stream(),
+            media_type=content_type,
+            headers={
+                "X-Provider": request.provider,
+                "X-Voice-ID": request.voice_id,
+            },
+        )
+
+    except InvalidProviderError as e:
+        raise HTTPException(status_code=400, detail=e.to_dict())
+    except (SynthesisError, ProviderError) as e:
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
-@router.get("/providers")
-async def list_providers(
-    tts_providers: dict[str, ITTSProvider] = Depends(get_tts_providers),
-):
-    """List available TTS providers."""
-    return {
-        "providers": list(tts_providers.keys()),
-        "total": len(tts_providers),
-    }
+@router.post("/synthesize/binary")
+async def synthesize_binary(request: SynthesizeRequest):
+    """Synthesize speech and return raw binary audio data.
+
+    Alternative endpoint that returns audio directly instead of base64.
+    """
+    try:
+        provider = get_provider(request.provider)
+        storage = get_storage()
+        use_case = SynthesizeSpeech(provider, storage=storage)
+
+        # Map output format
+        try:
+            output_format = AudioFormat(request.output_format)
+        except ValueError:
+            output_format = AudioFormat.MP3
+
+        domain_request = TTSRequest(
+            text=request.text,
+            voice_id=request.voice_id,
+            provider=request.provider,
+            language=request.language,
+            speed=request.speed,
+            pitch=request.pitch,
+            volume=request.volume,
+            output_format=output_format,
+            output_mode=OutputMode.BATCH,
+        )
+
+        result = await use_case.execute(domain_request)
+
+        return Response(
+            content=result.audio.data,
+            media_type=result.audio.format.mime_type,
+            headers={
+                "X-Duration-Ms": str(result.duration_ms),
+                "X-Latency-Ms": str(result.latency_ms),
+                "X-Provider": request.provider,
+                "X-Storage-Path": result.storage_path or "",
+            },
+        )
+
+    except InvalidProviderError as e:
+        raise HTTPException(status_code=400, detail=e.to_dict())
+    except (SynthesisError, ProviderError) as e:
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": str(e)})

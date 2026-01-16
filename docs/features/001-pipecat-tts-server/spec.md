@@ -37,6 +37,7 @@
 2. **Given** 用戶已合成語音，**When** 點擊「下載」按鈕，**Then** 音訊檔案下載到本機
 3. **Given** 用戶在 Web 介面上，**When** 語音合成處理中，**Then** 顯示載入狀態指示器
 4. **Given** 用戶選擇串流模式，**When** 點擊「合成」按鈕，**Then** 音訊邊合成邊播放，並顯示即時波形或進度
+5. **Given** 用戶在 Web 介面上，**When** 從選單中選擇特定的 TTS 提供者（如 Azure, Google, ElevenLabs 或 VoAI），**Then** 系統使用該指定提供者進行後續的語音合成
 
 ---
 
@@ -76,7 +77,7 @@
 - **FR-008**: 系統 MUST 支援語速調整（0.5x - 2.0x 範圍）
 - **FR-009**: 系統 SHOULD 支援多種音色選項（依各提供者提供的音色）
 - **FR-010**: 系統 MUST 記錄所有 API 請求以供除錯與監控
-- **FR-011**: 系統 MUST 支援 Azure Speech、ElevenLabs、Google Cloud TTS 三個提供者
+- **FR-011**: 系統 MUST 支援 Azure Speech、ElevenLabs、Google Cloud TTS 與 **VoAI** 四個提供者
 - **FR-012**: 用戶 MUST 能夠在請求時指定使用的 TTS 提供者
 - **FR-013**: 系統 MUST 支援多語言合成，至少包含：中文（繁體/簡體）、英文、日文、韓文
 - **FR-014**: 用戶 MUST 能夠在請求時指定輸出語言
@@ -84,28 +85,38 @@
 - **FR-016**: 系統 MUST 支援即時串流模式（邊合成邊輸出音訊）
 - **FR-017**: 用戶 MUST 能夠在請求時指定輸出模式（批次或串流）
 - **FR-018**: Web 介面 MUST 支援串流播放模式（邊接收邊播放）
-- **FR-019**: Web 介面 MUST 在串流播放時顯示即時波形或進度指示
+- **FR-019**: Web 介面 MUST 在串流播放時顯示即時波形或進度指示，使用 **WaveSurfer.js** 實作
+- **FR-020**: 系統 MUST 支援 Google SSO 登入進行身份驗證，Scope 限制為 `openid profile email`
+- **FR-021**: 系統 MUST 永久儲存合成後的音訊檔案，目錄結構為 `storage/{provider}/{uuid}.mp3`，保留策略為用戶手動管理
+- **FR-022**: Web 前端 MUST 使用 React + Vite 架構開發
 
 ### Key Entities
 
-- **SynthesisRequest**: 代表一次語音合成請求，包含輸入文字、TTS 提供者選擇、語言選擇、輸出模式（批次/串流）、語音參數（語速、音色）、輸出格式偏好
-- **SynthesisResult**: 代表語音合成結果，包含音訊資料、音訊格式、處理耗時、元資料（字數、音訊長度）
+- **TTSRequest**: 代表一次語音合成請求，包含輸入文字、TTS 提供者選擇、語言選擇、輸出模式（批次/串流）、語音參數（語速、音色）、輸出格式偏好
+- **TTSResult**: 代表語音合成結果，包含音訊資料、音訊格式、處理耗時、元資料（字數、音訊長度）、存儲路徑
 - **VoiceOption**: 代表可用的音色選項，包含音色識別碼、名稱、語言、描述
 
 ## Clarifications
 
 ### Session 2026-01-16
 
-- Q: 初始實作應支援哪些 TTS 服務提供者？ → A: 同時支援 Azure Speech、ElevenLabs、Google Cloud TTS 三個提供者，MVP 即支援切換
+- Q: 初始實作應支援哪些 TTS 服務提供者？ → A: 同時支援 Azure Speech、ElevenLabs、Google Cloud TTS 與 VoAI 四個提供者，MVP 即支援切換
 - Q: 系統需支援哪些語言？ → A: 多語言支援，包含中文（繁/簡）、英文、日文、韓文等亞洲主要語言
 - Q: 音訊輸出模式為何？ → A: 兩者皆支援，批次合成與即時串流可透過 API 參數切換
 - Q: Web 介面是否支援串流播放？ → A: 是，Web 介面需支援串流播放，即時顯示波形/進度
+- Q: 系統應使用何種身份驗證方式？ → A: 使用 Google SSO 登入
+- Q: 合成後的音訊檔案應如何處理？ → A: 永久儲存 (Permanent)
+- Q: Web 前端應使用何種框架？ → A: React + Vite
+- Q: Google SSO 需要哪些權限 Scope？ → A: `openid profile email`
+- Q: 音訊檔案存儲結構為何？ → A: `storage/{provider}/{uuid}.mp3`
+- Q: 波形視覺化使用哪個庫？ → A: WaveSurfer.js
+- Q: 音訊檔案保留多久？ → A: 由用戶手動管理 (User Managed)
 
 ## Assumptions
 
 - Pipecat 框架已可正常運作並支援 TTS 功能
-- 需要 Azure Speech、ElevenLabs、Google Cloud TTS 三個提供者的 API 金鑰
-- 目標用戶為開發者和技術人員，不需要複雜的用戶認證系統
+- 需要 Azure Speech、ElevenLabs、Google Cloud TTS 與 VoAI 四個提供者的 API 金鑰
+- 目標用戶為開發者和技術人員
 - 單一伺服器部署，不考慮分散式架構
 - Web 介面僅供測試和展示用途，不需要支援高併發
 

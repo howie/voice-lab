@@ -1,10 +1,10 @@
 """TTS Provider Interface (Port)."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 
 from src.domain.entities.audio import AudioFormat
-from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.entities.voice import VoiceProfile
+from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
 
 
 class ITTSProvider(ABC):
@@ -35,13 +35,30 @@ class ITTSProvider(ABC):
 
     @abstractmethod
     async def synthesize(self, request: TTSRequest) -> TTSResult:
-        """Synthesize speech from text.
+        """Synthesize speech from text (batch mode).
 
         Args:
             request: TTS synthesis request
 
         Returns:
             TTS result with audio data and metadata
+
+        Raises:
+            TTSProviderError: If synthesis fails
+        """
+        pass
+
+    @abstractmethod
+    async def synthesize_stream(
+        self, request: TTSRequest
+    ) -> AsyncGenerator[bytes, None]:
+        """Synthesize speech from text with streaming output.
+
+        Args:
+            request: TTS synthesis request
+
+        Yields:
+            Audio data chunks as they become available
 
         Raises:
             TTSProviderError: If synthesis fails

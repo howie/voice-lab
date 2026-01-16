@@ -2,13 +2,15 @@
 
 from fastapi import APIRouter
 
-from src.presentation.api.routes import tts, stt, interaction, compare, history, health
+from src.presentation.api.routes import tts, stt, interaction, compare, history, health, auth, providers
 
 # Create main API router
 api_router = APIRouter()
 
 # Include sub-routers
 api_router.include_router(health.router, tags=["Health"])
+api_router.include_router(auth.router)  # Auth routes have their own prefix
+api_router.include_router(providers.router)  # Providers routes have their own prefix
 api_router.include_router(tts.router, prefix="/tts", tags=["TTS"])
 api_router.include_router(stt.router, prefix="/stt", tags=["STT"])
 api_router.include_router(interaction.router, prefix="/interaction", tags=["Interaction"])

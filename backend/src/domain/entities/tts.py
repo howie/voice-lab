@@ -2,9 +2,12 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
-from src.domain.entities.audio import AudioFormat, AudioData
+from src.domain.entities.audio import AudioFormat, AudioData, OutputMode
+
+# Maximum text length in characters
+MAX_TEXT_LENGTH = 5000
 
 
 @dataclass(frozen=True)
@@ -19,11 +22,14 @@ class TTSRequest:
     pitch: float = 0.0  # -20 to +20 semitones
     volume: float = 1.0  # 0.0 - 2.0
     output_format: AudioFormat = AudioFormat.MP3
+    output_mode: OutputMode = OutputMode.BATCH
 
     def __post_init__(self) -> None:
         """Validate request parameters."""
         if not self.text:
             raise ValueError("Text cannot be empty")
+        if len(self.text) > MAX_TEXT_LENGTH:
+            raise ValueError(f"Text exceeds {MAX_TEXT_LENGTH} characters limit")
         if not self.voice_id:
             raise ValueError("Voice ID cannot be empty")
         if not 0.5 <= self.speed <= 2.0:
@@ -42,6 +48,7 @@ class TTSResult:
     audio: AudioData
     duration_ms: int
     latency_ms: int
+    storage_path: Optional[str] = None
     cost_estimate: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -60,3 +67,20 @@ class TTSResult:
     def characters_count(self) -> int:
         """Get character count of synthesized text."""
         return len(self.request.text)
+
+
+@dataclass
+class VoiceProfile:
+    """Represents an available voice from a provider."""
+
+    id: str
+    name: str
+    provider: str
+    language: str
+    gender: Optional[str] = None  # 'male', 'female', 'neutral'
+    styles: list[str] = field(default_factory=list)
+    
+    @property
+    def unique_id(self) -> str:
+        """Get a globally unique ID for this voice."""
+        return f"{self.provider}:{self.id}"

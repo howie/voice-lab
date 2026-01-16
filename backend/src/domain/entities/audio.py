@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+class OutputMode(Enum):
+    """Output mode for TTS synthesis."""
+
+    BATCH = "batch"  # Complete synthesis then return
+    STREAMING = "streaming"  # Stream audio as it's synthesized
+
+
 class AudioFormat(Enum):
     """Supported audio formats."""
 

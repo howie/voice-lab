@@ -1,129 +1,187 @@
-"""Synthesize Speech Use Case."""
+"""Synthesize Speech Use Case.
 
-from dataclasses import dataclass
+T028: Update SynthesizeSpeechUseCase to support batch and streaming modes
+"""
+
+from collections.abc import AsyncGenerator
+from typing import Protocol
 
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.storage_service import IStorageService
-from src.domain.entities.audio import AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.entities.test_record import TestRecord
-from src.domain.repositories.test_record_repository import ITestRecordRepository
+from src.domain.entities.audio import OutputMode
+from src.domain.errors import SynthesisError, ProviderError
 
 
-@dataclass
-class SynthesizeSpeechInput:
-    """Input for synthesize speech use case."""
+class ISynthesisLogger(Protocol):
+    """Protocol for synthesis logging."""
 
-    text: str
-    provider_name: str
-    voice_id: str
-    language: str = "zh-TW"
-    speed: float = 1.0
-    pitch: float = 0.0
-    volume: float = 1.0
-    output_format: AudioFormat = AudioFormat.MP3
-    user_id: str = ""
-    save_to_storage: bool = True
-    save_to_history: bool = True
+    async def log_synthesis(
+        self,
+        request: TTSRequest,
+        result: TTSResult | None,
+        error: str | None = None,
+        user_id: str | None = None,
+    ) -> None:
+        """Log a synthesis request and result."""
+        ...
 
 
-@dataclass
-class SynthesizeSpeechOutput:
-    """Output from synthesize speech use case."""
-
-    result: TTSResult
-    audio_url: str | None = None
-    record_id: str | None = None
-
-
-class SynthesizeSpeechUseCase:
+class SynthesizeSpeech:
     """Use case for synthesizing speech from text.
 
-    This use case orchestrates:
-    1. Validating and creating the TTS request
-    2. Calling the appropriate TTS provider
-    3. Optionally saving audio to storage
-    4. Optionally saving test record to history
+    Supports both batch mode (complete audio) and streaming mode (chunked audio).
     """
 
     def __init__(
         self,
-        tts_providers: dict[str, ITTSProvider],
-        storage_service: IStorageService | None = None,
-        test_record_repo: ITestRecordRepository | None = None,
-    ):
-        """Initialize use case with dependencies.
+        provider: ITTSProvider,
+        storage: IStorageService | None = None,
+        logger: ISynthesisLogger | None = None,
+    ) -> None:
+        self.provider = provider
+        self.storage = storage
+        self.logger = logger
+
+    async def execute(
+        self,
+        request: TTSRequest,
+        user_id: str | None = None,
+    ) -> TTSResult:
+        """Execute batch synthesis.
 
         Args:
-            tts_providers: Dictionary of provider name to provider instance
-            storage_service: Optional storage service for audio files
-            test_record_repo: Optional repository for test records
-        """
-        self._tts_providers = tts_providers
-        self._storage = storage_service
-        self._test_record_repo = test_record_repo
-
-    async def execute(self, input_data: SynthesizeSpeechInput) -> SynthesizeSpeechOutput:
-        """Execute the synthesize speech use case.
-
-        Args:
-            input_data: Use case input
+            request: The TTS request parameters
+            user_id: Optional user ID for logging
 
         Returns:
-            Use case output with synthesis result
+            TTSResult with complete audio data
 
         Raises:
-            ValueError: If provider not found or invalid parameters
-            TTSProviderError: If synthesis fails
+            SynthesisError: If synthesis fails
+            ProviderError: If provider is unavailable
         """
-        # Get provider
-        provider = self._tts_providers.get(input_data.provider_name)
+        try:
+            # Synthesize audio
+            result = await self.provider.synthesize(request)
+
+            # Store audio if storage is configured
+            if self.storage:
+                storage_path = await self.storage.save(
+                    result.audio, request.provider
+                )
+                result.storage_path = storage_path
+
+            # Log synthesis if logger is configured
+            if self.logger:
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=result,
+                    user_id=user_id,
+                )
+
+            return result
+
+        except Exception as e:
+            # Log error if logger is configured
+            if self.logger:
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=None,
+                    error=str(e),
+                    user_id=user_id,
+                )
+
+            # Re-raise as appropriate error type
+            error_msg = str(e)
+            if "unavailable" in error_msg.lower() or "timeout" in error_msg.lower():
+                raise ProviderError(request.provider, error_msg) from e
+            raise SynthesisError(request.provider, error_msg) from e
+
+    async def execute_stream(
+        self,
+        request: TTSRequest,
+        user_id: str | None = None,
+    ) -> AsyncGenerator[bytes, None]:
+        """Execute streaming synthesis.
+
+        Args:
+            request: The TTS request parameters
+            user_id: Optional user ID for logging
+
+        Yields:
+            Audio data chunks as bytes
+
+        Raises:
+            SynthesisError: If synthesis fails
+            ProviderError: If provider is unavailable
+        """
+        try:
+            # Stream audio from provider
+            async for chunk in self.provider.synthesize_stream(request):
+                yield chunk
+
+            # Log successful streaming synthesis
+            if self.logger:
+                # Create a minimal result for logging
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=None,  # No complete result for streaming
+                    user_id=user_id,
+                )
+
+        except Exception as e:
+            # Log error if logger is configured
+            if self.logger:
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=None,
+                    error=str(e),
+                    user_id=user_id,
+                )
+
+            # Re-raise as appropriate error type
+            error_msg = str(e)
+            if "unavailable" in error_msg.lower() or "timeout" in error_msg.lower():
+                raise ProviderError(request.provider, error_msg) from e
+            raise SynthesisError(request.provider, error_msg) from e
+
+
+class SynthesizeSpeechFactory:
+    """Factory for creating SynthesizeSpeech use cases."""
+
+    def __init__(
+        self,
+        providers: dict[str, ITTSProvider],
+        storage: IStorageService | None = None,
+        logger: ISynthesisLogger | None = None,
+    ) -> None:
+        self.providers = providers
+        self.storage = storage
+        self.logger = logger
+
+    def create(self, provider_name: str) -> SynthesizeSpeech:
+        """Create a SynthesizeSpeech use case for the specified provider.
+
+        Args:
+            provider_name: Name of the TTS provider
+
+        Returns:
+            SynthesizeSpeech instance configured for the provider
+
+        Raises:
+            ValueError: If provider is not found
+        """
+        provider = self.providers.get(provider_name)
         if not provider:
-            available = list(self._tts_providers.keys())
+            valid_providers = list(self.providers.keys())
             raise ValueError(
-                f"Provider '{input_data.provider_name}' not found. "
-                f"Available: {available}"
+                f"Provider '{provider_name}' not found. "
+                f"Available: {valid_providers}"
             )
 
-        # Create domain request
-        request = TTSRequest(
-            text=input_data.text,
-            voice_id=input_data.voice_id,
-            provider=input_data.provider_name,
-            language=input_data.language,
-            speed=input_data.speed,
-            pitch=input_data.pitch,
-            volume=input_data.volume,
-            output_format=input_data.output_format,
-        )
-
-        # Call provider
-        result = await provider.synthesize(request)
-
-        # Save to storage if requested
-        audio_url = None
-        if input_data.save_to_storage and self._storage:
-            import uuid
-
-            key = f"tts/{uuid.uuid4()}.{result.audio.format.value}"
-            stored = await self._storage.upload(
-                key=key,
-                data=result.audio.data,
-                content_type=result.audio.format.mime_type,
-            )
-            audio_url = stored.url
-
-        # Save to history if requested
-        record_id = None
-        if input_data.save_to_history and self._test_record_repo and input_data.user_id:
-            record = TestRecord.from_tts_result(input_data.user_id, result)
-            if audio_url:
-                record.metadata["audio_url"] = audio_url
-            saved = await self._test_record_repo.save(record)
-            record_id = str(saved.id)
-
-        return SynthesizeSpeechOutput(
-            result=result,
-            audio_url=audio_url,
-            record_id=record_id,
+        return SynthesizeSpeech(
+            provider=provider,
+            storage=self.storage,
+            logger=self.logger,
         )

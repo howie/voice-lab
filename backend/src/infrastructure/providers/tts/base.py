@@ -1,50 +1,48 @@
-"""Base TTS Provider with common functionality."""
+from typing import AsyncGenerator
+from pipecat.services.ai_services import TTSService
+from pipecat.frames.frames import AudioRawFrame, TTSAudioRawFrame, ErrorFrame
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.task import PipelineTask
+from pipecat.processors.aggregators.llm_response import LLMResponseAggregator
+from pipecat.transport.network.websocket_server import WebsocketServerTransport, WebsocketServerParams
 
-import time
-from abc import abstractmethod
+# Base infrastructure for Pipecat integration
+# This file serves as a placeholder and utility collection for Pipecat setup.
 
-from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioData, AudioFormat
-from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.entities.voice import VoiceProfile
+async def create_tts_pipeline(
+    tts_service: TTSService,
+    text_input: str
+) -> Pipeline:
+    """
+    Creates a simple TTS pipeline for batch synthesis.
+    Note: For batch synthesis, we might not strictly need a full Pipecat pipeline 
+    if we just use the service directly, but this standardizes the flow.
+    """
+    # In a real Pipecat flow, we usually have a transport.
+    # For batch generation (server-side), we might iterate over the service output directly.
+    pass
 
+async def collect_audio_from_service(
+    service: TTSService, 
+    text: str
+) -> bytes:
+    """
+    Helper to run TTS service and collect all audio bytes.
+    Useful for the 'synthesize' batch endpoint.
+    """
+    audio_chunks = []
+    
+    # TTSService.run_tts returns an AsyncGenerator yielding frames
+    # We need to handle the specific generator signature of the service
+    try:
+        # Assuming service.run_tts(text) yields frames
+        async for frame in service.run_tts(text):
+            if isinstance(frame, (AudioRawFrame, TTSAudioRawFrame)):
+                audio_chunks.append(frame.audio)
+            elif isinstance(frame, ErrorFrame):
+                raise Exception(f"TTS Error: {frame.error}")
+    except Exception as e:
+        # Re-raise or handle
+        raise e
 
-class BaseTTSProvider(ITTSProvider):
-    """Base class for TTS providers with common functionality."""
-
-    def __init__(self, name: str):
-        self._name = name
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    async def synthesize(self, request: TTSRequest) -> TTSResult:
-        """Synthesize speech with timing measurement."""
-        start_time = time.perf_counter()
-
-        audio_data = await self._do_synthesize(request)
-
-        latency_ms = int((time.perf_counter() - start_time) * 1000)
-
-        return TTSResult(
-            audio=audio_data,
-            provider=self.name,
-            voice_id=request.voice_id,
-            latency_ms=latency_ms,
-            text_length=len(request.text),
-        )
-
-    @abstractmethod
-    async def _do_synthesize(self, request: TTSRequest) -> AudioData:
-        """Provider-specific synthesis implementation."""
-        pass
-
-    @abstractmethod
-    async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
-        """List available voices."""
-        pass
-
-    def _get_output_format(self, request: TTSRequest) -> AudioFormat:
-        """Get output format from request or use default."""
-        return request.output_format or AudioFormat.MP3
+    return b"".join(audio_chunks)

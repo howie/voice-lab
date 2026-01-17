@@ -30,9 +30,7 @@ class GCPSTTProvider(BaseSTTProvider):
         super().__init__("gcp")
 
         if credentials_path:
-            self._client = speech.SpeechClient.from_service_account_json(
-                credentials_path
-            )
+            self._client = speech.SpeechClient.from_service_account_json(credentials_path)
         else:
             self._client = speech.SpeechClient()
 

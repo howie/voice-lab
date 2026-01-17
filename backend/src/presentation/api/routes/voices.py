@@ -4,7 +4,6 @@ T055: Add GET /voices endpoint (list all voices with filters)
 T056: Add GET /voices/{provider}/{voice_id} endpoint
 """
 
-
 from fastapi import APIRouter, HTTPException, Query
 
 from src.application.use_cases.list_voices import (

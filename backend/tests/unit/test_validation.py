@@ -245,7 +245,7 @@ class TestTTSRequestValidation:
     def test_special_characters_in_text(self):
         """Test that special characters are handled correctly."""
         request = TTSRequest(
-            text="Hello! How are you? I'm fine. <tag> & \"quotes\"",
+            text='Hello! How are you? I\'m fine. <tag> & "quotes"',
             voice_id="en-US-JennyNeural",
             provider="azure",
         )
@@ -295,7 +295,13 @@ Line 3"""
 
     def test_all_audio_formats(self):
         """Test creating requests with all supported audio formats."""
-        formats = [AudioFormat.MP3, AudioFormat.WAV, AudioFormat.OGG, AudioFormat.OPUS, AudioFormat.PCM]
+        formats = [
+            AudioFormat.MP3,
+            AudioFormat.WAV,
+            AudioFormat.OGG,
+            AudioFormat.OPUS,
+            AudioFormat.PCM,
+        ]
 
         for fmt in formats:
             request = TTSRequest(

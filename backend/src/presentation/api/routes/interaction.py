@@ -77,9 +77,9 @@ async def voice_interaction(
         return InteractionResponse(
             user_transcript=output.user_transcript,
             ai_response_text=output.ai_response_text,
-            ai_response_audio_base64=base64.b64encode(
-                output.ai_response_audio.data
-            ).decode("utf-8"),
+            ai_response_audio_base64=base64.b64encode(output.ai_response_audio.data).decode(
+                "utf-8"
+            ),
             audio_format=output.ai_response_audio.format.value,
             stt_latency_ms=output.stt_latency_ms,
             llm_latency_ms=output.llm_latency_ms,

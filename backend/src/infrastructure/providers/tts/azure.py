@@ -101,9 +101,7 @@ class AzureTTSProvider(ITTSProvider):
             latency_ms=latency_ms,
         )
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output."""
         service = self._get_service(request.voice_id)
 

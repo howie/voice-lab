@@ -45,9 +45,7 @@ class GoogleTTSProvider(ITTSProvider):
     """Google Cloud TTS provider using Pipecat."""
 
     def __init__(self, credentials_path: str | None = None) -> None:
-        self._credentials_path = credentials_path or os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS", ""
-        )
+        self._credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
     def _get_service(self, voice_id: str) -> GoogleTTSService:
         """Get TTS service with the specified voice."""
@@ -99,9 +97,7 @@ class GoogleTTSProvider(ITTSProvider):
             latency_ms=latency_ms,
         )
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output."""
         service = self._get_service(request.voice_id)
 
@@ -198,6 +194,7 @@ class GoogleTTSProvider(ITTSProvider):
         else:
             # Logarithmic scale: 1.0 -> 0dB
             import math
+
             gcp_volume = 20 * math.log10(volume) if volume > 0 else -96.0
 
         return {

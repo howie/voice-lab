@@ -3,7 +3,6 @@
 T033: Update API schemas with proper validation
 """
 
-
 from pydantic import BaseModel, Field
 
 

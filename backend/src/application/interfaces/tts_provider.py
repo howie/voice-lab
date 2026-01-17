@@ -49,9 +49,7 @@ class ITTSProvider(ABC):
         pass
 
     @abstractmethod
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech from text with streaming output.
 
         Args:

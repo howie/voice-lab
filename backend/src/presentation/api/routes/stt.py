@@ -105,10 +105,12 @@ async def list_providers(
     """List available STT providers."""
     providers_info = []
     for name, provider in stt_providers.items():
-        providers_info.append({
-            "name": name,
-            "supports_streaming": provider.supports_streaming,
-        })
+        providers_info.append(
+            {
+                "name": name,
+                "supports_streaming": provider.supports_streaming,
+            }
+        )
 
     return {
         "providers": providers_info,

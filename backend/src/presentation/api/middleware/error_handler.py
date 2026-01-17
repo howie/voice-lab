@@ -68,9 +68,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ValidationError)
-    async def validation_error_handler(
-        request: Request, exc: ValidationError
-    ) -> JSONResponse:
+    async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
         """Handle validation errors."""
         request_id = getattr(request.state, "request_id", None)
 
@@ -85,9 +83,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(AuthenticationError)
-    async def auth_error_handler(
-        request: Request, exc: AuthenticationError
-    ) -> JSONResponse:
+    async def auth_error_handler(request: Request, exc: AuthenticationError) -> JSONResponse:
         """Handle authentication errors."""
         request_id = getattr(request.state, "request_id", None)
 
@@ -103,9 +99,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ForbiddenError)
-    async def forbidden_error_handler(
-        request: Request, exc: ForbiddenError
-    ) -> JSONResponse:
+    async def forbidden_error_handler(request: Request, exc: ForbiddenError) -> JSONResponse:
         """Handle forbidden errors."""
         request_id = getattr(request.state, "request_id", None)
 
@@ -120,9 +114,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(NotFoundError)
-    async def not_found_error_handler(
-        request: Request, exc: NotFoundError
-    ) -> JSONResponse:
+    async def not_found_error_handler(request: Request, exc: NotFoundError) -> JSONResponse:
         """Handle not found errors."""
         request_id = getattr(request.state, "request_id", None)
 
@@ -137,9 +129,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RateLimitError)
-    async def rate_limit_error_handler(
-        request: Request, exc: RateLimitError
-    ) -> JSONResponse:
+    async def rate_limit_error_handler(request: Request, exc: RateLimitError) -> JSONResponse:
         """Handle rate limit errors."""
         request_id = getattr(request.state, "request_id", None)
         headers = {}
@@ -190,9 +180,7 @@ def setup_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def general_exception_handler(
-        request: Request, _exc: Exception
-    ) -> JSONResponse:
+    async def general_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
         """Handle unhandled exceptions."""
         request_id = getattr(request.state, "request_id", None)
 
@@ -212,9 +200,7 @@ def setup_error_handlers(app: FastAPI) -> None:
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Middleware to add request ID to each request."""
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> JSONResponse:
+    async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
         """Add request ID to request state."""
         import uuid
 

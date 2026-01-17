@@ -75,8 +75,7 @@ class TranscribeAudioUseCase:
         if not provider:
             available = list(self._stt_providers.keys())
             raise ValueError(
-                f"Provider '{input_data.provider_name}' not found. "
-                f"Available: {available}"
+                f"Provider '{input_data.provider_name}' not found. Available: {available}"
             )
 
         # Create domain request

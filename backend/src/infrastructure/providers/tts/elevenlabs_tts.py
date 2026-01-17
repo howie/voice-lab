@@ -59,9 +59,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
         params = {"output_format": output_format}
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                url, headers=headers, json=body, params=params
-            )
+            response = await client.post(url, headers=headers, json=body, params=params)
 
             if response.status_code != 200:
                 error_detail = response.text
@@ -87,9 +85,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             response = await client.get(url, headers=headers)
 
             if response.status_code != 200:
-                raise RuntimeError(
-                    f"ElevenLabs list voices failed: {response.status_code}"
-                )
+                raise RuntimeError(f"ElevenLabs list voices failed: {response.status_code}")
 
             data = response.json()
 

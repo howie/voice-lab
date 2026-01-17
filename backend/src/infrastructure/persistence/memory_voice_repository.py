@@ -22,9 +22,7 @@ class InMemoryVoiceRepository(IVoiceRepository):
         self, provider: str, language: str | None = None
     ) -> list[VoiceProfile]:
         """List voice profiles for a provider."""
-        voices = [
-            v for v in self._voices.values() if v.provider == provider
-        ]
+        voices = [v for v in self._voices.values() if v.provider == provider]
 
         if language:
             voices = [v for v in voices if v.language == language]

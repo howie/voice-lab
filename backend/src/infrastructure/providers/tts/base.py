@@ -107,9 +107,7 @@ class BaseTTSProvider(ITTSProvider):
         """
         ...
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output.
 
         Default implementation: synthesize in batch and yield all at once.

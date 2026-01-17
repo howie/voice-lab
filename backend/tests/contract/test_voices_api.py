@@ -66,9 +66,7 @@ class TestListVoicesEndpoint:
     @pytest.mark.asyncio
     async def test_list_all_voices(self):
         """Test listing all voices without filters."""
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES)
 
             transport = ASGITransport(app=app)
@@ -85,9 +83,7 @@ class TestListVoicesEndpoint:
         """Test listing voices filtered by provider."""
         azure_voices = [v for v in MOCK_VOICES if v["provider"] == "azure"]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=azure_voices)
 
             transport = ASGITransport(app=app)
@@ -104,9 +100,7 @@ class TestListVoicesEndpoint:
         """Test listing voices filtered by language."""
         zh_tw_voices = [v for v in MOCK_VOICES if v["language"] == "zh-TW"]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=zh_tw_voices)
 
             transport = ASGITransport(app=app)
@@ -123,9 +117,7 @@ class TestListVoicesEndpoint:
         """Test listing voices filtered by gender."""
         female_voices = [v for v in MOCK_VOICES if v.get("gender") == "female"]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=female_voices)
 
             transport = ASGITransport(app=app)
@@ -141,21 +133,15 @@ class TestListVoicesEndpoint:
     async def test_list_voices_combined_filters(self):
         """Test listing voices with multiple filters."""
         filtered_voices = [
-            v
-            for v in MOCK_VOICES
-            if v["provider"] == "azure" and v["language"] == "zh-TW"
+            v for v in MOCK_VOICES if v["provider"] == "azure" and v["language"] == "zh-TW"
         ]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=filtered_voices)
 
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get(
-                    "/api/v1/voices?provider=azure&language=zh-TW"
-                )
+                response = await ac.get("/api/v1/voices?provider=azure&language=zh-TW")
 
             assert response.status_code == 200
             data = response.json()
@@ -166,9 +152,7 @@ class TestListVoicesEndpoint:
     @pytest.mark.asyncio
     async def test_voice_response_schema(self):
         """Test voice response has correct schema."""
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES[:1])
 
             transport = ASGITransport(app=app)
@@ -194,9 +178,7 @@ class TestGetVoiceByProviderEndpoint:
         """Test getting voices for a specific provider."""
         azure_voices = [v for v in MOCK_VOICES if v["provider"] == "azure"]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=azure_voices)
 
             transport = ASGITransport(app=app)
@@ -228,16 +210,12 @@ class TestGetVoiceDetailEndpoint:
         """Test getting details for a specific voice."""
         voice = MOCK_VOICES[0]
 
-        with patch(
-            "src.presentation.api.routes.voices.get_voice_detail"
-        ) as mock_get_detail:
+        with patch("src.presentation.api.routes.voices.get_voice_detail") as mock_get_detail:
             mock_get_detail.return_value = voice
 
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get(
-                    f"/api/v1/voices/{voice['provider']}/{voice['id']}"
-                )
+                response = await ac.get(f"/api/v1/voices/{voice['provider']}/{voice['id']}")
 
             # May return 200 or 404 depending on implementation
             if response.status_code == 200:
@@ -248,9 +226,7 @@ class TestGetVoiceDetailEndpoint:
     @pytest.mark.asyncio
     async def test_get_voice_not_found(self):
         """Test getting non-existent voice returns 404."""
-        with patch(
-            "src.presentation.api.routes.voices.get_voice_detail"
-        ) as mock_get_detail:
+        with patch("src.presentation.api.routes.voices.get_voice_detail") as mock_get_detail:
             mock_get_detail.return_value = None
 
             transport = ASGITransport(app=app)
@@ -272,9 +248,7 @@ class TestVoiceParametersEndpoint:
             "volume": {"min": 0.0, "max": 2.0, "default": 1.0},
         }
 
-        with patch(
-            "src.presentation.api.routes.providers.get_provider_params"
-        ) as mock_get_params:
+        with patch("src.presentation.api.routes.providers.get_provider_params") as mock_get_params:
             mock_get_params.return_value = mock_params
 
             transport = ASGITransport(app=app)
@@ -297,9 +271,7 @@ class TestVoiceSearchEndpoint:
         """Test searching voices by name."""
         matching_voices = [v for v in MOCK_VOICES if "Chen" in v["name"]]
 
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=matching_voices)
 
             transport = ASGITransport(app=app)
@@ -314,9 +286,7 @@ class TestVoiceSearchEndpoint:
     @pytest.mark.asyncio
     async def test_voices_pagination(self):
         """Test voices endpoint supports pagination."""
-        with patch(
-            "src.presentation.api.routes.voices.list_voices_use_case"
-        ) as mock_use_case:
+        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
             mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES[:2])
 
             transport = ASGITransport(app=app)

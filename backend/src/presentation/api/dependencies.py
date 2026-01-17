@@ -131,9 +131,7 @@ class Container:
             try:
                 from src.infrastructure.providers.tts import VoAITTSProvider
 
-                providers["voai"] = VoAITTSProvider(
-                    api_key=voai_key, api_endpoint=voai_endpoint
-                )
+                providers["voai"] = VoAITTSProvider(api_key=voai_key, api_endpoint=voai_endpoint)
             except Exception as e:
                 print(f"Failed to initialize VoAI TTS: {e}")
 

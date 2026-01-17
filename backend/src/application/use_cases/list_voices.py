@@ -73,30 +73,32 @@ class ListVoicesUseCase:
         # Fetch voices from each provider
         for provider_name, provider in providers_to_query.items():
             try:
-                voices = await provider.list_voices(
-                    language=filter.language if filter else None
-                )
+                voices = await provider.list_voices(language=filter.language if filter else None)
                 for voice in voices:
                     # Convert various VoiceProfile types to use case VoiceProfile
                     # Handle domain VoiceProfile objects (from tts/voice entities)
-                    if hasattr(voice, 'id'):
+                    if hasattr(voice, "id"):
                         # It's a dataclass, extract attributes
-                        gender_val = getattr(voice, 'gender', None)
+                        gender_val = getattr(voice, "gender", None)
                         # Convert Gender enum to string if needed
-                        if gender_val is not None and hasattr(gender_val, 'value'):
+                        if gender_val is not None and hasattr(gender_val, "value"):
                             gender_str = gender_val.value
                         else:
                             gender_str = str(gender_val) if gender_val else None
 
                         profile = VoiceProfile(
-                            id=getattr(voice, 'id', ''),
-                            name=getattr(voice, 'name', getattr(voice, 'display_name', '')),
+                            id=getattr(voice, "id", ""),
+                            name=getattr(voice, "name", getattr(voice, "display_name", "")),
                             provider=provider_name,
-                            language=getattr(voice, 'language', ''),
+                            language=getattr(voice, "language", ""),
                             gender=gender_str,
-                            description=getattr(voice, 'description', None),
-                            sample_url=getattr(voice, 'sample_url', getattr(voice, 'sample_audio_url', None)),
-                            supported_styles=getattr(voice, 'supported_styles', getattr(voice, 'styles', None)),
+                            description=getattr(voice, "description", None),
+                            sample_url=getattr(
+                                voice, "sample_url", getattr(voice, "sample_audio_url", None)
+                            ),
+                            supported_styles=getattr(
+                                voice, "supported_styles", getattr(voice, "styles", None)
+                            ),
                         )
                         all_voices.append(profile)
                     else:
@@ -129,9 +131,7 @@ class ListVoicesUseCase:
 
         return all_voices
 
-    def _apply_filters(
-        self, voices: list[VoiceProfile], filter: VoiceFilter
-    ) -> list[VoiceProfile]:
+    def _apply_filters(self, voices: list[VoiceProfile], filter: VoiceFilter) -> list[VoiceProfile]:
         """Apply filters to voice list.
 
         Args:
@@ -158,9 +158,7 @@ class ListVoicesUseCase:
 
         return filtered
 
-    async def get_voice_by_id(
-        self, provider: str, voice_id: str
-    ) -> VoiceProfile | None:
+    async def get_voice_by_id(self, provider: str, voice_id: str) -> VoiceProfile | None:
         """Get a specific voice by provider and voice ID.
 
         Args:
@@ -179,25 +177,29 @@ class ListVoicesUseCase:
             voices = await provider_instance.list_voices()
             for voice in voices:
                 # Handle both VoiceProfile objects and dicts
-                if hasattr(voice, 'id'):
+                if hasattr(voice, "id"):
                     # It's a dataclass
-                    vid = getattr(voice, 'id', getattr(voice, 'voice_id', ''))
+                    vid = getattr(voice, "id", getattr(voice, "voice_id", ""))
                     if vid == voice_id:
-                        gender_val = getattr(voice, 'gender', None)
-                        if gender_val is not None and hasattr(gender_val, 'value'):
+                        gender_val = getattr(voice, "gender", None)
+                        if gender_val is not None and hasattr(gender_val, "value"):
                             gender_str = gender_val.value
                         else:
                             gender_str = str(gender_val) if gender_val else None
 
                         return VoiceProfile(
                             id=vid,
-                            name=getattr(voice, 'name', getattr(voice, 'display_name', '')),
+                            name=getattr(voice, "name", getattr(voice, "display_name", "")),
                             provider=provider,
-                            language=getattr(voice, 'language', ''),
+                            language=getattr(voice, "language", ""),
                             gender=gender_str,
-                            description=getattr(voice, 'description', None),
-                            sample_url=getattr(voice, 'sample_url', getattr(voice, 'sample_audio_url', None)),
-                            supported_styles=getattr(voice, 'supported_styles', getattr(voice, 'styles', None)),
+                            description=getattr(voice, "description", None),
+                            sample_url=getattr(
+                                voice, "sample_url", getattr(voice, "sample_audio_url", None)
+                            ),
+                            supported_styles=getattr(
+                                voice, "supported_styles", getattr(voice, "styles", None)
+                            ),
                         )
                 else:
                     # It's a dict

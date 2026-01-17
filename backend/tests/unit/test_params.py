@@ -144,6 +144,7 @@ class TestParameterMapping:
 
     def test_normalize_speed(self):
         """Test speed normalization to 0-1 range."""
+
         # Speed 0.5-2.0 should map to 0-1
         def normalize_speed(speed: float) -> float:
             return (speed - 0.5) / (2.0 - 0.5)

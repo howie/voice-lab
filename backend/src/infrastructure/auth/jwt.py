@@ -11,7 +11,9 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 # JWT Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
+)  # 24 hours
 
 
 @dataclass
@@ -47,8 +49,12 @@ class JWTPayload:
             name=data.get("name"),
             picture_url=data.get("picture_url"),
             google_id=data["google_id"],
-            exp=data["exp"] if isinstance(data["exp"], datetime) else datetime.fromtimestamp(data["exp"], tz=UTC),
-            iat=data["iat"] if isinstance(data["iat"], datetime) else datetime.fromtimestamp(data["iat"], tz=UTC),
+            exp=data["exp"]
+            if isinstance(data["exp"], datetime)
+            else datetime.fromtimestamp(data["exp"], tz=UTC),
+            iat=data["iat"]
+            if isinstance(data["iat"], datetime)
+            else datetime.fromtimestamp(data["iat"], tz=UTC),
         )
 
 

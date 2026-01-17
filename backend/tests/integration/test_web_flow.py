@@ -47,9 +47,7 @@ class TestSynthesisFlow:
         self, mock_tts_result: TTSResult, mock_audio_bytes: bytes
     ):
         """Test complete synthesis flow from request to audio response (batch mode)."""
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -85,9 +83,7 @@ class TestSynthesisFlow:
                 assert "latency_ms" in data
 
     @pytest.mark.asyncio
-    async def test_complete_synthesis_flow_streaming_mode(
-        self, mock_audio_bytes: bytes
-    ):
+    async def test_complete_synthesis_flow_streaming_mode(self, mock_audio_bytes: bytes):
         """Test complete synthesis flow with streaming mode."""
 
         async def mock_stream():
@@ -96,9 +92,7 @@ class TestSynthesisFlow:
             for i in range(0, len(mock_audio_bytes), chunk_size):
                 yield mock_audio_bytes[i : i + chunk_size]
 
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize_stream.return_value = mock_stream()
             mock_provider_class.return_value = mock_provider
@@ -121,9 +115,7 @@ class TestSynthesisFlow:
                 assert len(content) > 0
 
     @pytest.mark.asyncio
-    async def test_synthesis_flow_with_all_providers(
-        self, mock_tts_result: TTSResult
-    ):
+    async def test_synthesis_flow_with_all_providers(self, mock_tts_result: TTSResult):
         """Test synthesis flow works with all supported providers."""
         providers = [
             ("azure", "src.presentation.api.routes.tts.AzureTTSProvider"),
@@ -146,9 +138,7 @@ class TestSynthesisFlow:
                 mock_provider_class.return_value = mock_provider
 
                 transport = ASGITransport(app=app)
-                async with AsyncClient(
-                    transport=transport, base_url="http://test"
-                ) as ac:
+                async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     payload = {
                         "text": "測試",
                         "provider": provider_name,
@@ -166,13 +156,9 @@ class TestWebUIIntegration:
     """Tests simulating web UI interactions."""
 
     @pytest.mark.asyncio
-    async def test_web_ui_synthesis_request(
-        self, mock_tts_result: TTSResult
-    ):
+    async def test_web_ui_synthesis_request(self, mock_tts_result: TTSResult):
         """Simulate a synthesis request from web UI."""
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -211,18 +197,14 @@ class TestWebUIIntegration:
                 base64.b64decode(data["audio_content"])
 
     @pytest.mark.asyncio
-    async def test_web_ui_streaming_playback(
-        self, mock_audio_bytes: bytes
-    ):
+    async def test_web_ui_streaming_playback(self, mock_audio_bytes: bytes):
         """Simulate streaming playback request from web UI."""
 
         async def mock_stream():
             for i in range(0, len(mock_audio_bytes), 1024):
                 yield mock_audio_bytes[i : i + 1024]
 
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize_stream.return_value = mock_stream()
             mock_provider_class.return_value = mock_provider
@@ -291,9 +273,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_provider_unavailable_returns_service_error(self):
         """Test that provider unavailability returns service error."""
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.side_effect = Exception("Service unavailable")
             mock_provider_class.return_value = mock_provider

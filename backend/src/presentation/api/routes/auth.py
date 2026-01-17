@@ -49,9 +49,7 @@ class TokenResponse(BaseModel):
 
 @router.get("/google")
 async def google_auth_start(
-    redirect_uri: str | None = Query(
-        None, description="URL to redirect after successful login"
-    ),
+    redirect_uri: str | None = Query(None, description="URL to redirect after successful login"),
 ) -> RedirectResponse:
     """Initiate Google OAuth 2.0 login flow.
 

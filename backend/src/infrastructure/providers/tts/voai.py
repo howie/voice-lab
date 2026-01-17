@@ -110,9 +110,7 @@ class VoAITTSProvider(ITTSProvider):
             except httpx.RequestError as e:
                 raise Exception(f"VoAI API request failed: {str(e)}") from e
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output using VoAI API."""
         async with httpx.AsyncClient() as client:
             try:

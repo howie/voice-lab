@@ -44,9 +44,7 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_azure(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with Azure provider."""
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -78,9 +76,7 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_gcp(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with GCP provider."""
-        with patch(
-            "src.presentation.api.routes.tts.GoogleTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.GoogleTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_tts_result.request = TTSRequest(
                 text="Hello World",
@@ -106,9 +102,7 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_elevenlabs(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with ElevenLabs provider."""
-        with patch(
-            "src.presentation.api.routes.tts.ElevenLabsTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.ElevenLabsTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -127,9 +121,7 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_voai(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with VoAI provider."""
-        with patch(
-            "src.presentation.api.routes.tts.VoAITTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.VoAITTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -210,9 +202,7 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_response_schema(self, mock_tts_result: TTSResult):
         """T020: Verify response matches SynthesizeResponse schema."""
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize.return_value = mock_tts_result
             mock_provider_class.return_value = mock_provider
@@ -241,13 +231,12 @@ class TestStreamEndpoint:
     @pytest.mark.asyncio
     async def test_stream_success(self, mock_audio_data: bytes):
         """T021: Test successful streaming synthesis."""
+
         async def mock_stream():
             for i in range(0, len(mock_audio_data), 1024):
                 yield mock_audio_data[i : i + 1024]
 
-        with patch(
-            "src.presentation.api.routes.tts.VoAITTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.VoAITTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize_stream.return_value = mock_stream()
             mock_provider_class.return_value = mock_provider
@@ -283,12 +272,11 @@ class TestStreamEndpoint:
     @pytest.mark.asyncio
     async def test_stream_response_headers(self, mock_audio_data: bytes):
         """T021: Verify streaming response has correct content type."""
+
         async def mock_stream():
             yield mock_audio_data
 
-        with patch(
-            "src.presentation.api.routes.tts.AzureTTSProvider"
-        ) as mock_provider_class:
+        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
             mock_provider = AsyncMock()
             mock_provider.synthesize_stream.return_value = mock_stream()
             mock_provider_class.return_value = mock_provider

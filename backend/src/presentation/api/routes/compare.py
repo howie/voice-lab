@@ -47,9 +47,7 @@ async def compare_tts(
                 error=r.error,
             )
             if r.success and r.result:
-                result.audio_base64 = base64.b64encode(r.result.audio.data).decode(
-                    "utf-8"
-                )
+                result.audio_base64 = base64.b64encode(r.result.audio.data).decode("utf-8")
                 result.audio_format = r.result.audio.format.value
                 result.latency_ms = r.result.latency_ms
 

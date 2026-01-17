@@ -65,9 +65,7 @@ class TestAzureTTSProvider:
     @pytest.mark.asyncio
     async def test_synthesize_success(self, sample_request: TTSRequest):
         """Test successful synthesis."""
-        with patch(
-            "src.infrastructure.providers.tts.azure.AzureTTSService"
-        ) as mock_service_class:
+        with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
             mock_service = AsyncMock()
             mock_frame = MagicMock()
             mock_frame.audio = b"\x00\x01" * 500
@@ -90,9 +88,7 @@ class TestAzureTTSProvider:
     @pytest.mark.asyncio
     async def test_synthesize_stream(self, sample_request: TTSRequest):
         """Test streaming synthesis."""
-        with patch(
-            "src.infrastructure.providers.tts.azure.AzureTTSService"
-        ) as mock_service_class:
+        with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
             mock_service = AsyncMock()
             mock_frame = MagicMock()
             mock_frame.audio = b"\x00\x01" * 100
@@ -324,9 +320,7 @@ class TestVoAITTSProvider:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            provider = VoAITTSProvider(
-                api_key="test-key", api_endpoint="https://api.voai.tw/v1"
-            )
+            provider = VoAITTSProvider(api_key="test-key", api_endpoint="https://api.voai.tw/v1")
 
             request = TTSRequest(
                 text="你好",

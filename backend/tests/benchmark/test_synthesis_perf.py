@@ -141,6 +141,7 @@ class TestTTSRequestCreation:
 
     def test_request_creation_performance(self) -> None:
         """Benchmark TTSRequest creation."""
+
         def create_request():
             return TTSRequest(
                 text="Hello, this is a test.",
@@ -198,6 +199,7 @@ class TestConcurrentSynthesis:
     @pytest.mark.asyncio
     async def test_concurrent_request_creation(self) -> None:
         """Benchmark concurrent request creation."""
+
         async def create_many_requests():
             requests = []
             for i in range(10):
@@ -223,6 +225,7 @@ class TestConcurrentSynthesis:
     @pytest.mark.asyncio
     async def test_parallel_request_creation(self) -> None:
         """Benchmark parallel request creation using asyncio.gather."""
+
         async def create_request_async(i: int):
             await asyncio.sleep(0)  # Yield to event loop
             return TTSRequest(
@@ -261,6 +264,7 @@ class TestTextProcessing:
         ]
 
         for text in special_texts:
+
             def create_with_special(text=text):
                 return TTSRequest(
                     text=text,
@@ -308,11 +312,13 @@ class TestMemoryUsage:
 
         requests = []
         for i in range(1000):
-            requests.append(TTSRequest(
-                text=f"Test message {i}",
-                voice_id="test-voice",
-                provider="azure",
-            ))
+            requests.append(
+                TTSRequest(
+                    text=f"Test message {i}",
+                    voice_id="test-voice",
+                    provider="azure",
+                )
+            )
 
         # Get total size (approximate)
         total_size = sum(sys.getsizeof(r) for r in requests)

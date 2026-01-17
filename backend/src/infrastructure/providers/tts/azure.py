@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from pipecat.frames.frames import AudioRawFrame, ErrorFrame, TTSAudioRawFrame
-from pipecat.services.azure import AzureTTSService
+from pipecat.services.azure.tts import AzureTTSService
 
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.audio import AudioData, AudioFormat

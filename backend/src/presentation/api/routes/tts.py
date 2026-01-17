@@ -6,7 +6,7 @@ T031: Add TTS API route POST /tts/stream (streaming mode)
 
 import base64
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 
 from src.application.use_cases.synthesize_speech import SynthesizeSpeech
@@ -17,11 +17,8 @@ from src.domain.errors import (
     ProviderError,
     SynthesisError,
 )
-from src.infrastructure.providers.tts.azure import AzureTTSProvider
-from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
-from src.infrastructure.providers.tts.google import GoogleTTSProvider
-from src.infrastructure.providers.tts.voai import VoAITTSProvider
 from src.infrastructure.storage.local_storage import LocalStorage
+from src.presentation.api.dependencies import get_container
 from src.presentation.api.schemas.tts import (
     StreamRequest,
     SynthesizeRequest,
@@ -30,23 +27,20 @@ from src.presentation.api.schemas.tts import (
 
 router = APIRouter(prefix="/tts", tags=["tts"])
 
-# Provider instances
-PROVIDERS = {
-    "azure": AzureTTSProvider,
-    "gcp": GoogleTTSProvider,
-    "elevenlabs": ElevenLabsTTSProvider,
-    "voai": VoAITTSProvider,
-}
 
-VALID_PROVIDERS = list(PROVIDERS.keys())
+def get_provider(provider_name: str, container=None):
+    """Get TTS provider instance by name from Container."""
+    if container is None:
+        container = get_container()
 
+    tts_providers = container.get_tts_providers()
+    provider = tts_providers.get(provider_name)
 
-def get_provider(provider_name: str):
-    """Get TTS provider instance by name."""
-    provider_class = PROVIDERS.get(provider_name)
-    if not provider_class:
-        raise InvalidProviderError(provider_name, VALID_PROVIDERS)
-    return provider_class()
+    if not provider:
+        available = list(tts_providers.keys())
+        raise InvalidProviderError(provider_name, available)
+
+    return provider
 
 
 def get_storage() -> LocalStorage:

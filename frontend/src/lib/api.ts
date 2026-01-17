@@ -78,13 +78,25 @@ export interface ProviderInfo {
   name: string
   display_name: string
   supported_formats: string[]
-  is_healthy: boolean
+  supported_languages: string[]
+  supported_params: {
+    [key: string]: {
+      min: number
+      max: number
+      default: number
+    }
+  }
+  status: 'available' | 'unavailable' | 'degraded'
+}
+
+export interface ProvidersResponse {
+  providers: ProviderInfo[]
 }
 
 // TTS API
 export const ttsApi = {
   // Get available providers
-  getProviders: () => api.get<ProviderInfo[]>('/providers'),
+  getProviders: () => api.get<ProvidersResponse>('/providers'),
 
   // Get provider health status
   getProviderHealth: (provider: string) =>

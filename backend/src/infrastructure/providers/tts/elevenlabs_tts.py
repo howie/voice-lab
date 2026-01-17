@@ -124,8 +124,9 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
 
             voices.append(
                 VoiceProfile(
+                    id=voice["voice_id"],
                     voice_id=voice["voice_id"],
-                    name=voice["name"],
+                    display_name=voice["name"],
                     provider="elevenlabs",
                     language=voice_lang,
                     gender=gender,

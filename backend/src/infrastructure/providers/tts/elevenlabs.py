@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from pipecat.frames.frames import AudioRawFrame, ErrorFrame, TTSAudioRawFrame
-from pipecat.services.elevenlabs import ElevenLabsTTSService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.audio import AudioData, AudioFormat

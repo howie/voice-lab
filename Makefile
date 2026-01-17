@@ -70,14 +70,12 @@ install-frontend:
 
 services-start:
 	@echo "$(CYAN)啟動服務 (PostgreSQL, Redis)...$(RESET)"
-	docker-compose up -d postgres postgres_test redis redis_test
+	docker-compose up -d
 	@echo "$(YELLOW)等待服務就緒...$(RESET)"
 	@sleep 3
 	@echo "$(GREEN)✓ 服務已啟動$(RESET)"
-	@echo "  PostgreSQL (dev):  localhost:5432"
-	@echo "  PostgreSQL (test): localhost:5433"
-	@echo "  Redis (dev):       localhost:6379"
-	@echo "  Redis (test):      localhost:6380"
+	@echo "  PostgreSQL: localhost:5432 (databases: voicelab_dev, voicelab_test)"
+	@echo "  Redis:      localhost:6379 (DB 0=dev, DB 1=test)"
 
 services-stop:
 	@echo "$(CYAN)停止服務...$(RESET)"

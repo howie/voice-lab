@@ -8,54 +8,55 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.application.use_cases.list_voices import VoiceProfile
 from src.main import app
 
-# Mock voice data
+# Mock voice data as VoiceProfile objects
 MOCK_VOICES = [
-    {
-        "id": "zh-TW-HsiaoChenNeural",
-        "name": "Hsiao Chen",
-        "provider": "azure",
-        "language": "zh-TW",
-        "gender": "female",
-        "description": "A natural Taiwanese Mandarin voice",
-    },
-    {
-        "id": "zh-TW-YunJheNeural",
-        "name": "Yun Jhe",
-        "provider": "azure",
-        "language": "zh-TW",
-        "gender": "male",
-        "description": "A natural Taiwanese Mandarin male voice",
-    },
-    {
-        "id": "cmn-TW-Standard-A",
-        "name": "Standard A",
-        "provider": "gcp",
-        "language": "zh-TW",
-        "gender": "female",
-    },
-    {
-        "id": "cmn-TW-Standard-B",
-        "name": "Standard B",
-        "provider": "gcp",
-        "language": "zh-TW",
-        "gender": "male",
-    },
-    {
-        "id": "rachel",
-        "name": "Rachel",
-        "provider": "elevenlabs",
-        "language": "en-US",
-        "gender": "female",
-    },
-    {
-        "id": "voai-zhTW-female-01",
-        "name": "VoAI Female 01",
-        "provider": "voai",
-        "language": "zh-TW",
-        "gender": "female",
-    },
+    VoiceProfile(
+        id="zh-TW-HsiaoChenNeural",
+        name="Hsiao Chen",
+        provider="azure",
+        language="zh-TW",
+        gender="female",
+        description="A natural Taiwanese Mandarin voice",
+    ),
+    VoiceProfile(
+        id="zh-TW-YunJheNeural",
+        name="Yun Jhe",
+        provider="azure",
+        language="zh-TW",
+        gender="male",
+        description="A natural Taiwanese Mandarin male voice",
+    ),
+    VoiceProfile(
+        id="cmn-TW-Standard-A",
+        name="Standard A",
+        provider="gcp",
+        language="zh-TW",
+        gender="female",
+    ),
+    VoiceProfile(
+        id="cmn-TW-Standard-B",
+        name="Standard B",
+        provider="gcp",
+        language="zh-TW",
+        gender="male",
+    ),
+    VoiceProfile(
+        id="rachel",
+        name="Rachel",
+        provider="elevenlabs",
+        language="en-US",
+        gender="female",
+    ),
+    VoiceProfile(
+        id="voai-zhTW-female-01",
+        name="VoAI Female 01",
+        provider="voai",
+        language="zh-TW",
+        gender="female",
+    ),
 ]
 
 

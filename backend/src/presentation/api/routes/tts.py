@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 
 from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.domain.config.provider_limits import validate_text_length
 from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest
 from src.domain.errors import (
@@ -55,6 +56,19 @@ async def synthesize(request: SynthesizeRequest):
     Returns complete audio data as base64 encoded string.
     """
     try:
+        # Validate text length for provider
+        is_valid, error_msg, exceeds_recommended = validate_text_length(
+            request.provider, request.text
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail={"error": error_msg})
+
+        # Log warning if exceeds recommended length
+        if exceeds_recommended:
+            print(
+                f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+            )
+
         provider = get_provider(request.provider)
         storage = get_storage()
         use_case = SynthesizeSpeech(provider, storage=storage)
@@ -107,6 +121,18 @@ async def stream(request: StreamRequest):
     Returns audio data as a streaming response.
     """
     try:
+        # Validate text length for provider
+        is_valid, error_msg, exceeds_recommended = validate_text_length(
+            request.provider, request.text
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail={"error": error_msg})
+
+        if exceeds_recommended:
+            print(
+                f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+            )
+
         provider = get_provider(request.provider)
         use_case = SynthesizeSpeech(provider)
 
@@ -162,6 +188,18 @@ async def synthesize_binary(request: SynthesizeRequest):
     Alternative endpoint that returns audio directly instead of base64.
     """
     try:
+        # Validate text length for provider
+        is_valid, error_msg, exceeds_recommended = validate_text_length(
+            request.provider, request.text
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail={"error": error_msg})
+
+        if exceeds_recommended:
+            print(
+                f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+            )
+
         provider = get_provider(request.provider)
         storage = get_storage()
         use_case = SynthesizeSpeech(provider, storage=storage)

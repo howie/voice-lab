@@ -6,6 +6,7 @@ T022: Unit tests for provider adapters (Azure, GCP, ElevenLabs, VoAI)
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pipecat.frames.frames import AudioRawFrame
 
 from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
@@ -34,12 +35,9 @@ def sample_request() -> TTSRequest:
     )
 
 
-@pytest.fixture
-def mock_audio_frame():
-    """Create a mock Pipecat audio frame."""
-    frame = MagicMock()
-    frame.audio = b"\x00\x01\x02\x03" * 100
-    return frame
+def create_mock_audio_frame(audio_data: bytes) -> AudioRawFrame:
+    """Create a mock Pipecat AudioRawFrame that passes isinstance checks."""
+    return AudioRawFrame(audio=audio_data, sample_rate=24000, num_channels=1)
 
 
 class TestAzureTTSProvider:
@@ -66,9 +64,9 @@ class TestAzureTTSProvider:
     async def test_synthesize_success(self, sample_request: TTSRequest):
         """Test successful synthesis."""
         with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
-            mock_service = AsyncMock()
-            mock_frame = MagicMock()
-            mock_frame.audio = b"\x00\x01" * 500
+            mock_service = MagicMock()
+            audio_data = b"\x00\x01" * 500
+            mock_frame = create_mock_audio_frame(audio_data)
 
             async def mock_run_tts(text):
                 yield mock_frame
@@ -89,9 +87,9 @@ class TestAzureTTSProvider:
     async def test_synthesize_stream(self, sample_request: TTSRequest):
         """Test streaming synthesis."""
         with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
-            mock_service = AsyncMock()
-            mock_frame = MagicMock()
-            mock_frame.audio = b"\x00\x01" * 100
+            mock_service = MagicMock()
+            audio_data = b"\x00\x01" * 100
+            mock_frame = create_mock_audio_frame(audio_data)
 
             async def mock_run_tts(text):
                 for _ in range(3):

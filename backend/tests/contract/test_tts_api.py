@@ -5,7 +5,7 @@ T021: Contract tests for /tts/stream endpoint
 """
 
 import base64
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -38,17 +38,24 @@ def mock_tts_result(mock_audio_data: bytes) -> TTSResult:
     )
 
 
+def create_mock_container(mock_provider, provider_name: str):
+    """Create a mock container with the given provider."""
+    mock_container = MagicMock()
+    mock_container.get_tts_providers.return_value = {provider_name: mock_provider}
+    return mock_container
+
+
 class TestSynthesizeEndpoint:
     """Contract tests for POST /api/v1/tts/synthesize endpoint."""
 
     @pytest.mark.asyncio
     async def test_synthesize_success_azure(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with Azure provider."""
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -76,17 +83,17 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_gcp(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with GCP provider."""
-        with patch("src.presentation.api.routes.tts.GoogleTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_tts_result.request = TTSRequest(
-                text="Hello World",
-                voice_id="cmn-TW-Standard-A",
-                provider="gcp",
-                language="zh-TW",
-            )
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_tts_result.request = TTSRequest(
+            text="Hello World",
+            voice_id="cmn-TW-Standard-A",
+            provider="gcp",
+            language="zh-TW",
+        )
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "gcp")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -102,11 +109,11 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_elevenlabs(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with ElevenLabs provider."""
-        with patch("src.presentation.api.routes.tts.ElevenLabsTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "elevenlabs")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -121,11 +128,11 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_success_voai(self, mock_tts_result: TTSResult):
         """T020: Test successful synthesis with VoAI provider."""
-        with patch("src.presentation.api.routes.tts.VoAITTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "voai")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -202,11 +209,11 @@ class TestSynthesizeEndpoint:
     @pytest.mark.asyncio
     async def test_synthesize_response_schema(self, mock_tts_result: TTSResult):
         """T020: Verify response matches SynthesizeResponse schema."""
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -232,15 +239,15 @@ class TestStreamEndpoint:
     async def test_stream_success(self, mock_audio_data: bytes):
         """T021: Test successful streaming synthesis."""
 
-        async def mock_stream():
+        async def mock_stream(request):
             for i in range(0, len(mock_audio_data), 1024):
                 yield mock_audio_data[i : i + 1024]
 
-        with patch("src.presentation.api.routes.tts.VoAITTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize_stream.return_value = mock_stream()
-            mock_provider_class.return_value = mock_provider
+        mock_provider = MagicMock()
+        mock_provider.synthesize_stream = mock_stream
+        mock_container = create_mock_container(mock_provider, "voai")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -273,14 +280,14 @@ class TestStreamEndpoint:
     async def test_stream_response_headers(self, mock_audio_data: bytes):
         """T021: Verify streaming response has correct content type."""
 
-        async def mock_stream():
+        async def mock_stream(request):
             yield mock_audio_data
 
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize_stream.return_value = mock_stream()
-            mock_provider_class.return_value = mock_provider
+        mock_provider = MagicMock()
+        mock_provider.synthesize_stream = mock_stream
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {

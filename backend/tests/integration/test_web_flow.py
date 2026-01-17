@@ -5,7 +5,7 @@ Tests the complete flow from web request to audio response.
 """
 
 import base64
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -39,6 +39,13 @@ def mock_tts_result(mock_audio_bytes: bytes) -> TTSResult:
     )
 
 
+def create_mock_container(mock_provider, provider_name: str):
+    """Create a mock container with the given provider."""
+    mock_container = MagicMock()
+    mock_container.get_tts_providers.return_value = {provider_name: mock_provider}
+    return mock_container
+
+
 class TestSynthesisFlow:
     """Integration tests for the complete synthesis flow."""
 
@@ -47,11 +54,11 @@ class TestSynthesisFlow:
         self, mock_tts_result: TTSResult, mock_audio_bytes: bytes
     ):
         """Test complete synthesis flow from request to audio response (batch mode)."""
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Step 1: Submit synthesis request
@@ -86,17 +93,17 @@ class TestSynthesisFlow:
     async def test_complete_synthesis_flow_streaming_mode(self, mock_audio_bytes: bytes):
         """Test complete synthesis flow with streaming mode."""
 
-        async def mock_stream():
+        async def mock_stream(request):
             """Mock streaming generator."""
             chunk_size = 512
             for i in range(0, len(mock_audio_bytes), chunk_size):
                 yield mock_audio_bytes[i : i + chunk_size]
 
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize_stream.return_value = mock_stream()
-            mock_provider_class.return_value = mock_provider
+        mock_provider = MagicMock()
+        mock_provider.synthesize_stream = mock_stream
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -117,26 +124,23 @@ class TestSynthesisFlow:
     @pytest.mark.asyncio
     async def test_synthesis_flow_with_all_providers(self, mock_tts_result: TTSResult):
         """Test synthesis flow works with all supported providers."""
-        providers = [
-            ("azure", "src.presentation.api.routes.tts.AzureTTSProvider"),
-            ("gcp", "src.presentation.api.routes.tts.GoogleTTSProvider"),
-            ("elevenlabs", "src.presentation.api.routes.tts.ElevenLabsTTSProvider"),
-            ("voai", "src.presentation.api.routes.tts.VoAITTSProvider"),
-        ]
+        providers = ["azure", "gcp", "elevenlabs", "voai"]
 
-        for provider_name, provider_path in providers:
-            with patch(provider_path) as mock_provider_class:
-                mock_provider = AsyncMock()
-                # Update mock result for each provider
-                mock_tts_result.request = TTSRequest(
-                    text="測試",
-                    voice_id="test-voice",
-                    provider=provider_name,
-                    language="zh-TW",
-                )
-                mock_provider.synthesize.return_value = mock_tts_result
-                mock_provider_class.return_value = mock_provider
+        for provider_name in providers:
+            mock_provider = AsyncMock()
+            # Update mock result for each provider
+            mock_tts_result.request = TTSRequest(
+                text="測試",
+                voice_id="test-voice",
+                provider=provider_name,
+                language="zh-TW",
+            )
+            mock_provider.synthesize.return_value = mock_tts_result
+            mock_container = create_mock_container(mock_provider, provider_name)
 
+            with patch(
+                "src.presentation.api.routes.tts.get_container", return_value=mock_container
+            ):
                 transport = ASGITransport(app=app)
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     payload = {
@@ -158,11 +162,11 @@ class TestWebUIIntegration:
     @pytest.mark.asyncio
     async def test_web_ui_synthesis_request(self, mock_tts_result: TTSResult):
         """Simulate a synthesis request from web UI."""
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.return_value = mock_tts_result
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.return_value = mock_tts_result
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Simulate request from browser with typical headers
@@ -200,15 +204,15 @@ class TestWebUIIntegration:
     async def test_web_ui_streaming_playback(self, mock_audio_bytes: bytes):
         """Simulate streaming playback request from web UI."""
 
-        async def mock_stream():
+        async def mock_stream(request):
             for i in range(0, len(mock_audio_bytes), 1024):
                 yield mock_audio_bytes[i : i + 1024]
 
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize_stream.return_value = mock_stream()
-            mock_provider_class.return_value = mock_provider
+        mock_provider = MagicMock()
+        mock_provider.synthesize_stream = mock_stream
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -273,11 +277,11 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_provider_unavailable_returns_service_error(self):
         """Test that provider unavailability returns service error."""
-        with patch("src.presentation.api.routes.tts.AzureTTSProvider") as mock_provider_class:
-            mock_provider = AsyncMock()
-            mock_provider.synthesize.side_effect = Exception("Service unavailable")
-            mock_provider_class.return_value = mock_provider
+        mock_provider = AsyncMock()
+        mock_provider.synthesize.side_effect = Exception("Service unavailable")
+        mock_container = create_mock_container(mock_provider, "azure")
 
+        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {

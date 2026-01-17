@@ -10,11 +10,81 @@ from src.domain.entities.voice import Gender, VoiceProfile
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 # VoAI voice mappings (using actual VoAI speaker names)
+# Reference: https://connect.voai.ai/TTS/GetSpeaker
 VOAI_VOICES: dict[str, list[dict[str, Any]]] = {
     "zh-TW": [
-        {"id": "voai-tw-female-1", "name": "佑希", "gender": "female"},
-        {"id": "voai-tw-male-1", "name": "辰宇", "gender": "male"},
-        {"id": "voai-tw-female-2", "name": "雅婷", "gender": "female"},
+        # Popular speakers for general use
+        {
+            "id": "voai-tw-male-1",
+            "name": "佑希",
+            "gender": "male",
+            "age": 22,
+            "styles": ["預設", "聊天", "穩重", "激昂"],
+        },
+        {
+            "id": "voai-tw-female-1",
+            "name": "雨榛",
+            "gender": "female",
+            "age": 25,
+            "styles": ["預設", "聊天", "輕柔", "輕鬆"],
+        },
+        {
+            "id": "voai-tw-male-2",
+            "name": "子墨",
+            "gender": "male",
+            "age": 37,
+            "styles": ["預設", "穩健"],
+        },
+        {
+            "id": "voai-tw-female-2",
+            "name": "柔洢",
+            "gender": "female",
+            "age": 26,
+            "styles": ["預設", "輕柔"],
+        },
+        {
+            "id": "voai-tw-female-3",
+            "name": "竹均",
+            "gender": "female",
+            "age": 22,
+            "styles": ["預設", "難過", "開心", "生氣"],
+        },
+        # Additional speakers
+        {
+            "id": "voai-tw-male-3",
+            "name": "昊宇",
+            "gender": "male",
+            "age": 36,
+            "styles": ["預設", "溫暖", "開心", "難過"],
+        },
+        {
+            "id": "voai-tw-female-4",
+            "name": "采芸",
+            "gender": "female",
+            "age": 25,
+            "styles": ["預設", "感性", "難過", "懸疑", "生氣"],
+        },
+        {
+            "id": "voai-tw-female-5",
+            "name": "樂晰",
+            "gender": "female",
+            "age": 30,
+            "styles": ["預設", "聊天", "可愛"],
+        },
+        {
+            "id": "voai-tw-male-4",
+            "name": "汪一誠",
+            "gender": "male",
+            "age": 55,
+            "styles": ["預設", "聊天"],
+        },
+        {
+            "id": "voai-tw-female-6",
+            "name": "璦廷",
+            "gender": "female",
+            "age": 38,
+            "styles": ["預設"],
+        },
     ],
 }
 
@@ -71,12 +141,18 @@ class VoAITTSProvider(BaseTTSProvider):
             "Content-Type": "application/json",
         }
 
-        # Extract speaker name from voice_id (e.g., "voai-tw-female-1" -> "小美")
         # Map voice IDs to speaker names
         speaker_map = {
-            "voai-tw-female-1": "佑希",
-            "voai-tw-male-1": "辰宇",
-            "voai-tw-female-2": "雅婷",
+            "voai-tw-male-1": "佑希",
+            "voai-tw-female-1": "雨榛",
+            "voai-tw-male-2": "子墨",
+            "voai-tw-female-2": "柔洢",
+            "voai-tw-female-3": "竹均",
+            "voai-tw-male-3": "昊宇",
+            "voai-tw-female-4": "采芸",
+            "voai-tw-female-5": "樂晰",
+            "voai-tw-male-4": "汪一誠",
+            "voai-tw-female-6": "璦廷",
         }
         speaker = speaker_map.get(request.voice_id, "佑希")  # Default to 佑希
 

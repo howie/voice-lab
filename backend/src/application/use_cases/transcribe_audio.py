@@ -95,7 +95,7 @@ class TranscribeAudioUseCase:
         wer = None
         cer = None
         if input_data.ground_truth:
-            from src.domain.services import calculate_wer, calculate_cer
+            from src.domain.services import calculate_cer, calculate_wer
 
             wer = calculate_wer(input_data.ground_truth, result.transcript)
             cer = calculate_cer(input_data.ground_truth, result.transcript)

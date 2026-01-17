@@ -5,8 +5,8 @@ T023: Unit tests for input validation (empty text, text > 5000 chars)
 
 import pytest
 
-from src.domain.entities.tts import TTSRequest, MAX_TEXT_LENGTH
 from src.domain.entities.audio import AudioFormat, OutputMode
+from src.domain.entities.tts import MAX_TEXT_LENGTH, TTSRequest
 
 
 class TestTTSRequestValidation:
@@ -226,7 +226,7 @@ class TestTTSRequestValidation:
             provider="azure",
         )
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(AttributeError):  # FrozenInstanceError raises AttributeError
             request.text = "Modified"
 
     def test_unicode_text(self):

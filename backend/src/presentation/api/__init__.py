@@ -2,7 +2,17 @@
 
 from fastapi import APIRouter
 
-from src.presentation.api.routes import tts, stt, interaction, compare, history, health, auth, providers, voices
+from src.presentation.api.routes import (
+    auth,
+    compare,
+    health,
+    history,
+    interaction,
+    providers,
+    stt,
+    tts,
+    voices,
+)
 
 # Create main API router
 api_router = APIRouter()

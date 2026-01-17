@@ -4,8 +4,8 @@ T054: Implement ListVoicesUseCase
 Retrieves available voices from TTS providers with optional filtering.
 """
 
+import contextlib
 from dataclasses import dataclass
-from typing import Optional
 
 from src.application.interfaces.tts_provider import ITTSProvider
 
@@ -18,20 +18,20 @@ class VoiceProfile:
     name: str
     provider: str
     language: str
-    gender: Optional[str] = None
-    description: Optional[str] = None
-    sample_url: Optional[str] = None
-    supported_styles: Optional[list[str]] = None
+    gender: str | None = None
+    description: str | None = None
+    sample_url: str | None = None
+    supported_styles: list[str] | None = None
 
 
 @dataclass
 class VoiceFilter:
     """Filters for voice listing."""
 
-    provider: Optional[str] = None
-    language: Optional[str] = None
-    gender: Optional[str] = None
-    search: Optional[str] = None
+    provider: str | None = None
+    language: str | None = None
+    gender: str | None = None
+    search: str | None = None
 
 
 class ListVoicesUseCase:
@@ -47,8 +47,8 @@ class ListVoicesUseCase:
 
     async def execute(
         self,
-        filter: Optional[VoiceFilter] = None,
-        limit: Optional[int] = None,
+        filter: VoiceFilter | None = None,
+        limit: int | None = None,
         offset: int = 0,
     ) -> list[VoiceProfile]:
         """List available voices with optional filtering.
@@ -136,7 +136,7 @@ class ListVoicesUseCase:
 
     async def get_voice_by_id(
         self, provider: str, voice_id: str
-    ) -> Optional[VoiceProfile]:
+    ) -> VoiceProfile | None:
         """Get a specific voice by provider and voice ID.
 
         Args:
@@ -180,32 +180,24 @@ def create_list_voices_use_case() -> ListVoicesUseCase:
         Configured ListVoicesUseCase instance
     """
     from src.infrastructure.providers.tts.azure import AzureTTSProvider
-    from src.infrastructure.providers.tts.google import GoogleTTSProvider
     from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
+    from src.infrastructure.providers.tts.google import GoogleTTSProvider
     from src.infrastructure.providers.tts.voai import VoAITTSProvider
 
     providers: dict[str, ITTSProvider] = {}
 
     # Initialize providers (they handle their own configuration)
-    try:
+    with contextlib.suppress(Exception):
         providers["azure"] = AzureTTSProvider()
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         providers["gcp"] = GoogleTTSProvider()
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         providers["elevenlabs"] = ElevenLabsTTSProvider()
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         providers["voai"] = VoAITTSProvider()
-    except Exception:
-        pass
 
     return ListVoicesUseCase(providers)
 

@@ -13,9 +13,8 @@ from typing import Any
 import httpx
 
 from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioFormat, AudioData
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-
 
 # VoAI voice mappings
 VOAI_VOICES: dict[str, list[dict[str, Any]]] = {
@@ -106,10 +105,10 @@ class VoAITTSProvider(ITTSProvider):
                     latency_ms=latency_ms,
                 )
 
-            except httpx.TimeoutException:
-                raise Exception("VoAI API timeout")
+            except httpx.TimeoutException as e:
+                raise Exception("VoAI API timeout") from e
             except httpx.RequestError as e:
-                raise Exception(f"VoAI API request failed: {str(e)}")
+                raise Exception(f"VoAI API request failed: {str(e)}") from e
 
     async def synthesize_stream(
         self, request: TTSRequest
@@ -139,10 +138,10 @@ class VoAITTSProvider(ITTSProvider):
                     async for chunk in response.aiter_bytes(chunk_size=4096):
                         yield chunk
 
-            except httpx.TimeoutException:
-                raise Exception("VoAI streaming timeout")
+            except httpx.TimeoutException as e:
+                raise Exception("VoAI streaming timeout") from e
             except httpx.RequestError as e:
-                raise Exception(f"VoAI streaming request failed: {str(e)}")
+                raise Exception(f"VoAI streaming request failed: {str(e)}") from e
 
     async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
         """List available VoAI voices."""

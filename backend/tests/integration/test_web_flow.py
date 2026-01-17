@@ -4,14 +4,15 @@ T037: Create integration test for synthesis flow
 Tests the complete flow from web request to audio response.
 """
 
-import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
 import base64
+from unittest.mock import AsyncMock, patch
 
-from src.main import app
-from src.domain.entities.audio import AudioFormat, AudioData
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult
+from src.main import app
 
 
 @pytest.fixture

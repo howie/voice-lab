@@ -2,20 +2,20 @@
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from src.application.interfaces.stt_provider import ISTTProvider
+from src.application.use_cases.transcribe_audio import (
+    TranscribeAudioInput,
+    TranscribeAudioUseCase,
+)
+from src.domain.entities.audio import AudioData, AudioFormat
+from src.presentation.api.dependencies import (
+    get_stt_providers,
+    get_transcribe_audio_use_case,
+)
 from src.presentation.schemas.stt import (
     STTTranscribeResponse,
     WordTimingResponse,
 )
-from src.presentation.api.dependencies import (
-    get_transcribe_audio_use_case,
-    get_stt_providers,
-)
-from src.application.use_cases.transcribe_audio import (
-    TranscribeAudioUseCase,
-    TranscribeAudioInput,
-)
-from src.application.interfaces.stt_provider import ISTTProvider
-from src.domain.entities.audio import AudioData, AudioFormat
 
 router = APIRouter()
 
@@ -93,9 +93,9 @@ async def transcribe_audio(
             record_id=output.record_id,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}") from e
 
 
 @router.get("/providers")

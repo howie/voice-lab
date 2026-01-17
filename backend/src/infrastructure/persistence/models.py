@@ -3,7 +3,18 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import String, Integer, DateTime, func, JSON, Float, Text, DECIMAL, ForeignKey, Index
+from sqlalchemy import (
+    DECIMAL,
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

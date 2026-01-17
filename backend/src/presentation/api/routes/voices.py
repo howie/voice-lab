@@ -4,13 +4,13 @@ T055: Add GET /voices endpoint (list all voices with filters)
 T056: Add GET /voices/{provider}/{voice_id} endpoint
 """
 
-from typing import Optional
-from fastapi import APIRouter, Query, HTTPException
+
+from fastapi import APIRouter, HTTPException, Query
 
 from src.application.use_cases.list_voices import (
-    list_voices_use_case,
     VoiceFilter,
     VoiceProfile,
+    list_voices_use_case,
 )
 
 router = APIRouter(prefix="/voices", tags=["voices"])
@@ -22,11 +22,11 @@ VALID_PROVIDERS = {"azure", "gcp", "elevenlabs", "voai"}
 
 @router.get("", response_model=list[dict])
 async def list_voices(
-    provider: Optional[str] = Query(None, description="Filter by provider"),
-    language: Optional[str] = Query(None, description="Filter by language code"),
-    gender: Optional[str] = Query(None, description="Filter by gender"),
-    search: Optional[str] = Query(None, description="Search by name or description"),
-    limit: Optional[int] = Query(None, ge=1, le=100, description="Max results"),
+    provider: str | None = Query(None, description="Filter by provider"),
+    language: str | None = Query(None, description="Filter by language code"),
+    gender: str | None = Query(None, description="Filter by gender"),
+    search: str | None = Query(None, description="Search by name or description"),
+    limit: int | None = Query(None, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Results offset"),
 ) -> list[dict]:
     """List all available voices with optional filters.
@@ -59,8 +59,8 @@ async def list_voices(
 @router.get("/{provider}", response_model=list[dict])
 async def list_voices_by_provider(
     provider: str,
-    language: Optional[str] = Query(None, description="Filter by language code"),
-    gender: Optional[str] = Query(None, description="Filter by gender"),
+    language: str | None = Query(None, description="Filter by language code"),
+    gender: str | None = Query(None, description="Filter by gender"),
 ) -> list[dict]:
     """List voices for a specific provider.
 

@@ -4,9 +4,10 @@ T070: Handle concurrent request processing
 """
 
 import asyncio
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -124,7 +125,7 @@ class ConcurrencyManager:
                             provider_sem.release()
                     finally:
                         self._global_semaphore.release()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._stats["timeout_requests"] += 1
                 raise
 

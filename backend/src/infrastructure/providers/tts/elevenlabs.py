@@ -5,13 +5,12 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from pipecat.frames.frames import AudioRawFrame, ErrorFrame, TTSAudioRawFrame
 from pipecat.services.elevenlabs import ElevenLabsTTSService
-from pipecat.frames.frames import AudioRawFrame, TTSAudioRawFrame, ErrorFrame
 
 from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioFormat, AudioData
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-
 
 # ElevenLabs voice mappings (multilingual voices)
 ELEVENLABS_VOICES: list[dict[str, Any]] = [
@@ -69,7 +68,7 @@ class ElevenLabsTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"ElevenLabs TTS synthesis failed: {str(e)}")
+            raise Exception(f"ElevenLabs TTS synthesis failed: {str(e)}") from e
 
         full_audio = b"".join(audio_chunks)
         latency_ms = int((time.time() - start_time) * 1000)
@@ -99,7 +98,7 @@ class ElevenLabsTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"ElevenLabs TTS streaming failed: {str(e)}")
+            raise Exception(f"ElevenLabs TTS streaming failed: {str(e)}") from e
 
     async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
         """List available ElevenLabs voices.
@@ -162,7 +161,7 @@ class ElevenLabsTTSProvider(ITTSProvider):
             "style": {"min": 0.0, "max": 1.0, "default": 0.0, "step": 0.1},
         }
 
-    def map_params(self, speed: float, pitch: float, volume: float) -> dict:
+    def map_params(self, _speed: float, pitch: float, _volume: float) -> dict:
         """Map normalized parameters to ElevenLabs format.
 
         ElevenLabs doesn't support traditional pitch/volume, so we map

@@ -7,7 +7,6 @@ import asyncio
 import statistics
 import time
 from dataclasses import dataclass
-from typing import Any
 
 import pytest
 
@@ -174,7 +173,7 @@ class TestTTSRequestCreation:
         for length in text_lengths:
             text = "x" * length
 
-            def create_request():
+            def create_request(text=text):
                 return TTSRequest(
                     text=text,
                     voice_id="test-voice",
@@ -262,7 +261,7 @@ class TestTextProcessing:
         ]
 
         for text in special_texts:
-            def create_with_special():
+            def create_with_special(text=text):
                 return TTSRequest(
                     text=text,
                     voice_id="test-voice",

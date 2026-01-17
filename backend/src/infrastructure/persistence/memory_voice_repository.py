@@ -1,6 +1,6 @@
 """In-Memory Voice Repository Implementation."""
 
-from src.domain.entities.voice import VoiceProfile, Gender
+from src.domain.entities.voice import Gender, VoiceProfile
 from src.domain.repositories.voice_repository import IVoiceRepository
 
 

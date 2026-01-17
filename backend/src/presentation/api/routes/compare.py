@@ -1,22 +1,23 @@
 """Comparison API Routes."""
 
 import base64
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from src.application.use_cases.compare_providers import (
+    CompareProvidersUseCase,
+    STTComparisonInput,
+    TTSComparisonInput,
+)
+from src.domain.entities.audio import AudioData, AudioFormat
+from src.presentation.api.dependencies import get_compare_providers_use_case
 from src.presentation.schemas.compare import (
+    STTCompareResponse,
+    STTProviderResult,
     TTSCompareRequest,
     TTSCompareResponse,
     TTSProviderResult,
-    STTCompareResponse,
-    STTProviderResult,
 )
-from src.presentation.api.dependencies import get_compare_providers_use_case
-from src.application.use_cases.compare_providers import (
-    CompareProvidersUseCase,
-    TTSComparisonInput,
-    STTComparisonInput,
-)
-from src.domain.entities.audio import AudioData, AudioFormat
 
 router = APIRouter()
 
@@ -60,7 +61,7 @@ async def compare_tts(
             summary=output.summary,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}") from e
 
 
 @router.post("/stt", response_model=STTCompareResponse)
@@ -125,4 +126,4 @@ async def compare_stt(
             summary=output.summary,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}") from e

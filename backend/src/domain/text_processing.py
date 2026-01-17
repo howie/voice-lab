@@ -3,11 +3,8 @@
 T069: Handle special characters and emojis in input text
 """
 
-import html
 import re
 import unicodedata
-from typing import Optional
-
 
 # Emoji pattern (covers most common emoji ranges)
 EMOJI_PATTERN = re.compile(
@@ -363,7 +360,7 @@ def count_characters(text: str, count_emojis_as: int = 1) -> int:
     return len(text_without_emojis) + (len(emojis) * count_emojis_as)
 
 
-def validate_text_for_tts(text: str, max_length: int = 5000) -> tuple[bool, Optional[str]]:
+def validate_text_for_tts(text: str, max_length: int = 5000) -> tuple[bool, str | None]:
     """Validate text for TTS synthesis.
 
     Args:

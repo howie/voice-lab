@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from fastapi import APIRouter, HTTPException, status
@@ -120,7 +120,7 @@ PROVIDER_CONFIGS: dict[ProviderName, ProviderInfo] = {
 
 
 @router.get("", response_model=ProvidersListResponse)
-async def list_providers(current_user: CurrentUserDep) -> ProvidersListResponse:
+async def list_providers(_current_user: CurrentUserDep) -> ProvidersListResponse:
     """List all available TTS providers.
 
     Returns information about each configured provider including
@@ -132,7 +132,7 @@ async def list_providers(current_user: CurrentUserDep) -> ProvidersListResponse:
 @router.get("/{provider}/health", response_model=ProviderHealthResponse)
 async def check_provider_health(
     provider: ProviderName,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
 ) -> ProviderHealthResponse:
     """Check health status of a specific provider.
 
@@ -166,5 +166,5 @@ async def check_provider_health(
         provider=provider,
         status=health_status,
         latency_ms=latency_ms,
-        checked_at=datetime.now(timezone.utc),
+        checked_at=datetime.now(UTC),
     )

@@ -1,12 +1,12 @@
 """JWT token generation and validation utilities."""
 
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Any
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import jwt
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 # JWT Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
@@ -47,8 +47,8 @@ class JWTPayload:
             name=data.get("name"),
             picture_url=data.get("picture_url"),
             google_id=data["google_id"],
-            exp=data["exp"] if isinstance(data["exp"], datetime) else datetime.fromtimestamp(data["exp"], tz=timezone.utc),
-            iat=data["iat"] if isinstance(data["iat"], datetime) else datetime.fromtimestamp(data["iat"], tz=timezone.utc),
+            exp=data["exp"] if isinstance(data["exp"], datetime) else datetime.fromtimestamp(data["exp"], tz=UTC),
+            iat=data["iat"] if isinstance(data["iat"], datetime) else datetime.fromtimestamp(data["iat"], tz=UTC),
         )
 
 
@@ -76,7 +76,7 @@ def create_access_token(
     if expires_delta is None:
         expires_delta = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + expires_delta
 
     payload = JWTPayload(

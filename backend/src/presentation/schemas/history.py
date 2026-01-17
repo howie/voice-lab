@@ -1,6 +1,7 @@
 """History API Schemas."""
 
 from datetime import datetime
+
 from pydantic import Field
 
 from src.presentation.schemas.common import BaseSchema, PaginatedResponse

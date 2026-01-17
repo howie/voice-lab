@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from google.oauth2 import id_token
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from jwt.exceptions import ExpiredSignatureError
 
-from src.infrastructure.auth.jwt import verify_access_token, JWTPayload
+from src.infrastructure.auth.jwt import verify_access_token
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
@@ -87,18 +87,18 @@ async def get_current_user(
             picture_url=payload.picture_url,
             google_id=payload.google_id,
         )
-    except ExpiredSignatureError:
+    except ExpiredSignatureError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 async def verify_google_id_token(token: str) -> dict:
@@ -136,13 +136,13 @@ async def verify_google_id_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid Google token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate Google credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 # Type alias for dependency injection

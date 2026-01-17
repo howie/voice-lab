@@ -4,7 +4,7 @@ from google.cloud import texttospeech_v1 as texttospeech
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
-from src.domain.entities.voice import VoiceProfile, Gender
+from src.domain.entities.voice import Gender, VoiceProfile
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 

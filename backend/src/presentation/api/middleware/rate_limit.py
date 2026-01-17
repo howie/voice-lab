@@ -6,8 +6,8 @@ T067: Implement rate limiting middleware
 import asyncio
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -103,7 +103,7 @@ class RateLimiter:
             self.config.requests_per_hour,
         )
 
-    async def check_rate_limit(self, request: Request) -> Optional[int]:
+    async def check_rate_limit(self, request: Request) -> int | None:
         """Check if request is within rate limits.
 
         Returns:

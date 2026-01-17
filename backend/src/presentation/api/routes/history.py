@@ -2,16 +2,17 @@
 
 from datetime import datetime
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.presentation.schemas.history import (
-    TestRecordResponse,
-    TestRecordListResponse,
-    StatisticsResponse,
-)
-from src.presentation.api.dependencies import get_test_record_repository
-from src.domain.repositories.test_record_repository import ITestRecordRepository
 from src.domain.entities.test_record import TestType
+from src.domain.repositories.test_record_repository import ITestRecordRepository
+from src.presentation.api.dependencies import get_test_record_repository
+from src.presentation.schemas.history import (
+    StatisticsResponse,
+    TestRecordListResponse,
+    TestRecordResponse,
+)
 
 router = APIRouter()
 
@@ -31,8 +32,8 @@ async def list_records(
     if test_type:
         try:
             type_filter = TestType(test_type)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid test type: {test_type}")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid test type: {test_type}") from e
 
     records = await repo.list_by_user(
         user_id=user_id,
@@ -73,8 +74,8 @@ async def get_record(
     """Get a specific test record."""
     try:
         uuid_id = UUID(record_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid record ID format")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid record ID format") from e
 
     record = await repo.get_by_id(uuid_id)
     if not record:
@@ -101,8 +102,8 @@ async def delete_record(
     """Delete a test record."""
     try:
         uuid_id = UUID(record_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid record ID format")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid record ID format") from e
 
     deleted = await repo.delete(uuid_id)
     if not deleted:

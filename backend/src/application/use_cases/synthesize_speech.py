@@ -6,11 +6,10 @@ T028: Update SynthesizeSpeechUseCase to support batch and streaming modes
 from collections.abc import AsyncGenerator
 from typing import Protocol
 
-from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.storage_service import IStorageService
+from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.entities.audio import OutputMode
-from src.domain.errors import SynthesisError, ProviderError
+from src.domain.errors import ProviderError, SynthesisError
 
 
 class ISynthesisLogger(Protocol):

@@ -1,8 +1,8 @@
 """In-Memory Test Record Repository Implementation."""
 
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
 
 from src.domain.entities.test_record import TestRecord, TestType
 from src.domain.repositories.test_record_repository import ITestRecordRepository

@@ -4,28 +4,29 @@ T030: Update TTS API route POST /tts/synthesize (batch mode)
 T031: Add TTS API route POST /tts/stream (streaming mode)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import Response, StreamingResponse
 import base64
 
-from src.presentation.api.schemas.tts import (
-    SynthesizeRequest,
-    SynthesizeResponse,
-    StreamRequest,
-)
-from src.domain.entities.tts import TTSRequest
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response, StreamingResponse
+
+from src.application.use_cases.synthesize_speech import SynthesizeSpeech
 from src.domain.entities.audio import AudioFormat, OutputMode
+from src.domain.entities.tts import TTSRequest
 from src.domain.errors import (
     InvalidProviderError,
-    SynthesisError,
     ProviderError,
+    SynthesisError,
 )
 from src.infrastructure.providers.tts.azure import AzureTTSProvider
-from src.infrastructure.providers.tts.google import GoogleTTSProvider
 from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
+from src.infrastructure.providers.tts.google import GoogleTTSProvider
 from src.infrastructure.providers.tts.voai import VoAITTSProvider
 from src.infrastructure.storage.local_storage import LocalStorage
-from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.presentation.api.schemas.tts import (
+    StreamRequest,
+    SynthesizeRequest,
+    SynthesizeResponse,
+)
 
 router = APIRouter(prefix="/tts", tags=["tts"])
 
@@ -96,13 +97,13 @@ async def synthesize(request: SynthesizeRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
 @router.post("/stream")
@@ -151,13 +152,13 @@ async def stream(request: StreamRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
 @router.post("/synthesize/binary")
@@ -203,10 +204,10 @@ async def synthesize_binary(request: SynthesizeRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e

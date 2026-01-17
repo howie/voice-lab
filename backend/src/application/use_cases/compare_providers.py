@@ -4,11 +4,11 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.stt_provider import ISTTProvider
-from src.domain.entities.audio import AudioFormat, AudioData
-from src.domain.entities.tts import TTSRequest, TTSResult
+from src.application.interfaces.tts_provider import ITTSProvider
+from src.domain.entities.audio import AudioData
 from src.domain.entities.stt import STTRequest, STTResult
+from src.domain.entities.tts import TTSRequest, TTSResult
 
 
 @dataclass
@@ -242,7 +242,7 @@ class CompareProvidersUseCase:
             wer = None
             cer = None
             if ground_truth:
-                from src.domain.services import calculate_wer, calculate_cer
+                from src.domain.services import calculate_cer, calculate_wer
 
                 wer = calculate_wer(ground_truth, result.transcript)
                 cer = calculate_cer(ground_truth, result.transcript)

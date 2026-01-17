@@ -4,7 +4,7 @@ T034: Implement unified error response format
 """
 
 import traceback
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -12,13 +12,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.domain.errors import (
     AppError,
-    ErrorCode,
-    ValidationError,
     AuthenticationError,
+    ErrorCode,
     ForbiddenError,
     NotFoundError,
     RateLimitError,
     ServiceUnavailableError,
+    ValidationError,
 )
 
 
@@ -191,7 +191,7 @@ def setup_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(
-        request: Request, exc: Exception
+        request: Request, _exc: Exception
     ) -> JSONResponse:
         """Handle unhandled exceptions."""
         request_id = getattr(request.state, "request_id", None)

@@ -1,7 +1,7 @@
 """Base Use Case class."""
 
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 InputType = TypeVar("InputType")
 OutputType = TypeVar("OutputType")

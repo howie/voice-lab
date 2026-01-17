@@ -3,19 +3,19 @@
 T022: Unit tests for provider adapters (Azure, GCP, ElevenLabs, VoAI)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from collections.abc import AsyncGenerator
 
+import pytest
+
+from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-from src.domain.entities.audio import AudioFormat, AudioData, OutputMode
-from src.infrastructure.providers.tts.azure import AzureTTSProvider, AZURE_VOICES
-from src.infrastructure.providers.tts.google import GoogleTTSProvider, GOOGLE_VOICES
+from src.infrastructure.providers.tts.azure import AZURE_VOICES, AzureTTSProvider
 from src.infrastructure.providers.tts.elevenlabs import (
-    ElevenLabsTTSProvider,
     ELEVENLABS_VOICES,
+    ElevenLabsTTSProvider,
 )
-from src.infrastructure.providers.tts.voai import VoAITTSProvider, VOAI_VOICES
+from src.infrastructure.providers.tts.google import GOOGLE_VOICES, GoogleTTSProvider
+from src.infrastructure.providers.tts.voai import VOAI_VOICES, VoAITTSProvider
 
 
 @pytest.fixture
@@ -444,7 +444,7 @@ class TestProviderVoiceMappings:
 
     def test_azure_voices_have_required_fields(self):
         """Test Azure voice mappings have all required fields."""
-        for lang, voices in AZURE_VOICES.items():
+        for _lang, voices in AZURE_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice
@@ -452,7 +452,7 @@ class TestProviderVoiceMappings:
 
     def test_google_voices_have_required_fields(self):
         """Test Google voice mappings have all required fields."""
-        for lang, voices in GOOGLE_VOICES.items():
+        for _lang, voices in GOOGLE_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice
@@ -467,7 +467,7 @@ class TestProviderVoiceMappings:
 
     def test_voai_voices_have_required_fields(self):
         """Test VoAI voice mappings have all required fields."""
-        for lang, voices in VOAI_VOICES.items():
+        for _lang, voices in VOAI_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice

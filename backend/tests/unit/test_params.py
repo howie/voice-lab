@@ -4,8 +4,9 @@ T052: Unit tests for parameter validation
 Tests parameter ranges, provider-specific limits, and parameter mapping.
 """
 
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 from src.domain.entities.tts import TTSRequest
 

@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
-from src.domain.entities.audio import AudioFormat, AudioData, OutputMode
+from src.domain.entities.audio import AudioData, AudioFormat, OutputMode
 
 # Maximum text length in characters
 MAX_TEXT_LENGTH = 5000
@@ -48,8 +48,8 @@ class TTSResult:
     audio: AudioData
     duration_ms: int
     latency_ms: int
-    ttfb_ms: Optional[int] = None  # T065: Time to First Byte measurement
-    storage_path: Optional[str] = None
+    ttfb_ms: int | None = None  # T065: Time to First Byte measurement
+    storage_path: str | None = None
     cost_estimate: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -78,9 +78,9 @@ class VoiceProfile:
     name: str
     provider: str
     language: str
-    gender: Optional[str] = None  # 'male', 'female', 'neutral'
+    gender: str | None = None  # 'male', 'female', 'neutral'
     styles: list[str] = field(default_factory=list)
-    
+
     @property
     def unique_id(self) -> str:
         """Get a globally unique ID for this voice."""

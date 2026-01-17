@@ -1,18 +1,19 @@
 """Interaction API Routes."""
 
 import base64
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from src.presentation.schemas.interaction import (
-    InteractionResponse,
-    ConversationMessage,
-)
-from src.presentation.api.dependencies import get_voice_interaction_use_case
 from src.application.use_cases.voice_interaction import (
-    VoiceInteractionUseCase,
     VoiceInteractionInput,
+    VoiceInteractionUseCase,
 )
 from src.domain.entities.audio import AudioData, AudioFormat
+from src.presentation.api.dependencies import get_voice_interaction_use_case
+from src.presentation.schemas.interaction import (
+    ConversationMessage,
+    InteractionResponse,
+)
 
 router = APIRouter()
 
@@ -90,6 +91,6 @@ async def voice_interaction(
             ],
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Interaction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Interaction failed: {str(e)}") from e

@@ -3,11 +3,10 @@
 import time
 from dataclasses import dataclass
 
+from src.application.interfaces.llm_provider import ILLMProvider, LLMMessage
 from src.application.interfaces.stt_provider import ISTTProvider
 from src.application.interfaces.tts_provider import ITTSProvider
-from src.application.interfaces.llm_provider import ILLMProvider, LLMMessage
 from src.domain.entities.audio import AudioData
-from src.domain.entities.interaction import InteractionConfig, InteractionResult
 from src.domain.entities.stt import STTRequest
 from src.domain.entities.tts import TTSRequest
 

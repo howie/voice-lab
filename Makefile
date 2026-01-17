@@ -14,6 +14,12 @@ help:
 	@echo "  make install-backend  - 安裝後端依賴"
 	@echo "  make install-frontend - 安裝前端依賴"
 	@echo ""
+	@echo "$(GREEN)服務管理:$(RESET)"
+	@echo "  make services-start   - 啟動服務 (PostgreSQL, Redis)"
+	@echo "  make services-stop    - 停止服務"
+	@echo "  make services-restart - 重啟服務"
+	@echo "  make services-logs    - 查看服務日誌"
+	@echo ""
 	@echo "$(GREEN)開發指令:$(RESET)"
 	@echo "  make dev              - 同時啟動前後端開發伺服器"
 	@echo "  make dev-back         - 啟動後端開發伺服器 (port 8000)"
@@ -36,9 +42,12 @@ help:
 	@echo "  make manual-test      - 啟動手動測試環境（背景執行）"
 	@echo "  make manual-test-stop - 停止手動測試環境"
 	@echo ""
+	@echo "$(GREEN)資料庫:$(RESET)"
+	@echo "  make db-migrate       - 執行資料庫遷移"
+	@echo "  make db-revision      - 建立新的資料庫遷移"
+	@echo ""
 	@echo "$(GREEN)其他指令:$(RESET)"
 	@echo "  make clean            - 清除建構產物"
-	@echo "  make db-migrate       - 執行資料庫遷移"
 
 # =============================================================================
 # Installation
@@ -54,6 +63,31 @@ install-backend:
 install-frontend:
 	@echo "$(CYAN)安裝前端依賴...$(RESET)"
 	cd frontend && npm install
+
+# =============================================================================
+# Services Management (Docker Compose)
+# =============================================================================
+
+services-start:
+	@echo "$(CYAN)啟動服務 (PostgreSQL, Redis)...$(RESET)"
+	docker-compose up -d postgres postgres_test redis redis_test
+	@echo "$(YELLOW)等待服務就緒...$(RESET)"
+	@sleep 3
+	@echo "$(GREEN)✓ 服務已啟動$(RESET)"
+	@echo "  PostgreSQL (dev):  localhost:5432"
+	@echo "  PostgreSQL (test): localhost:5433"
+	@echo "  Redis (dev):       localhost:6379"
+	@echo "  Redis (test):      localhost:6380"
+
+services-stop:
+	@echo "$(CYAN)停止服務...$(RESET)"
+	docker-compose down
+	@echo "$(GREEN)✓ 服務已停止$(RESET)"
+
+services-restart: services-stop services-start
+
+services-logs:
+	docker-compose logs -f
 
 # =============================================================================
 # Development

@@ -1,0 +1,662 @@
+openapi: 3.0.3
+info:
+  title: Voice Lab TTS API
+  description: |
+    基於 Pipecat 的多提供者 TTS (Text-to-Speech) API 伺服器。
+
+    支援 Azure Speech、Google Cloud TTS、ElevenLabs 與 VoAI 四個提供者，
+    提供批次合成與即時串流兩種輸出模式。
+
+    ## 認證
+
+    使用 Google SSO 登入，透過 Bearer Token 進行 API 認證。
+
+    ## 錯誤處理
+
+    所有錯誤回應遵循統一格式：
+    ```json
+    {
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human readable message",
+        "details": {}
+      }
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: Voice Lab Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+  - url: https://api.voicelab.example.com/v1
+    description: Production server
+
+tags:
+  - name: TTS
+    description: Text-to-Speech 合成相關 API
+  - name: Voices
+    description: 音色管理相關 API
+  - name: Providers
+    description: TTS 提供者資訊
+  - name: Auth
+    description: 身份驗證相關 API
+  - name: Health
+    description: 健康檢查
+
+paths:
+  # ============ TTS Synthesis ============
+  /tts/synthesize:
+    post:
+      tags:
+        - TTS
+      summary: 合成語音（批次模式）
+      description: |
+        將文字轉換為語音，完整合成後返回音訊檔案。
+
+        對應需求：FR-001, FR-002, FR-015
+      operationId: synthesizeSpeech
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TTSRequest'
+            examples:
+              basic:
+                summary: 基本請求
+                value:
+                  text: "你好，歡迎使用語音合成服務。"
+                  provider: azure
+                  voice_id: zh-TW-HsiaoChenNeural
+                  language: zh-TW
+              with_params:
+                summary: 帶參數請求
+                value:
+                  text: "這是一段測試文字。"
+                  provider: elevenlabs
+                  voice_id: 21m00Tcm4TlvDq8ikWAM
+                  language: zh-TW
+                  speed: 1.2
+                  output_format: mp3
+      responses:
+        '200':
+          description: 合成成功
+          headers:
+            X-Synthesis-Duration-Ms:
+              schema:
+                type: integer
+              description: 音訊長度（毫秒）
+            X-Synthesis-Latency-Ms:
+              schema:
+                type: integer
+              description: 處理延遲（毫秒）
+            X-Storage-Path:
+              schema:
+                type: string
+              description: 儲存路徑
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: 文字過長
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: TEXT_TOO_LONG
+                  message: "Text exceeds 5000 characters limit"
+                  details:
+                    max_length: 5000
+                    actual_length: 5123
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /tts/stream:
+    post:
+      tags:
+        - TTS
+      summary: 合成語音（串流模式）
+      description: |
+        將文字轉換為語音，邊合成邊返回音訊資料。
+
+        回應為 chunked transfer，客戶端可即時播放。
+
+        對應需求：FR-016, FR-017
+      operationId: synthesizeSpeechStream
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TTSRequest'
+      responses:
+        '200':
+          description: 串流合成成功
+          headers:
+            Transfer-Encoding:
+              schema:
+                type: string
+                enum: [chunked]
+            X-Synthesis-Started:
+              schema:
+                type: string
+                format: date-time
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ============ Voices ============
+  /voices:
+    get:
+      tags:
+        - Voices
+      summary: 列出所有可用音色
+      description: |
+        取得所有提供者的可用音色列表，可依語言或提供者過濾。
+
+        對應需求：FR-009
+      operationId: listVoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: query
+          description: 過濾特定提供者
+          schema:
+            $ref: '#/components/schemas/ProviderName'
+        - name: language
+          in: query
+          description: 過濾特定語言
+          schema:
+            type: string
+            example: zh-TW
+        - name: gender
+          in: query
+          description: 過濾性別
+          schema:
+            type: string
+            enum: [male, female, neutral]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  voices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VoiceProfile'
+                  total:
+                    type: integer
+                    description: 音色總數
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /voices/{provider}/{voice_id}:
+    get:
+      tags:
+        - Voices
+      summary: 取得特定音色詳情
+      operationId: getVoice
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ProviderName'
+        - name: voice_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceProfile'
+        '404':
+          description: 音色不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============ Providers ============
+  /providers:
+    get:
+      tags:
+        - Providers
+      summary: 列出可用的 TTS 提供者
+      description: |
+        取得所有已設定且可用的 TTS 提供者資訊。
+
+        對應需求：FR-011, FR-012
+      operationId: listProviders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderInfo'
+
+  /providers/{provider}/health:
+    get:
+      tags:
+        - Providers
+      summary: 檢查提供者健康狀態
+      operationId: checkProviderHealth
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ProviderName'
+      responses:
+        '200':
+          description: 提供者健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider:
+                    $ref: '#/components/schemas/ProviderName'
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  latency_ms:
+                    type: integer
+                  checked_at:
+                    type: string
+                    format: date-time
+        '503':
+          description: 提供者不可用
+
+  # ============ Auth ============
+  /auth/google:
+    get:
+      tags:
+        - Auth
+      summary: 發起 Google SSO 登入
+      description: |
+        重新導向到 Google OAuth 2.0 授權頁面。
+
+        對應需求：FR-020
+      operationId: googleAuthStart
+      parameters:
+        - name: redirect_uri
+          in: query
+          description: 登入成功後的重新導向 URI
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: 重新導向到 Google 授權頁面
+
+  /auth/google/callback:
+    get:
+      tags:
+        - Auth
+      summary: Google SSO 回調
+      operationId: googleAuthCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: 登入成功，重新導向到應用程式
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: 設定認證 Cookie
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: 取得當前用戶資訊
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: 登出
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 登出成功
+
+  # ============ Health ============
+  /health:
+    get:
+      tags:
+        - Health
+      summary: 系統健康檢查
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 系統健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  providers:
+                    type: object
+                    additionalProperties:
+                      type: string
+                      enum: [healthy, unhealthy]
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: 就緒檢查
+      operationId: readinessCheck
+      responses:
+        '200':
+          description: 服務就緒
+        '503':
+          description: 服務尚未就緒
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Google SSO 取得的 JWT Token
+
+  schemas:
+    # ============ Request/Response Models ============
+    TTSRequest:
+      type: object
+      required:
+        - text
+        - provider
+        - voice_id
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: 要合成的文字內容
+          example: "你好，歡迎使用語音合成服務。"
+        provider:
+          $ref: '#/components/schemas/ProviderName'
+        voice_id:
+          type: string
+          description: 音色識別碼（提供者專屬）
+          example: zh-TW-HsiaoChenNeural
+        language:
+          type: string
+          default: zh-TW
+          description: 語言代碼
+          enum: [zh-TW, zh-CN, en-US, ja-JP, ko-KR]
+        speed:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+          default: 1.0
+          description: 語速倍率
+        pitch:
+          type: number
+          minimum: -20
+          maximum: 20
+          default: 0
+          description: 音調調整（半音）
+        volume:
+          type: number
+          minimum: 0
+          maximum: 2.0
+          default: 1.0
+          description: 音量倍率
+        output_format:
+          $ref: '#/components/schemas/AudioFormat'
+
+    VoiceProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 音色識別碼
+        name:
+          type: string
+          description: 音色名稱
+        provider:
+          $ref: '#/components/schemas/ProviderName'
+        language:
+          type: string
+          description: 支援語言
+        gender:
+          type: string
+          enum: [male, female, neutral]
+        styles:
+          type: array
+          items:
+            type: string
+          description: 可用風格列表
+        unique_id:
+          type: string
+          description: 全域唯一識別碼 ({provider}:{id})
+      example:
+        id: zh-TW-HsiaoChenNeural
+        name: HsiaoChen
+        provider: azure
+        language: zh-TW
+        gender: female
+        styles: [cheerful, sad, angry]
+        unique_id: "azure:zh-TW-HsiaoChenNeural"
+
+    ProviderInfo:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/ProviderName'
+        display_name:
+          type: string
+        supported_formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioFormat'
+        supported_languages:
+          type: array
+          items:
+            type: string
+        supported_params:
+          type: object
+          properties:
+            speed:
+              type: object
+              properties:
+                min:
+                  type: number
+                max:
+                  type: number
+                default:
+                  type: number
+            pitch:
+              type: object
+              properties:
+                min:
+                  type: number
+                max:
+                  type: number
+                default:
+                  type: number
+        status:
+          type: string
+          enum: [available, unavailable, degraded]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        google_id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        picture_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: 錯誤代碼
+            message:
+              type: string
+              description: 錯誤訊息
+            details:
+              type: object
+              description: 額外錯誤詳情
+
+    # ============ Enums ============
+    ProviderName:
+      type: string
+      enum: [azure, gcp, elevenlabs, voai]
+      description: TTS 提供者識別碼
+
+    AudioFormat:
+      type: string
+      enum: [mp3, wav, opus, webm, ogg, pcm, flac]
+      default: mp3
+      description: 音訊輸出格式
+
+  responses:
+    BadRequest:
+      description: 請求參數錯誤
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: "Invalid request parameters"
+              details:
+                field: speed
+                reason: "must be between 0.5 and 2.0"
+
+    Unauthorized:
+      description: 未授權
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: "Authentication required"
+
+    InternalError:
+      description: 伺服器內部錯誤
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: "An unexpected error occurred"
+
+    ServiceUnavailable:
+      description: TTS 服務暫時不可用
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: SERVICE_UNAVAILABLE
+              message: "TTS provider is temporarily unavailable"
+              details:
+                provider: azure
+                retry_after: 30

@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache
+.mypy_cache
+
+# Node
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.npm
+.eslintcache
+
+# Build
+dist
+build
+frontend/dist
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Local Env
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs
+README.md
+CHANGELOG.md

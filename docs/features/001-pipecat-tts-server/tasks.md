@@ -128,8 +128,8 @@ Based on plan.md structure:
 
 ### Tests for User Story 2 (TDD) ⚠️
 
-- [ ] T036 [P] [US2] Create frontend component tests in `frontend/src/components/tts/__tests__/`
-- [ ] T037 [P] [US2] Create integration test for synthesis flow in `backend/tests/integration/test_web_flow.py`
+- [X] T036 [P] [US2] Create frontend component tests in `frontend/src/components/tts/__tests__/`
+- [X] T037 [P] [US2] Create integration test for synthesis flow in `backend/tests/integration/test_web_flow.py`
 
 ### Implementation for User Story 2
 
@@ -143,8 +143,8 @@ Based on plan.md structure:
 - [X] T040 [US2] Create `TextInput` component (textarea with char counter) in `frontend/src/components/tts/TextInput.tsx`
 - [X] T041 [P] [US2] Create `ProviderSelector` component (dropdown for Azure/GCP/ElevenLabs/VoAI) in `frontend/src/components/tts/ProviderSelector.tsx`
 - [X] T042 [P] [US2] Create `AudioPlayer` component with play/pause/download in `frontend/src/components/tts/AudioPlayer.tsx`
-- [ ] T043 [US2] Install and integrate WaveSurfer.js for waveform visualization
-- [ ] T044 [US2] Create `WaveformDisplay` component using WaveSurfer.js in `frontend/src/components/tts/WaveformDisplay.tsx`
+- [X] T043 [US2] Install and integrate WaveSurfer.js for waveform visualization
+- [X] T044 [US2] Create `WaveformDisplay` component using WaveSurfer.js in `frontend/src/components/tts/WaveformDisplay.tsx`
 - [X] T045 [US2] Create `LoadingIndicator` component for synthesis in progress in `frontend/src/components/tts/LoadingIndicator.tsx`
 
 #### Authentication Components
@@ -156,8 +156,8 @@ Based on plan.md structure:
 #### Page Integration
 
 - [X] T049 [US2] Update `TTSPage` with all TTS components in `frontend/src/routes/tts/TTSPage.tsx`
-- [ ] T050 [US2] Add protected route wrapper requiring authentication in `frontend/src/components/auth/ProtectedRoute.tsx`
-- [ ] T051 [US2] Update `App.tsx` routing with auth flow
+- [X] T050 [US2] Add protected route wrapper requiring authentication in `frontend/src/components/auth/ProtectedRoute.tsx`
+- [X] T051 [US2] Update `App.tsx` routing with auth flow
 
 **Checkpoint**: US2 Complete - Web UI 可輸入文字、選擇提供者、即時串流播放並顯示波形
 
@@ -309,7 +309,7 @@ With multiple developers:
 | Phase 1: Setup | 5 | - | ✅ Complete |
 | Phase 2: Foundational | 14 | - | ✅ Complete |
 | Phase 3: US1 | 16 | P1 - TTS API | ✅ Complete (MVP) |
-| Phase 4: US2 | 16 | P2 - Web UI | 🟡 In Progress (12/16) |
+| Phase 4: US2 | 16 | P2 - Web UI | ✅ Complete |
 | Phase 5: US3 | 13 | P3 - Parameters | ⬜ Pending |
 | Phase 6: Polish | 10 | - | ⬜ Pending |
 | **Total** | **74** | | **51/74 Complete** |

@@ -129,6 +129,19 @@ export const authApi = {
   // Get Google OAuth URL
   getGoogleAuthUrl: () => api.get<{ url: string }>('/auth/google'),
 
+  // Handle OAuth callback
+  callback: (code: string) =>
+    api.get<{
+      access_token: string
+      token_type: string
+      user: {
+        id: string
+        email: string
+        name?: string
+        picture_url?: string
+      }
+    }>('/auth/callback', { params: { code } }),
+
   // Get current user
   getCurrentUser: () =>
     api.get<{

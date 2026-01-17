@@ -48,6 +48,7 @@ class TTSResult:
     audio: AudioData
     duration_ms: int
     latency_ms: int
+    ttfb_ms: Optional[int] = None  # T065: Time to First Byte measurement
     storage_path: Optional[str] = None
     cost_estimate: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)

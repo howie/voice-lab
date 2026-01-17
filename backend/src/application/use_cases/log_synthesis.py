@@ -28,6 +28,7 @@ class ISynthesisLogRepository(Protocol):
         volume: float,
         duration_ms: int | None,
         latency_ms: int | None,
+        ttfb_ms: int | None,  # T065: Time to First Byte
         audio_size_bytes: int | None,
         storage_path: str | None,
         success: bool,
@@ -76,6 +77,7 @@ class LogSynthesisUseCase:
         # Extract result data if available
         duration_ms = result.duration_ms if result else None
         latency_ms = result.latency_ms if result else None
+        ttfb_ms = result.ttfb_ms if result else None  # T065: TTFB measurement
         audio_size = len(result.audio.data) if result and result.audio else None
         storage_path = result.storage_path if result else None
         success = error is None
@@ -96,6 +98,7 @@ class LogSynthesisUseCase:
             volume=request.volume,
             duration_ms=duration_ms,
             latency_ms=latency_ms,
+            ttfb_ms=ttfb_ms,
             audio_size_bytes=audio_size,
             storage_path=storage_path,
             success=success,

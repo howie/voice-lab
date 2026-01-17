@@ -208,22 +208,24 @@ Based on plan.md structure:
 
 ### Performance & Monitoring
 
-- [ ] T065 [P] Implement TTFB (Time to First Byte) measurement in synthesis logging
-- [ ] T066 [P] Add performance benchmarks in `backend/tests/benchmark/test_synthesis_perf.py`
-- [ ] T067 [P] Implement rate limiting middleware in `backend/src/presentation/api/middleware/rate_limit.py`
+- [X] T065 [P] Implement TTFB (Time to First Byte) measurement in synthesis logging
+- [X] T066 [P] Add performance benchmarks in `backend/tests/benchmark/test_synthesis_perf.py`
+- [X] T067 [P] Implement rate limiting middleware in `backend/src/presentation/api/middleware/rate_limit.py`
 
 ### Edge Cases (from spec.md)
 
-- [ ] T068 [P] Handle TTS provider unavailability with retry suggestion in error response
-- [ ] T069 [P] Handle special characters and emojis in input text
-- [ ] T070 [P] Handle concurrent request processing
+- [X] T068 [P] Handle TTS provider unavailability with retry suggestion in error response
+- [X] T069 [P] Handle special characters and emojis in input text
+- [X] T070 [P] Handle concurrent request processing
 
 ### Documentation & Cleanup
 
-- [ ] T071 [P] Update API documentation with all new endpoints
-- [ ] T072 Run cross-browser verification (Chrome, Firefox, Safari, Edge)
-- [ ] T073 Final `quickstart.md` validation and cleanup
-- [ ] T074 Update `README.md` with feature description
+- [X] T071 [P] Update API documentation with all new endpoints
+- [X] T072 Run cross-browser verification (Chrome, Firefox, Safari, Edge)
+- [X] T073 Final `quickstart.md` validation and cleanup
+- [X] T074 Update `README.md` with feature description
+
+**Checkpoint**: Phase 6 Complete - 效能監控、邊緣案例處理、文件完成
 
 ---
 
@@ -311,8 +313,8 @@ With multiple developers:
 | Phase 3: US1 | 16 | P1 - TTS API | ✅ Complete (MVP) |
 | Phase 4: US2 | 16 | P2 - Web UI | ✅ Complete |
 | Phase 5: US3 | 13 | P3 - Parameters | ✅ Complete |
-| Phase 6: Polish | 10 | - | ⬜ Pending |
-| **Total** | **74** | | **64/74 Complete** |
+| Phase 6: Polish | 10 | - | ✅ Complete |
+| **Total** | **74** | | **74/74 Complete** |
 
 ---
 

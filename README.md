@@ -5,9 +5,14 @@
 ## 功能特色
 
 - **TTS 測試**: 輸入文字，比較 Google Cloud、Azure、ElevenLabs、VoAI 的語音合成品質
+  - 支援批次與串流模式
+  - 可調整語速 (0.5x - 2.0x)、音調 (-20 到 +20)、音量 (0% - 200%)
+  - 多語言支援：繁體中文、簡體中文、英文、日文、韓文
+  - 即時波形顯示
 - **STT 測試**: 錄音或上傳音檔，測試各家語音辨識準確度（支援兒童語音模式）
 - **互動測試**: 測試即時語音對話的延遲和回應品質
 - **歷史紀錄**: 保存所有測試結果，支援匯出報表
+- **Google SSO 登入**: 安全的 OAuth 2.0 身份驗證
 
 ## 技術棧
 
@@ -110,6 +115,26 @@ voice-lab/
 
 - [PRD](docs/planning/PRD.md) - 產品需求文件
 - [Overall Plan](docs/planning/overall-plan.md) - 技術架構和實作計劃
+- [TTS Quickstart](docs/features/001-pipecat-tts-server/quickstart.md) - TTS 功能快速入門
+- [API Reference](docs/features/001-pipecat-tts-server/api-reference.md) - API 參考文件
+
+## API 快速範例
+
+```bash
+# 語音合成
+curl -X POST "http://localhost:8000/api/v1/tts/synthesize" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -d '{
+       "text": "你好，歡迎使用 Voice Lab",
+       "provider": "azure",
+       "voice_id": "zh-TW-HsiaoChenNeural"
+     }' --output output.mp3
+
+# 列出可用語音
+curl "http://localhost:8000/api/v1/voices?language=zh-TW" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
 
 ## License
 

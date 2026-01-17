@@ -225,13 +225,52 @@ class ServiceUnavailableError(AppError):
 
 
 class ProviderError(ServiceUnavailableError):
-    """TTS provider error."""
+    """TTS provider error.
 
-    def __init__(self, provider: str, error_message: str) -> None:
+    T068: Handle TTS provider unavailability with retry suggestion
+    """
+
+    # Default retry delays per provider (in seconds)
+    RETRY_DELAYS: dict[str, int] = {
+        "azure": 5,
+        "gcp": 5,
+        "elevenlabs": 10,
+        "voai": 5,
+    }
+
+    # Alternative providers to suggest
+    ALTERNATIVES: dict[str, list[str]] = {
+        "azure": ["gcp", "elevenlabs"],
+        "gcp": ["azure", "elevenlabs"],
+        "elevenlabs": ["azure", "gcp"],
+        "voai": ["azure", "gcp"],
+    }
+
+    def __init__(
+        self,
+        provider: str,
+        error_message: str,
+        retry_after: int | None = None,
+        suggest_alternatives: bool = True,
+    ) -> None:
+        retry_delay = retry_after or self.RETRY_DELAYS.get(provider, 5)
+        alternatives = self.ALTERNATIVES.get(provider, []) if suggest_alternatives else []
+
+        details = {
+            "provider": provider,
+            "error": error_message,
+            "retry_after_seconds": retry_delay,
+            "suggestion": f"Please retry after {retry_delay} seconds",
+        }
+
+        if alternatives:
+            details["alternative_providers"] = alternatives
+            details["suggestion"] += f" or try alternative providers: {', '.join(alternatives)}"
+
         super().__init__(
             code=ErrorCode.PROVIDER_ERROR,
-            message=f"Provider '{provider}' error: {error_message}",
-            details={"provider": provider, "error": error_message},
+            message=f"Provider '{provider}' is temporarily unavailable: {error_message}",
+            details=details,
         )
 
 

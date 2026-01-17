@@ -148,10 +148,44 @@ class ElevenLabsTTSProvider(ITTSProvider):
         return None
 
     def get_supported_params(self) -> dict:
-        """Get supported parameter ranges."""
+        """Get supported parameter ranges.
+
+        Note: ElevenLabs uses different parameters than other providers:
+        - stability: How consistent the voice is (0.0-1.0)
+        - similarity_boost: How closely to match original voice (0.0-1.0)
+        - style: Expressiveness (0.0-1.0, optional)
+        """
         return {
-            "speed": {"min": 0.5, "max": 2.0, "default": 1.0},
-            # Note: ElevenLabs uses "stability" and "similarity_boost" instead of pitch
+            "speed": {"min": 0.5, "max": 2.0, "default": 1.0, "step": 0.1},
+            "stability": {"min": 0.0, "max": 1.0, "default": 0.5, "step": 0.1},
+            "similarity_boost": {"min": 0.0, "max": 1.0, "default": 0.75, "step": 0.1},
+            "style": {"min": 0.0, "max": 1.0, "default": 0.0, "step": 0.1},
+        }
+
+    def map_params(self, speed: float, pitch: float, volume: float) -> dict:
+        """Map normalized parameters to ElevenLabs format.
+
+        ElevenLabs doesn't support traditional pitch/volume, so we map
+        pitch to stability and volume to similarity_boost.
+
+        Args:
+            speed: Speed value (0.5-2.0)
+            pitch: Pitch value (-20 to 20) - mapped to stability
+            volume: Volume value (0.0-2.0) - not directly supported
+
+        Returns:
+            Dictionary with ElevenLabs voice settings
+        """
+        # Map pitch variance to stability (inverted: more pitch variance = less stability)
+        # pitch -20 to 20 -> stability 0.7 to 0.3
+        stability = 0.5 - (pitch / 20) * 0.2
+        stability = max(0.0, min(1.0, stability))
+
+        return {
+            "stability": stability,
+            "similarity_boost": 0.75,  # Default
+            "style": 0.0,  # Default, less expressive
+            "use_speaker_boost": True,
         }
 
     async def health_check(self) -> bool:

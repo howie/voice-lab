@@ -1,14 +1,19 @@
 /**
  * TTS Page
  * T049: Update TTSPage with all TTS components
+ * T063: Update TTSPage to include all parameter controls
  */
 
-import { useEffect } from 'react'
 import { useTTSStore } from '@/stores/ttsStore'
 import { TextInput } from '@/components/tts/TextInput'
 import { ProviderSelector } from '@/components/tts/ProviderSelector'
 import { AudioPlayer } from '@/components/tts/AudioPlayer'
 import { LoadingIndicator, Spinner } from '@/components/tts/LoadingIndicator'
+import { SpeedSlider } from '@/components/tts/SpeedSlider'
+import { PitchSlider } from '@/components/tts/PitchSlider'
+import { VolumeSlider } from '@/components/tts/VolumeSlider'
+import { VoiceSelector } from '@/components/tts/VoiceSelector'
+import { LanguageSelector } from '@/components/tts/LanguageSelector'
 
 export function TTSPage() {
   const {
@@ -19,21 +24,18 @@ export function TTSPage() {
     voiceId,
     setVoiceId,
     language,
+    setLanguage,
     speed,
     setSpeed,
-    voices,
-    voicesLoading,
+    pitch,
+    setPitch,
+    volume,
+    setVolume,
     result,
     isLoading,
     error,
     synthesize,
-    loadVoices,
   } = useTTSStore()
-
-  // Load voices when provider changes
-  useEffect(() => {
-    loadVoices(provider, language)
-  }, [provider, language, loadVoices])
 
   const handleSynthesize = async () => {
     await synthesize()
@@ -60,59 +62,51 @@ export function TTSPage() {
           />
 
           <div className="mt-4 space-y-4">
-            <ProviderSelector
-              value={provider}
-              onChange={setProvider}
+            {/* Provider and Language Selection */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProviderSelector
+                value={provider}
+                onChange={setProvider}
+                disabled={isLoading}
+              />
+
+              <LanguageSelector
+                value={language}
+                onChange={setLanguage}
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Voice Selection */}
+            <VoiceSelector
+              provider={provider}
+              language={language}
+              value={voiceId}
+              onChange={setVoiceId}
               disabled={isLoading}
             />
 
-            {/* Voice Selector */}
-            <div>
-              <label className="mb-2 block text-sm font-medium">語音角色</label>
-              <div className="relative">
-                <select
-                  value={voiceId}
-                  onChange={(e) => setVoiceId(e.target.value)}
-                  disabled={isLoading || voicesLoading}
-                  className="w-full rounded-lg border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {voices.length === 0 && !voicesLoading && (
-                    <option value="">選擇語音...</option>
-                  )}
-                  {voices.map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {voice.name} ({voice.gender || 'unknown'})
-                    </option>
-                  ))}
-                </select>
-                {voicesLoading && (
-                  <div className="absolute right-8 top-1/2 -translate-y-1/2">
-                    <Spinner className="h-4 w-4 text-primary" />
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Parameter Controls */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <h3 className="text-sm font-medium text-muted-foreground">語音參數</h3>
 
-            {/* Speed Slider */}
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                語速: {speed.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
+              <SpeedSlider
                 value={speed}
-                onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                onChange={setSpeed}
                 disabled={isLoading}
-                className="w-full"
               />
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>0.5x</span>
-                <span>1.0x</span>
-                <span>2.0x</span>
-              </div>
+
+              <PitchSlider
+                value={pitch}
+                onChange={setPitch}
+                disabled={isLoading}
+              />
+
+              <VolumeSlider
+                value={volume}
+                onChange={setVolume}
+                disabled={isLoading}
+              />
             </div>
 
             {/* Error message */}

@@ -1,0 +1,151 @@
+"""Voices API routes.
+
+T055: Add GET /voices endpoint (list all voices with filters)
+T056: Add GET /voices/{provider}/{voice_id} endpoint
+"""
+
+from typing import Optional
+from fastapi import APIRouter, Query, HTTPException
+
+from src.application.use_cases.list_voices import (
+    list_voices_use_case,
+    VoiceFilter,
+    VoiceProfile,
+)
+
+router = APIRouter(prefix="/voices", tags=["voices"])
+
+
+# Valid providers
+VALID_PROVIDERS = {"azure", "gcp", "elevenlabs", "voai"}
+
+
+@router.get("", response_model=list[dict])
+async def list_voices(
+    provider: Optional[str] = Query(None, description="Filter by provider"),
+    language: Optional[str] = Query(None, description="Filter by language code"),
+    gender: Optional[str] = Query(None, description="Filter by gender"),
+    search: Optional[str] = Query(None, description="Search by name or description"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Max results"),
+    offset: int = Query(0, ge=0, description="Results offset"),
+) -> list[dict]:
+    """List all available voices with optional filters.
+
+    Returns a list of voice profiles from all configured TTS providers.
+    """
+    # Validate provider if specified
+    if provider and provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider. Must be one of: {', '.join(VALID_PROVIDERS)}",
+        )
+
+    filter = VoiceFilter(
+        provider=provider,
+        language=language,
+        gender=gender,
+        search=search,
+    )
+
+    voices = await list_voices_use_case.execute(
+        filter=filter,
+        limit=limit,
+        offset=offset,
+    )
+
+    return [_voice_to_dict(v) for v in voices]
+
+
+@router.get("/{provider}", response_model=list[dict])
+async def list_voices_by_provider(
+    provider: str,
+    language: Optional[str] = Query(None, description="Filter by language code"),
+    gender: Optional[str] = Query(None, description="Filter by gender"),
+) -> list[dict]:
+    """List voices for a specific provider.
+
+    Args:
+        provider: TTS provider name (azure, gcp, elevenlabs, voai)
+        language: Optional language filter
+        gender: Optional gender filter
+
+    Returns:
+        List of voice profiles for the provider
+    """
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Provider '{provider}' not found. Valid providers: {', '.join(VALID_PROVIDERS)}",
+        )
+
+    filter = VoiceFilter(
+        provider=provider,
+        language=language,
+        gender=gender,
+    )
+
+    voices = await list_voices_use_case.execute(filter=filter)
+
+    return [_voice_to_dict(v) for v in voices]
+
+
+@router.get("/{provider}/{voice_id}", response_model=dict)
+async def get_voice_detail(
+    provider: str,
+    voice_id: str,
+) -> dict:
+    """Get details for a specific voice.
+
+    Args:
+        provider: TTS provider name
+        voice_id: Voice identifier
+
+    Returns:
+        Detailed voice profile
+    """
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Provider '{provider}' not found",
+        )
+
+    voice = await list_voices_use_case.get_voice_by_id(provider, voice_id)
+
+    if not voice:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Voice '{voice_id}' not found for provider '{provider}'",
+        )
+
+    return _voice_to_dict(voice)
+
+
+def _voice_to_dict(voice: VoiceProfile) -> dict:
+    """Convert VoiceProfile to dictionary response.
+
+    Args:
+        voice: VoiceProfile instance
+
+    Returns:
+        Dictionary representation
+    """
+    result = {
+        "id": voice.id,
+        "name": voice.name,
+        "provider": voice.provider,
+        "language": voice.language,
+    }
+
+    if voice.gender:
+        result["gender"] = voice.gender
+
+    if voice.description:
+        result["description"] = voice.description
+
+    if voice.sample_url:
+        result["sample_url"] = voice.sample_url
+
+    if voice.supported_styles:
+        result["supported_styles"] = voice.supported_styles
+
+    return result

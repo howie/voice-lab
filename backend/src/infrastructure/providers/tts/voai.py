@@ -192,7 +192,28 @@ class VoAITTSProvider(ITTSProvider):
     def get_supported_params(self) -> dict:
         """Get supported parameter ranges."""
         return {
-            "speed": {"min": 0.5, "max": 2.0, "default": 1.0},
+            "speed": {"min": 0.5, "max": 2.0, "default": 1.0, "step": 0.1},
+            "pitch": {"min": -20, "max": 20, "default": 0, "step": 1},
+            "volume": {"min": 0.0, "max": 2.0, "default": 1.0, "step": 0.1},
+        }
+
+    def map_params(self, speed: float, pitch: float, volume: float) -> dict:
+        """Map normalized parameters to VoAI format.
+
+        VoAI uses similar format to normalized parameters.
+
+        Args:
+            speed: Speed value (0.5-2.0)
+            pitch: Pitch value (-20 to 20)
+            volume: Volume value (0.0-2.0)
+
+        Returns:
+            Dictionary with VoAI API parameters
+        """
+        return {
+            "speed": speed,
+            "pitch": pitch,
+            "volume": volume,
         }
 
     async def health_check(self) -> bool:

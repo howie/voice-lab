@@ -163,8 +163,51 @@ class GoogleTTSProvider(ITTSProvider):
     def get_supported_params(self) -> dict:
         """Get supported parameter ranges."""
         return {
-            "speed": {"min": 0.25, "max": 4.0, "default": 1.0},
-            "pitch": {"min": -20, "max": 20, "default": 0},
+            "speed": {"min": 0.25, "max": 4.0, "default": 1.0, "step": 0.1},
+            "pitch": {"min": -20.0, "max": 20.0, "default": 0.0, "step": 0.5},
+            "volume": {"min": -96.0, "max": 16.0, "default": 0.0, "step": 1.0},
+        }
+
+    def map_params(self, speed: float, pitch: float, volume: float) -> dict:
+        """Map normalized parameters to Google Cloud TTS format.
+
+        Args:
+            speed: Speed value (0.5-2.0 normalized)
+            pitch: Pitch value (-20 to 20 normalized)
+            volume: Volume value (0.0-2.0 normalized)
+
+        Returns:
+            Dictionary with Google Cloud TTS parameters
+        """
+        # Google speed: direct multiplier 0.25-4.0
+        # Map normalized 0.5-2.0 to 0.25-4.0
+        if speed <= 1.0:
+            gcp_speed = 0.25 + (speed - 0.5) * (1.0 - 0.25) / (1.0 - 0.5)
+        else:
+            gcp_speed = 1.0 + (speed - 1.0) * (4.0 - 1.0) / (2.0 - 1.0)
+
+        # Google pitch: semitones -20 to 20 (direct mapping)
+        gcp_pitch = float(pitch)
+
+        # Google volume: dB gain -96 to 16
+        # Map normalized 0.0-2.0 to -96 to 16
+        # 1.0 (normal) = 0dB
+        if volume <= 0.0:
+            gcp_volume = -96.0
+        elif volume >= 2.0:
+            gcp_volume = 16.0
+        else:
+            # Logarithmic scale: 1.0 -> 0dB
+            import math
+            if volume > 0:
+                gcp_volume = 20 * math.log10(volume)
+            else:
+                gcp_volume = -96.0
+
+        return {
+            "speaking_rate": gcp_speed,
+            "pitch": gcp_pitch,
+            "volume_gain_db": gcp_volume,
         }
 
     async def health_check(self) -> bool:

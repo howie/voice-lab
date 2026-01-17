@@ -173,30 +173,30 @@ Based on plan.md structure:
 
 ### Tests for User Story 3 (TDD) ⚠️
 
-- [ ] T052 [P] [US3] Create unit tests for parameter validation in `backend/tests/unit/test_params.py`
-- [ ] T053 [P] [US3] Create tests for voice listing endpoint in `backend/tests/contract/test_voices_api.py`
+- [X] T052 [P] [US3] Create unit tests for parameter validation in `backend/tests/unit/test_params.py`
+- [X] T053 [P] [US3] Create tests for voice listing endpoint in `backend/tests/contract/test_voices_api.py`
 
 ### Implementation for User Story 3
 
 #### Backend - Voice & Parameters
 
-- [ ] T054 [US3] Implement `ListVoicesUseCase` in `backend/src/application/use_cases/list_voices.py`
-- [ ] T055 [US3] Add `GET /voices` endpoint (list all voices with filters) in `backend/src/presentation/api/routes/voices.py`
-- [ ] T056 [P] [US3] Add `GET /voices/{provider}/{voice_id}` endpoint in `backend/src/presentation/api/routes/voices.py`
-- [ ] T057 [US3] Implement parameter mapping per provider (speed, pitch ranges) in adapters
+- [X] T054 [US3] Implement `ListVoicesUseCase` in `backend/src/application/use_cases/list_voices.py`
+- [X] T055 [US3] Add `GET /voices` endpoint (list all voices with filters) in `backend/src/presentation/api/routes/voices.py`
+- [X] T056 [P] [US3] Add `GET /voices/{provider}/{voice_id}` endpoint in `backend/src/presentation/api/routes/voices.py`
+- [X] T057 [US3] Implement parameter mapping per provider (speed, pitch ranges) in adapters
 
 #### Frontend - Parameter Controls
 
-- [ ] T058 [US3] Create `SpeedSlider` component (0.5x - 2.0x) in `frontend/src/components/tts/SpeedSlider.tsx`
-- [ ] T059 [P] [US3] Create `PitchSlider` component (-20 to +20) in `frontend/src/components/tts/PitchSlider.tsx`
-- [ ] T060 [P] [US3] Create `VolumeSlider` component (0 - 2.0x) in `frontend/src/components/tts/VolumeSlider.tsx`
-- [ ] T061 [US3] Create `VoiceSelector` component (dynamic voice list from API) in `frontend/src/components/tts/VoiceSelector.tsx`
-- [ ] T062 [P] [US3] Create `LanguageSelector` component (zh-TW, zh-CN, en-US, ja-JP, ko-KR) in `frontend/src/components/tts/LanguageSelector.tsx`
+- [X] T058 [US3] Create `SpeedSlider` component (0.5x - 2.0x) in `frontend/src/components/tts/SpeedSlider.tsx`
+- [X] T059 [P] [US3] Create `PitchSlider` component (-20 to +20) in `frontend/src/components/tts/PitchSlider.tsx`
+- [X] T060 [P] [US3] Create `VolumeSlider` component (0 - 2.0x) in `frontend/src/components/tts/VolumeSlider.tsx`
+- [X] T061 [US3] Create `VoiceSelector` component (dynamic voice list from API) in `frontend/src/components/tts/VoiceSelector.tsx`
+- [X] T062 [P] [US3] Create `LanguageSelector` component (zh-TW, zh-CN, en-US, ja-JP, ko-KR) in `frontend/src/components/tts/LanguageSelector.tsx`
 
 #### Page Integration
 
-- [ ] T063 [US3] Update `TTSPage` to include all parameter controls in `frontend/src/routes/tts/TTSPage.tsx`
-- [ ] T064 [US3] Create TTS state store with parameters (Zustand) in `frontend/src/stores/ttsStore.ts`
+- [X] T063 [US3] Update `TTSPage` to include all parameter controls in `frontend/src/routes/tts/TTSPage.tsx`
+- [X] T064 [US3] Create TTS state store with parameters (Zustand) in `frontend/src/stores/ttsStore.ts`
 
 **Checkpoint**: US3 Complete - 完整參數控制（語速、音調、音量、音色、語言）可用於 API 與 UI
 
@@ -310,9 +310,9 @@ With multiple developers:
 | Phase 2: Foundational | 14 | - | ✅ Complete |
 | Phase 3: US1 | 16 | P1 - TTS API | ✅ Complete (MVP) |
 | Phase 4: US2 | 16 | P2 - Web UI | ✅ Complete |
-| Phase 5: US3 | 13 | P3 - Parameters | ⬜ Pending |
+| Phase 5: US3 | 13 | P3 - Parameters | ✅ Complete |
 | Phase 6: Polish | 10 | - | ⬜ Pending |
-| **Total** | **74** | | **51/74 Complete** |
+| **Total** | **74** | | **64/74 Complete** |
 
 ---
 

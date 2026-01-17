@@ -165,8 +165,38 @@ class AzureTTSProvider(ITTSProvider):
     def get_supported_params(self) -> dict:
         """Get supported parameter ranges."""
         return {
-            "speed": {"min": 0.5, "max": 2.0, "default": 1.0},
-            "pitch": {"min": -20, "max": 20, "default": 0},
+            "speed": {"min": 0.5, "max": 2.0, "default": 1.0, "step": 0.1},
+            "pitch": {"min": -20, "max": 20, "default": 0, "step": 1},
+            "volume": {"min": 0.0, "max": 2.0, "default": 1.0, "step": 0.1},
+        }
+
+    def map_params_to_ssml(self, speed: float, pitch: float, volume: float) -> dict:
+        """Map normalized parameters to Azure SSML format.
+
+        Args:
+            speed: Speed value (0.5-2.0)
+            pitch: Pitch value (-20 to 20)
+            volume: Volume value (0.0-2.0)
+
+        Returns:
+            Dictionary with Azure SSML prosody attributes
+        """
+        # Azure uses percentage format: +0%, +100%, -50%
+        rate_percent = (speed - 1.0) * 100
+        rate_str = f"+{rate_percent:.0f}%" if rate_percent >= 0 else f"{rate_percent:.0f}%"
+
+        # Azure pitch: -20 to 20 maps to -50% to +50%
+        pitch_percent = (pitch / 20) * 50
+        pitch_str = f"+{pitch_percent:.0f}%" if pitch_percent >= 0 else f"{pitch_percent:.0f}%"
+
+        # Azure volume: 0-2.0 maps to 0% to 200% (or use x-soft, soft, medium, loud, x-loud)
+        volume_percent = volume * 100
+        volume_str = f"{volume_percent:.0f}%"
+
+        return {
+            "rate": rate_str,
+            "pitch": pitch_str,
+            "volume": volume_str,
         }
 
     async def health_check(self) -> bool:

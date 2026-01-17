@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend dev dev-back dev-front build test lint format check clean
+.PHONY: help install install-backend install-frontend dev dev-back dev-front build test lint format check clean manual-test manual-test-stop
 
 # Colors for output
 CYAN := \033[36m
@@ -31,6 +31,10 @@ help:
 	@echo "  make lint             - 檢查程式碼風格"
 	@echo "  make format           - 格式化程式碼"
 	@echo "  make check            - 執行所有檢查（lint + typecheck）"
+	@echo ""
+	@echo "$(GREEN)手動測試:$(RESET)"
+	@echo "  make manual-test      - 啟動手動測試環境（背景執行）"
+	@echo "  make manual-test-stop - 停止手動測試環境"
 	@echo ""
 	@echo "$(GREEN)其他指令:$(RESET)"
 	@echo "  make clean            - 清除建構產物"
@@ -158,6 +162,34 @@ clean:
 	rm -rf frontend/node_modules/.vite
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✓ 清除完成$(RESET)"
+
+# =============================================================================
+# Manual Testing
+# =============================================================================
+
+manual-test: manual-test-stop
+	@echo "$(CYAN)啟動手動測試環境...$(RESET)"
+	@cd backend && nohup uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload > /tmp/voice-lab_backend.log 2>&1 &
+	@cd frontend && nohup npm run dev > /tmp/voice-lab_frontend.log 2>&1 &
+	@sleep 4
+	@echo "$(GREEN)=== Backend Health ===$(RESET)"
+	@curl -s http://localhost:8000/health | head -100 || echo "Backend not responding"
+	@echo ""
+	@echo "$(GREEN)=== Frontend Status ===$(RESET)"
+	@curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:5173 || echo "Frontend not responding"
+	@echo ""
+	@echo "$(GREEN)✓ 測試環境已啟動$(RESET)"
+	@echo "  Backend:  http://localhost:8000"
+	@echo "  Frontend: http://localhost:5173"
+	@echo "  Backend logs:  tail -f /tmp/voice-lab_backend.log"
+	@echo "  Frontend logs: tail -f /tmp/voice-lab_frontend.log"
+	@open http://localhost:5173
+
+manual-test-stop:
+	@echo "$(CYAN)停止測試環境...$(RESET)"
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+	@lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+	@echo "$(GREEN)✓ 測試環境已停止$(RESET)"
 
 # =============================================================================
 # Docker (optional)

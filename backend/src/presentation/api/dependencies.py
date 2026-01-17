@@ -13,7 +13,9 @@ from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.use_cases.compare_providers import CompareProvidersUseCase
 
 # Use Cases
-from src.application.use_cases.synthesize_speech import SynthesizeSpeechUseCase
+from src.application.use_cases.synthesize_speech import (
+    SynthesizeSpeech as SynthesizeSpeechUseCase,
+)
 from src.application.use_cases.transcribe_audio import TranscribeAudioUseCase
 from src.application.use_cases.voice_interaction import VoiceInteractionUseCase
 from src.domain.repositories.test_record_repository import ITestRecordRepository
@@ -220,6 +222,19 @@ class Container:
             except Exception as e:
                 print(f"Failed to initialize Anthropic LLM: {e}")
 
+        # Google Gemini
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            try:
+                from src.infrastructure.providers.llm import GeminiLLMProvider
+
+                providers["gemini"] = GeminiLLMProvider(
+                    api_key=gemini_key,
+                    model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+                )
+            except Exception as e:
+                print(f"Failed to initialize Gemini LLM: {e}")
+
         return providers
 
     def _create_storage_service(self) -> IStorageService:
@@ -239,7 +254,6 @@ class Container:
         else:
             return LocalStorageService(
                 base_path=os.getenv("LOCAL_STORAGE_PATH", "./storage"),
-                base_url=os.getenv("LOCAL_STORAGE_URL", "http://localhost:8000/files"),
             )
 
 

@@ -51,6 +51,7 @@ dependencies = [
     # LLM
     "anthropic>=0.18.0",
     "openai>=1.12.0",
+    # Note: Gemini uses httpx (already included above) for API calls
     # Audio processing
     "pydub>=0.25.0",
     # Cloud Storage

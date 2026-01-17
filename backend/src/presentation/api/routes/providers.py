@@ -8,7 +8,7 @@ from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from src.presentation.api.dependencies import get_container, Container
+from src.presentation.api.dependencies import Container, get_container
 from src.presentation.api.middleware.auth import CurrentUserDep
 
 router = APIRouter(prefix="/providers", tags=["Providers"])

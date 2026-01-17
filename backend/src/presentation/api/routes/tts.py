@@ -6,7 +6,7 @@ T031: Add TTS API route POST /tts/stream (streaming mode)
 
 import base64
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 
 from src.application.use_cases.synthesize_speech import SynthesizeSpeech

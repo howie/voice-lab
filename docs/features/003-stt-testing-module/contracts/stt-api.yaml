@@ -1,0 +1,477 @@
+openapi: 3.1.0
+info:
+  title: Voice Lab STT API
+  description: Speech-to-Text testing API for Voice Lab platform
+  version: 1.0.0
+  contact:
+    name: Voice Lab Team
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: STT
+    description: Speech-to-Text operations
+  - name: History
+    description: Transcription history management
+  - name: Analysis
+    description: WER/CER analysis
+
+paths:
+  /stt/providers:
+    get:
+      tags: [STT]
+      summary: List available STT providers
+      description: Returns all configured STT providers with their capabilities
+      operationId: listSTTProviders
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/STTProvider'
+
+  /stt/transcribe:
+    post:
+      tags: [STT]
+      summary: Transcribe audio file (batch mode)
+      description: Upload audio file for transcription. Returns transcription result.
+      operationId: transcribeAudio
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - provider
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file (MP3, WAV, M4A, FLAC, WEBM)
+                provider:
+                  type: string
+                  enum: [azure, gcp, whisper]
+                  description: STT provider to use
+                language:
+                  type: string
+                  default: zh-TW
+                  description: Language code
+                child_mode:
+                  type: boolean
+                  default: false
+                  description: Enable child voice optimization
+                ground_truth:
+                  type: string
+                  description: Optional ground truth for WER calculation
+      responses:
+        '200':
+          description: Transcription result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unsupported audio format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /stt/history:
+    get:
+      tags: [History]
+      summary: List transcription history
+      description: Get paginated list of user's transcription records
+      operationId: listTranscriptionHistory
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [azure, gcp, whisper]
+          description: Filter by provider
+        - name: language
+          in: query
+          schema:
+            type: string
+          description: Filter by language
+      responses:
+        '200':
+          description: Paginated history list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionHistoryPage'
+
+  /stt/history/{id}:
+    get:
+      tags: [History]
+      summary: Get transcription detail
+      description: Get detailed transcription result including word timings
+      operationId: getTranscriptionDetail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transcription detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionDetail'
+        '404':
+          description: Not found
+
+    delete:
+      tags: [History]
+      summary: Delete transcription record
+      description: Permanently delete a transcription record and associated audio
+      operationId: deleteTranscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted successfully
+        '404':
+          description: Not found
+
+  /stt/compare:
+    post:
+      tags: [STT]
+      summary: Compare multiple providers
+      description: Transcribe same audio with multiple providers for comparison
+      operationId: compareProviders
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - providers
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                providers:
+                  type: array
+                  items:
+                    type: string
+                    enum: [azure, gcp, whisper]
+                  minItems: 2
+                  maxItems: 3
+                language:
+                  type: string
+                  default: zh-TW
+                ground_truth:
+                  type: string
+                  description: For WER/CER comparison
+      responses:
+        '200':
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResponse'
+
+  /stt/analysis/wer:
+    post:
+      tags: [Analysis]
+      summary: Calculate WER/CER
+      description: Calculate error rate for existing transcription result
+      operationId: calculateErrorRate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - result_id
+                - ground_truth
+              properties:
+                result_id:
+                  type: string
+                  format: uuid
+                ground_truth:
+                  type: string
+                  description: Correct transcription text
+      responses:
+        '200':
+          description: WER/CER analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WERAnalysis'
+        '404':
+          description: Result not found
+
+components:
+  schemas:
+    STTProvider:
+      type: object
+      properties:
+        name:
+          type: string
+          example: azure
+        display_name:
+          type: string
+          example: Azure Speech Services
+        supports_streaming:
+          type: boolean
+        max_duration_sec:
+          type: integer
+        max_file_size_mb:
+          type: integer
+        supported_formats:
+          type: array
+          items:
+            type: string
+        supported_languages:
+          type: array
+          items:
+            type: string
+
+    TranscriptionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        transcript:
+          type: string
+        confidence:
+          type: number
+          format: float
+        latency_ms:
+          type: integer
+        language:
+          type: string
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordTiming'
+        wer_analysis:
+          $ref: '#/components/schemas/WERAnalysis'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    WordTiming:
+      type: object
+      properties:
+        word:
+          type: string
+        start_ms:
+          type: integer
+        end_ms:
+          type: integer
+        confidence:
+          type: number
+          format: float
+          nullable: true
+
+    WERAnalysis:
+      type: object
+      properties:
+        error_rate:
+          type: number
+          format: float
+          description: WER or CER value (0.0 = perfect match)
+        error_type:
+          type: string
+          enum: [WER, CER]
+          description: WER for English, CER for CJK
+        insertions:
+          type: integer
+        deletions:
+          type: integer
+        substitutions:
+          type: integer
+        total_reference:
+          type: integer
+          description: Total words/characters in reference
+        alignment:
+          type: array
+          items:
+            type: object
+            properties:
+              ref:
+                type: string
+                nullable: true
+              hyp:
+                type: string
+                nullable: true
+              op:
+                type: string
+                enum: [match, substitute, insert, delete]
+
+    TranscriptionHistoryPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptionSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+
+    TranscriptionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        language:
+          type: string
+        transcript_preview:
+          type: string
+          description: First 100 characters
+        duration_ms:
+          type: integer
+        confidence:
+          type: number
+          format: float
+        has_ground_truth:
+          type: boolean
+        error_rate:
+          type: number
+          format: float
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    TranscriptionDetail:
+      allOf:
+        - $ref: '#/components/schemas/TranscriptionResponse'
+        - type: object
+          properties:
+            audio_file:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                filename:
+                  type: string
+                duration_ms:
+                  type: integer
+                format:
+                  type: string
+                download_url:
+                  type: string
+                  format: uri
+            ground_truth:
+              type: string
+              nullable: true
+            child_mode:
+              type: boolean
+
+    ComparisonResponse:
+      type: object
+      properties:
+        audio_file_id:
+          type: string
+          format: uuid
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptionResponse'
+        ground_truth:
+          type: string
+          nullable: true
+        comparison_table:
+          type: array
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+              transcript:
+                type: string
+              confidence:
+                type: number
+                format: float
+              latency_ms:
+                type: integer
+              error_rate:
+                type: number
+                format: float
+                nullable: true
+              error_type:
+                type: string
+                nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+        code:
+          type: string
+          example: INVALID_FORMAT
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

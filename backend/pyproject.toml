@@ -59,6 +59,7 @@ dependencies = [
     # Utils
     "cachetools>=5.3.0",
     "structlog>=24.1.0",
+    "greenlet>=3.3.0",
 ]
 
 [project.optional-dependencies]

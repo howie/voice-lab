@@ -1,10 +1,12 @@
 """TTS Provider Factory.
 
 T043: Factory for creating TTS providers with credential injection support.
+T074: Extended to support audit logging for credential.used events.
 """
 
 import os
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from src.application.interfaces.tts_provider import ITTSProvider
@@ -17,6 +19,16 @@ class ProviderNotSupportedError(Exception):
     """Raised when a provider is not supported."""
 
     pass
+
+
+@dataclass
+class ProviderCreationResult:
+    """Result of provider creation, including credential metadata for audit logging."""
+
+    provider: ITTSProvider
+    used_user_credential: bool
+    credential_id: uuid.UUID | None = None
+    provider_name: str = ""
 
 
 class TTSProviderFactory:
@@ -131,6 +143,39 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
+        result = await cls.create_with_metadata(
+            provider_name=provider_name,
+            user_id=user_id,
+            credential_repo=credential_repo,
+            **kwargs,
+        )
+        return result.provider
+
+    @classmethod
+    async def create_with_metadata(
+        cls,
+        provider_name: str,
+        user_id: uuid.UUID | None = None,
+        credential_repo: IProviderCredentialRepository | None = None,
+        **kwargs: Any,
+    ) -> ProviderCreationResult:
+        """Create a TTS provider instance with credential metadata for audit logging.
+
+        If user_id and credential_repo are provided, attempts to use
+        user credentials first. Falls back to system credentials.
+
+        Args:
+            provider_name: Name of the provider (e.g., 'elevenlabs', 'azure')
+            user_id: Optional user ID for BYOL credential lookup
+            credential_repo: Optional repository for looking up user credentials
+            **kwargs: Additional provider-specific arguments
+
+        Returns:
+            ProviderCreationResult with provider and credential metadata
+
+        Raises:
+            ProviderNotSupportedError: If the provider is not supported
+        """
         provider_name = provider_name.lower()
 
         if not cls.is_supported(provider_name):
@@ -141,13 +186,24 @@ class TTSProviderFactory:
 
         # Try to get user credential if user_id is provided
         api_key: str | None = None
+        used_user_credential = False
+        credential_id: uuid.UUID | None = None
 
         if user_id and credential_repo:
             user_credential = await credential_repo.get_by_user_and_provider(user_id, provider_name)
             if user_credential and user_credential.is_valid:
                 api_key = user_credential.api_key
+                used_user_credential = True
+                credential_id = user_credential.id
 
-        return cls._create_provider(provider_name, api_key=api_key, **kwargs)
+        provider = cls._create_provider(provider_name, api_key=api_key, **kwargs)
+
+        return ProviderCreationResult(
+            provider=provider,
+            used_user_credential=used_user_credential,
+            credential_id=credential_id,
+            provider_name=provider_name,
+        )
 
     @classmethod
     def create_with_key(cls, provider_name: str, api_key: str, **kwargs: Any) -> ITTSProvider:

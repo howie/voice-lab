@@ -204,8 +204,8 @@
 - [X] T079 Add rate limit handling for provider API validation
 - [X] T080 [P] Frontend tests for ProviderSettings in frontend/tests/ProviderSettings.test.tsx
 - [X] T081 Run quickstart.md validation
-- [ ] T082 Code cleanup and refactoring
-- [ ] T083 Performance testing for credential operations
+- [X] T082 Code cleanup and refactoring
+- [X] T083 Performance testing for credential operations
 
 ---
 

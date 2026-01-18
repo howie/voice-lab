@@ -2,20 +2,18 @@
 
 import os
 import uuid
-from datetime import datetime, timezone
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, status, Query, Response, Request
+import httpx
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-import httpx
 
 from src.infrastructure.auth.jwt import create_access_token
 from src.presentation.api.middleware.auth import (
-    CurrentUserDep,
-    verify_google_id_token,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
+    CurrentUserDep,
 )
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -51,9 +49,7 @@ class TokenResponse(BaseModel):
 
 @router.get("/google")
 async def google_auth_start(
-    redirect_uri: str | None = Query(
-        None, description="URL to redirect after successful login"
-    ),
+    redirect_uri: str | None = Query(None, description="URL to redirect after successful login"),
 ) -> RedirectResponse:
     """Initiate Google OAuth 2.0 login flow.
 
@@ -122,7 +118,7 @@ async def google_auth_callback(
 
         tokens = token_response.json()
         access_token = tokens.get("access_token")
-        id_token = tokens.get("id_token")
+        tokens.get("id_token")
 
         # Get user info from Google
         userinfo_response = await client.get(
@@ -169,7 +165,7 @@ async def get_current_user_info(current_user: CurrentUserDep) -> UserResponse:
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(current_user: CurrentUserDep, response: Response) -> None:
+async def logout(_current_user: CurrentUserDep, response: Response) -> None:
     """Logout current user.
 
     Note: JWT tokens are stateless, so we can't truly invalidate them.

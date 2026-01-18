@@ -6,8 +6,8 @@ T067: Implement rate limiting middleware
 import asyncio
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -31,18 +31,22 @@ class RateLimitConfig:
     burst_size: int = 10
 
     # Paths that are rate limited more strictly
-    strict_paths: list[str] = field(default_factory=lambda: [
-        "/api/v1/tts/synthesize",
-        "/api/v1/tts/stream",
-    ])
+    strict_paths: list[str] = field(
+        default_factory=lambda: [
+            "/api/v1/tts/synthesize",
+            "/api/v1/tts/stream",
+        ]
+    )
 
     # Paths excluded from rate limiting
-    excluded_paths: list[str] = field(default_factory=lambda: [
-        "/health",
-        "/api/v1/providers",
-        "/docs",
-        "/openapi.json",
-    ])
+    excluded_paths: list[str] = field(
+        default_factory=lambda: [
+            "/health",
+            "/api/v1/providers",
+            "/docs",
+            "/openapi.json",
+        ]
+    )
 
 
 @dataclass
@@ -103,7 +107,7 @@ class RateLimiter:
             self.config.requests_per_hour,
         )
 
-    async def check_rate_limit(self, request: Request) -> Optional[int]:
+    async def check_rate_limit(self, request: Request) -> int | None:
         """Check if request is within rate limits.
 
         Returns:
@@ -184,9 +188,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.limiter = RateLimiter(config)
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check rate limit before processing request."""
         retry_after = await self.limiter.check_rate_limit(request)
 
@@ -197,12 +199,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         remaining = self.limiter.get_remaining(request)
-        response.headers["X-RateLimit-Remaining-Minute"] = str(
-            remaining["minute_remaining"]
-        )
-        response.headers["X-RateLimit-Remaining-Hour"] = str(
-            remaining["hour_remaining"]
-        )
+        response.headers["X-RateLimit-Remaining-Minute"] = str(remaining["minute_remaining"])
+        response.headers["X-RateLimit-Remaining-Hour"] = str(remaining["hour_remaining"])
 
         return response
 

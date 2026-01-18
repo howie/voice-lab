@@ -9,9 +9,7 @@ class TTSCompareRequest(BaseSchema):
     """Request for TTS provider comparison."""
 
     text: str = Field(..., min_length=1, max_length=5000, description="Text to synthesize")
-    voice_ids: dict[str, str] = Field(
-        ..., description="Mapping of provider name to voice ID"
-    )
+    voice_ids: dict[str, str] = Field(..., description="Mapping of provider name to voice ID")
     language: str = Field(default="zh-TW", description="Language code")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed")
     pitch: float = Field(default=0.0, ge=-10.0, le=10.0, description="Pitch adjustment")
@@ -33,9 +31,7 @@ class TTSCompareResponse(BaseSchema):
 
     results: list[TTSProviderResult]
     fastest_provider: str | None = None
-    summary: dict[str, int] = Field(
-        default_factory=dict, description="Summary statistics"
-    )
+    summary: dict[str, int] = Field(default_factory=dict, description="Summary statistics")
 
 
 class STTCompareRequest(BaseSchema):
@@ -66,6 +62,4 @@ class STTCompareResponse(BaseSchema):
     results: list[STTProviderResult]
     most_accurate_provider: str | None = None
     fastest_provider: str | None = None
-    summary: dict[str, int] = Field(
-        default_factory=dict, description="Summary statistics"
-    )
+    summary: dict[str, int] = Field(default_factory=dict, description="Summary statistics")

@@ -1,6 +1,7 @@
 """History API Schemas."""
 
 from datetime import datetime
+
 from pydantic import Field
 
 from src.presentation.schemas.common import BaseSchema, PaginatedResponse
@@ -30,12 +31,8 @@ class StatisticsResponse(BaseSchema):
     """Statistics response."""
 
     total_tests: int
-    by_type: dict[str, int] = Field(
-        default_factory=dict, description="Test count by type"
-    )
-    by_provider: dict[str, int] = Field(
-        default_factory=dict, description="Test count by provider"
-    )
+    by_type: dict[str, int] = Field(default_factory=dict, description="Test count by type")
+    by_provider: dict[str, int] = Field(default_factory=dict, description="Test count by provider")
     avg_latency_ms: float | None = None
     period_start: datetime | None = None
     period_end: datetime | None = None

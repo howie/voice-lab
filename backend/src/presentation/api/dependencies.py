@@ -5,21 +5,21 @@ following Clean Architecture principles.
 """
 
 import os
-from functools import lru_cache
-from typing import Any
 
-from src.application.interfaces.tts_provider import ITTSProvider
-from src.application.interfaces.stt_provider import ISTTProvider
 from src.application.interfaces.llm_provider import ILLMProvider
 from src.application.interfaces.storage_service import IStorageService
-from src.domain.repositories.test_record_repository import ITestRecordRepository
-from src.domain.repositories.voice_repository import IVoiceRepository
+from src.application.interfaces.stt_provider import ISTTProvider
+from src.application.interfaces.tts_provider import ITTSProvider
+from src.application.use_cases.compare_providers import CompareProvidersUseCase
 
 # Use Cases
-from src.application.use_cases.synthesize_speech import SynthesizeSpeechUseCase
+from src.application.use_cases.synthesize_speech import (
+    SynthesizeSpeech as SynthesizeSpeechUseCase,
+)
 from src.application.use_cases.transcribe_audio import TranscribeAudioUseCase
-from src.application.use_cases.compare_providers import CompareProvidersUseCase
 from src.application.use_cases.voice_interaction import VoiceInteractionUseCase
+from src.domain.repositories.test_record_repository import ITestRecordRepository
+from src.domain.repositories.voice_repository import IVoiceRepository
 
 # Infrastructure
 from src.infrastructure.persistence import (
@@ -126,11 +126,12 @@ class Container:
 
         # VoAI TTS
         voai_key = os.getenv("VOAI_API_KEY")
+        voai_endpoint = os.getenv("VOAI_API_ENDPOINT")
         if voai_key:
             try:
                 from src.infrastructure.providers.tts import VoAITTSProvider
 
-                providers["voai"] = VoAITTSProvider(api_key=voai_key)
+                providers["voai"] = VoAITTSProvider(api_key=voai_key, api_endpoint=voai_endpoint)
             except Exception as e:
                 print(f"Failed to initialize VoAI TTS: {e}")
 
@@ -222,6 +223,19 @@ class Container:
             except Exception as e:
                 print(f"Failed to initialize Anthropic LLM: {e}")
 
+        # Google Gemini
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            try:
+                from src.infrastructure.providers.llm import GeminiLLMProvider
+
+                providers["gemini"] = GeminiLLMProvider(
+                    api_key=gemini_key,
+                    model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+                )
+            except Exception as e:
+                print(f"Failed to initialize Gemini LLM: {e}")
+
         return providers
 
     def _create_storage_service(self) -> IStorageService:
@@ -241,7 +255,6 @@ class Container:
         else:
             return LocalStorageService(
                 base_path=os.getenv("LOCAL_STORAGE_PATH", "./storage"),
-                base_url=os.getenv("LOCAL_STORAGE_URL", "http://localhost:8000/files"),
             )
 
 

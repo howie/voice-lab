@@ -1,8 +1,8 @@
 """In-Memory Test Record Repository Implementation."""
 
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
 
 from src.domain.entities.test_record import TestRecord, TestType
 from src.domain.repositories.test_record_repository import ITestRecordRepository
@@ -68,9 +68,7 @@ class InMemoryTestRecordRepository(ITestRecordRepository):
             return True
         return False
 
-    async def count_by_user(
-        self, user_id: str, test_type: TestType | None = None
-    ) -> int:
+    async def count_by_user(self, user_id: str, test_type: TestType | None = None) -> int:
         """Count test records for a user."""
         records = [r for r in self._records.values() if r.user_id == user_id]
 

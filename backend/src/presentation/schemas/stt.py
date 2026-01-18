@@ -37,5 +37,7 @@ class STTTranscribeResponse(BaseSchema):
     )
     audio_duration_ms: int | None = Field(default=None, description="Audio duration in ms")
     wer: float | None = Field(default=None, description="Word Error Rate if ground truth provided")
-    cer: float | None = Field(default=None, description="Character Error Rate if ground truth provided")
+    cer: float | None = Field(
+        default=None, description="Character Error Rate if ground truth provided"
+    )
     record_id: str | None = Field(default=None, description="Test record ID if saved")

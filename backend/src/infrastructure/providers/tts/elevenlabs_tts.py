@@ -4,7 +4,7 @@ import httpx
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
-from src.domain.entities.voice import VoiceProfile, Gender
+from src.domain.entities.voice import Gender, VoiceProfile
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -59,9 +59,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
         params = {"output_format": output_format}
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                url, headers=headers, json=body, params=params
-            )
+            response = await client.post(url, headers=headers, json=body, params=params)
 
             if response.status_code != 200:
                 error_detail = response.text
@@ -87,9 +85,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             response = await client.get(url, headers=headers)
 
             if response.status_code != 200:
-                raise RuntimeError(
-                    f"ElevenLabs list voices failed: {response.status_code}"
-                )
+                raise RuntimeError(f"ElevenLabs list voices failed: {response.status_code}")
 
             data = response.json()
 
@@ -124,8 +120,9 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
 
             voices.append(
                 VoiceProfile(
+                    id=voice["voice_id"],
                     voice_id=voice["voice_id"],
-                    name=voice["name"],
+                    display_name=voice["name"],
                     provider="elevenlabs",
                     language=voice_lang,
                     gender=gender,

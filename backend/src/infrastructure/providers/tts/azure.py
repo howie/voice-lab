@@ -5,13 +5,12 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from pipecat.services.azure import AzureTTSService
-from pipecat.frames.frames import AudioRawFrame, TTSAudioRawFrame, ErrorFrame
+from pipecat.frames.frames import AudioRawFrame, ErrorFrame, TTSAudioRawFrame
+from pipecat.services.azure.tts import AzureTTSService
 
 from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioFormat, AudioData
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-
 
 # Azure voice mappings by language
 AZURE_VOICES: dict[str, list[dict[str, Any]]] = {
@@ -85,7 +84,7 @@ class AzureTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"Azure TTS synthesis failed: {str(e)}")
+            raise Exception(f"Azure TTS synthesis failed: {str(e)}") from e
 
         full_audio = b"".join(audio_chunks)
         latency_ms = int((time.time() - start_time) * 1000)
@@ -102,9 +101,7 @@ class AzureTTSProvider(ITTSProvider):
             latency_ms=latency_ms,
         )
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output."""
         service = self._get_service(request.voice_id)
 
@@ -115,7 +112,7 @@ class AzureTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"Azure TTS streaming failed: {str(e)}")
+            raise Exception(f"Azure TTS streaming failed: {str(e)}") from e
 
     async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
         """List available Azure voices."""

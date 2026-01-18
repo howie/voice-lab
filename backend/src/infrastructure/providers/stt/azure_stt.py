@@ -1,7 +1,7 @@
 """Azure Cognitive Services Speech-to-Text Provider."""
 
-from collections.abc import AsyncIterator
 import asyncio
+from collections.abc import AsyncIterator
 
 import azure.cognitiveservices.speech as speechsdk
 
@@ -47,8 +47,8 @@ class AzureSTTProvider(BaseSTTProvider):
         # Create audio config from bytes or URL
         if request.audio:
             # Write to temp file for Azure SDK
-            import tempfile
             import os
+            import tempfile
 
             with tempfile.NamedTemporaryFile(
                 suffix=f".{request.audio.format.value}", delete=False
@@ -115,7 +115,7 @@ class AzureSTTProvider(BaseSTTProvider):
                 error = RuntimeError(f"Azure STT error: {evt.error_details}")
             done.set()
 
-        def on_session_stopped(evt):
+        def on_session_stopped(_evt):
             done.set()
 
         recognizer.recognized.connect(on_recognized)
@@ -184,7 +184,7 @@ class AzureSTTProvider(BaseSTTProvider):
                     asyncio.get_event_loop(),
                 )
 
-        def on_session_stopped(evt):
+        def on_session_stopped(_evt):
             done.set()
 
         recognizer.recognizing.connect(on_recognizing)
@@ -206,7 +206,7 @@ class AzureSTTProvider(BaseSTTProvider):
                 try:
                     result = await asyncio.wait_for(result_queue.get(), timeout=0.1)
                     yield result
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
         finally:
             await asyncio.to_thread(recognizer.stop_continuous_recognition)

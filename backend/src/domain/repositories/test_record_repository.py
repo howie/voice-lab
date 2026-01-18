@@ -1,7 +1,6 @@
 """Test Record Repository Interface."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
 from uuid import UUID
 
 from src.domain.entities.test_record import TestRecord, TestType

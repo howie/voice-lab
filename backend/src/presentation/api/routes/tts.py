@@ -4,48 +4,44 @@ T030: Update TTS API route POST /tts/synthesize (batch mode)
 T031: Add TTS API route POST /tts/stream (streaming mode)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import Response, StreamingResponse
 import base64
 
-from src.presentation.api.schemas.tts import (
-    SynthesizeRequest,
-    SynthesizeResponse,
-    StreamRequest,
-)
-from src.domain.entities.tts import TTSRequest
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response, StreamingResponse
+
+from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.domain.config.provider_limits import validate_text_length
 from src.domain.entities.audio import AudioFormat, OutputMode
+from src.domain.entities.tts import TTSRequest
 from src.domain.errors import (
     InvalidProviderError,
-    SynthesisError,
     ProviderError,
+    SynthesisError,
 )
-from src.infrastructure.providers.tts.azure import AzureTTSProvider
-from src.infrastructure.providers.tts.google import GoogleTTSProvider
-from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
-from src.infrastructure.providers.tts.voai import VoAITTSProvider
 from src.infrastructure.storage.local_storage import LocalStorage
-from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.presentation.api.dependencies import get_container
+from src.presentation.api.schemas.tts import (
+    StreamRequest,
+    SynthesizeRequest,
+    SynthesizeResponse,
+)
 
 router = APIRouter(prefix="/tts", tags=["tts"])
 
-# Provider instances
-PROVIDERS = {
-    "azure": AzureTTSProvider,
-    "gcp": GoogleTTSProvider,
-    "elevenlabs": ElevenLabsTTSProvider,
-    "voai": VoAITTSProvider,
-}
 
-VALID_PROVIDERS = list(PROVIDERS.keys())
+def get_provider(provider_name: str, container=None):
+    """Get TTS provider instance by name from Container."""
+    if container is None:
+        container = get_container()
 
+    tts_providers = container.get_tts_providers()
+    provider = tts_providers.get(provider_name)
 
-def get_provider(provider_name: str):
-    """Get TTS provider instance by name."""
-    provider_class = PROVIDERS.get(provider_name)
-    if not provider_class:
-        raise InvalidProviderError(provider_name, VALID_PROVIDERS)
-    return provider_class()
+    if not provider:
+        available = list(tts_providers.keys())
+        raise InvalidProviderError(provider_name, available)
+
+    return provider
 
 
 def get_storage() -> LocalStorage:
@@ -59,6 +55,17 @@ async def synthesize(request: SynthesizeRequest):
 
     Returns complete audio data as base64 encoded string.
     """
+    # Validate text length for provider (outside try-except to ensure proper HTTP status)
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail={"error": error_msg})
+
+    # Log warning if exceeds recommended length
+    if exceeds_recommended:
+        print(
+            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        )
+
     try:
         provider = get_provider(request.provider)
         storage = get_storage()
@@ -96,13 +103,13 @@ async def synthesize(request: SynthesizeRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
 @router.post("/stream")
@@ -111,6 +118,16 @@ async def stream(request: StreamRequest):
 
     Returns audio data as a streaming response.
     """
+    # Validate text length for provider
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail={"error": error_msg})
+
+    if exceeds_recommended:
+        print(
+            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        )
+
     try:
         provider = get_provider(request.provider)
         use_case = SynthesizeSpeech(provider)
@@ -151,13 +168,13 @@ async def stream(request: StreamRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
 @router.post("/synthesize/binary")
@@ -166,6 +183,16 @@ async def synthesize_binary(request: SynthesizeRequest):
 
     Alternative endpoint that returns audio directly instead of base64.
     """
+    # Validate text length for provider
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail={"error": error_msg})
+
+    if exceeds_recommended:
+        print(
+            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        )
+
     try:
         provider = get_provider(request.provider)
         storage = get_storage()
@@ -203,10 +230,10 @@ async def synthesize_binary(request: SynthesizeRequest):
         )
 
     except InvalidProviderError as e:
-        raise HTTPException(status_code=400, detail=e.to_dict())
+        raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
-        raise HTTPException(status_code=e.status_code, detail=e.to_dict())
+        raise HTTPException(status_code=e.status_code, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e

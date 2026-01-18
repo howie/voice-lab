@@ -4,7 +4,6 @@ T029: Create LogSynthesisUseCase for request logging (FR-010)
 """
 
 import hashlib
-from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 

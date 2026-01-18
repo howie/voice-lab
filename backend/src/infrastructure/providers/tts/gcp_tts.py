@@ -4,7 +4,7 @@ from google.cloud import texttospeech_v1 as texttospeech
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
-from src.domain.entities.voice import VoiceProfile, Gender
+from src.domain.entities.voice import Gender, VoiceProfile
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -54,9 +54,7 @@ class GCPTTSProvider(BaseTTSProvider):
         # Build audio config
         audio_format = self._get_output_format(request)
         audio_config = texttospeech.AudioConfig(
-            audio_encoding=self._FORMAT_MAP.get(
-                audio_format, texttospeech.AudioEncoding.MP3
-            ),
+            audio_encoding=self._FORMAT_MAP.get(audio_format, texttospeech.AudioEncoding.MP3),
             speaking_rate=request.speed,
             pitch=request.pitch,
             volume_gain_db=self._volume_to_db(request.volume),

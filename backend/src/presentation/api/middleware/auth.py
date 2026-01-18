@@ -1,16 +1,21 @@
 """Authentication middleware for Google SSO and JWT."""
 
 import os
+import sys
 from dataclasses import dataclass
 from typing import Annotated
 
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from google.oauth2 import id_token
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from jwt.exceptions import ExpiredSignatureError
 
-from src.infrastructure.auth.jwt import verify_access_token, JWTPayload
+from src.infrastructure.auth.jwt import verify_access_token
+
+# Load .env file explicitly
+load_dotenv()
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
@@ -18,6 +23,13 @@ security = HTTPBearer(auto_error=False)
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+# Development mode: disable authentication (ONLY for local development)
+DISABLE_AUTH = os.getenv("DISABLE_AUTH", "false").lower() == "true"
+APP_ENV = os.getenv("APP_ENV", "development")
+
+# Debug logging
+print(f"[AUTH] DISABLE_AUTH={DISABLE_AUTH}, APP_ENV={APP_ENV}", file=sys.stderr)
 
 
 @dataclass
@@ -31,10 +43,24 @@ class CurrentUser:
     google_id: str
 
 
+# Create a default development user when auth is disabled
+DEV_USER = CurrentUser(
+    id="dev-user-id",
+    email="dev@localhost",
+    name="Development User",
+    picture_url=None,
+    google_id="dev-google-id",
+)
+
+
 async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> CurrentUser | None:
     """Get current user from JWT token (optional - returns None if not authenticated)."""
+    # Development mode: skip authentication
+    if DISABLE_AUTH and APP_ENV != "production":
+        return DEV_USER
+
     if credentials is None:
         return None
 
@@ -62,6 +88,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> CurrentUser:
     """Get current user from JWT token (required - raises 401 if not authenticated)."""
+    # Development mode: skip authentication
+    if DISABLE_AUTH and APP_ENV != "production":
+        return DEV_USER
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,18 +117,18 @@ async def get_current_user(
             picture_url=payload.picture_url,
             google_id=payload.google_id,
         )
-    except ExpiredSignatureError:
+    except ExpiredSignatureError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 async def verify_google_id_token(token: str) -> dict:
@@ -136,13 +166,13 @@ async def verify_google_id_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid Google token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate Google credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 # Type alias for dependency injection

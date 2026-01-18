@@ -7,6 +7,17 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authApi } from '@/lib/api'
 
+// Development mode: disable authentication
+const DISABLE_AUTH = import.meta.env.VITE_DISABLE_AUTH === 'true'
+
+// Development user
+const DEV_USER = {
+  id: 'dev-user-id',
+  email: 'dev@localhost',
+  name: 'Development User',
+  picture_url: undefined,
+}
+
 interface User {
   id: string
   email: string
@@ -32,7 +43,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -82,6 +93,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
+        // Development mode: skip authentication
+        if (DISABLE_AUTH) {
+          set({
+            user: DEV_USER,
+            token: 'dev-token',
+            isAuthenticated: true,
+            isLoading: false,
+          })
+          return
+        }
+
         const token = localStorage.getItem('auth_token')
 
         if (!token) {

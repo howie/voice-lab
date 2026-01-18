@@ -5,8 +5,8 @@ T023: Unit tests for input validation (empty text, text > 5000 chars)
 
 import pytest
 
-from src.domain.entities.tts import TTSRequest, MAX_TEXT_LENGTH
 from src.domain.entities.audio import AudioFormat, OutputMode
+from src.domain.entities.tts import MAX_TEXT_LENGTH, TTSRequest
 
 
 class TestTTSRequestValidation:
@@ -226,7 +226,7 @@ class TestTTSRequestValidation:
             provider="azure",
         )
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(AttributeError):  # FrozenInstanceError raises AttributeError
             request.text = "Modified"
 
     def test_unicode_text(self):
@@ -245,7 +245,7 @@ class TestTTSRequestValidation:
     def test_special_characters_in_text(self):
         """Test that special characters are handled correctly."""
         request = TTSRequest(
-            text="Hello! How are you? I'm fine. <tag> & \"quotes\"",
+            text='Hello! How are you? I\'m fine. <tag> & "quotes"',
             voice_id="en-US-JennyNeural",
             provider="azure",
         )
@@ -295,7 +295,13 @@ Line 3"""
 
     def test_all_audio_formats(self):
         """Test creating requests with all supported audio formats."""
-        formats = [AudioFormat.MP3, AudioFormat.WAV, AudioFormat.OGG, AudioFormat.OPUS, AudioFormat.PCM]
+        formats = [
+            AudioFormat.MP3,
+            AudioFormat.WAV,
+            AudioFormat.OGG,
+            AudioFormat.OPUS,
+            AudioFormat.PCM,
+        ]
 
         for fmt in formats:
             request = TTSRequest(

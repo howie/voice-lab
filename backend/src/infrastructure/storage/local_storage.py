@@ -10,7 +10,7 @@ from pathlib import Path
 
 import aiofiles
 
-from src.application.interfaces.storage_service import IStorageService
+from src.application.interfaces.storage_service import IStorageService, StoredFile
 from src.domain.entities.audio import AudioData
 from src.domain.errors import StorageError
 
@@ -51,6 +51,51 @@ class LocalStorage(IStorageService):
         extension = audio.format.file_extension
         return f"{unique_id}{extension}"
 
+    async def upload(
+        self,
+        key: str,
+        data: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> StoredFile:
+        """Upload a file to storage.
+
+        Args:
+            key: Storage key/path for the file
+            data: File content as bytes
+            content_type: MIME type of the file
+
+        Returns:
+            Information about the stored file
+
+        Raises:
+            StorageError: If upload fails
+        """
+        try:
+            # Use the key as relative path
+            file_path = Path(self.base_path) / key
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(data)
+
+            # Generate URL without checking existence (file was just created)
+            if key.startswith("storage/"):
+                url = f"/files/{key.replace('storage/', '')}"
+            else:
+                url = f"/files/{key}"
+
+            return StoredFile(
+                key=key,
+                url=url,
+                size_bytes=len(data),
+                content_type=content_type,
+            )
+
+        except OSError as e:
+            raise StorageError(f"Failed to upload file: {str(e)}") from e
+        except Exception as e:
+            raise StorageError(f"Unexpected error uploading file: {str(e)}") from e
+
     async def save(self, audio: AudioData, provider: str) -> str:
         """Save audio data to local storage.
 
@@ -79,6 +124,39 @@ class LocalStorage(IStorageService):
             raise StorageError(f"Failed to save audio: {str(e)}") from e
         except Exception as e:
             raise StorageError(f"Unexpected error saving audio: {str(e)}") from e
+
+    async def download(self, key: str) -> bytes:
+        """Download a file from storage.
+
+        Args:
+            key: Storage key/path of the file
+
+        Returns:
+            File content as bytes
+
+        Raises:
+            StorageError: If download fails
+            FileNotFoundError: If file doesn't exist
+        """
+        try:
+            # Construct full path
+            if key.startswith("storage/"):
+                full_path = Path(self.base_path).parent / key
+            else:
+                full_path = Path(self.base_path) / key
+
+            if not full_path.exists():
+                raise FileNotFoundError(f"File not found: {key}")
+
+            async with aiofiles.open(full_path, "rb") as f:
+                return await f.read()
+
+        except FileNotFoundError:
+            raise
+        except OSError as e:
+            raise StorageError(f"Failed to download file: {str(e)}") from e
+        except Exception as e:
+            raise StorageError(f"Unexpected error downloading file: {str(e)}") from e
 
     async def get(self, path: str) -> bytes:
         """Retrieve audio data from storage.
@@ -162,19 +240,33 @@ class LocalStorage(IStorageService):
         except Exception:
             return False
 
-    def get_url(self, path: str) -> str:
-        """Get URL for accessing stored audio.
+    async def get_url(self, key: str, _expires_in: int = 3600) -> str:
+        """Get a URL to access the file.
 
         Args:
-            path: Relative path to the audio file
+            key: Storage key/path of the file
+            _expires_in: URL expiration time in seconds (ignored for local storage)
 
         Returns:
-            URL path for accessing the file
+            URL to access the file
+
+        Raises:
+            FileNotFoundError: If file doesn't exist
         """
+        # Construct full path to check existence
+        if key.startswith("storage/"):
+            full_path = Path(self.base_path).parent / key
+        else:
+            full_path = Path(self.base_path) / key
+
+        if not full_path.exists():
+            raise FileNotFoundError(f"File not found: {key}")
+
         # For local storage, return the file path relative to static mount
-        if path.startswith("storage/"):
-            return f"/files/{path.replace('storage/', '')}"
-        return f"/files/{path}"
+        # expires_in is ignored as local files don't have expiring URLs
+        if key.startswith("storage/"):
+            return f"/files/{key.replace('storage/', '')}"
+        return f"/files/{key}"
 
     async def list_files(
         self,

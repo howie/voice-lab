@@ -3,8 +3,6 @@
 T033: Update API schemas with proper validation
 """
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -143,12 +141,12 @@ class SynthesizeResponse(BaseModel):
         ge=0,
         description="Duration of the audio in milliseconds",
     )
-    latency_ms: Optional[int] = Field(
+    latency_ms: int | None = Field(
         default=None,
         ge=0,
         description="Time to first byte in milliseconds",
     )
-    storage_path: Optional[str] = Field(
+    storage_path: str | None = Field(
         default=None,
         description="Path where audio is stored (if saved)",
     )
@@ -176,11 +174,11 @@ class ErrorDetail(BaseModel):
         ...,
         description="Human-readable error message",
     )
-    details: Optional[dict] = Field(
+    details: dict | None = Field(
         default=None,
         description="Additional error details",
     )
-    request_id: Optional[str] = Field(
+    request_id: str | None = Field(
         default=None,
         description="Request ID for tracing",
     )

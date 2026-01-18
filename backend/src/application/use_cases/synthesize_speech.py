@@ -6,11 +6,10 @@ T028: Update SynthesizeSpeechUseCase to support batch and streaming modes
 from collections.abc import AsyncGenerator
 from typing import Protocol
 
-from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.storage_service import IStorageService
+from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.entities.audio import OutputMode
-from src.domain.errors import SynthesisError, ProviderError
+from src.domain.errors import ProviderError, SynthesisError
 
 
 class ISynthesisLogger(Protocol):
@@ -67,9 +66,7 @@ class SynthesizeSpeech:
 
             # Store audio if storage is configured
             if self.storage:
-                storage_path = await self.storage.save(
-                    result.audio, request.provider
-                )
+                storage_path = await self.storage.save(result.audio, request.provider)
                 result.storage_path = storage_path
 
             # Log synthesis if logger is configured
@@ -175,10 +172,7 @@ class SynthesizeSpeechFactory:
         provider = self.providers.get(provider_name)
         if not provider:
             valid_providers = list(self.providers.keys())
-            raise ValueError(
-                f"Provider '{provider_name}' not found. "
-                f"Available: {valid_providers}"
-            )
+            raise ValueError(f"Provider '{provider_name}' not found. Available: {valid_providers}")
 
         return SynthesizeSpeech(
             provider=provider,

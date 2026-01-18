@@ -4,9 +4,10 @@ T070: Handle concurrent request processing
 """
 
 import asyncio
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -48,9 +49,7 @@ class ConcurrencyManager:
         self.config = config or ConcurrencyConfig()
 
         # Global semaphore for total concurrent requests
-        self._global_semaphore = asyncio.Semaphore(
-            self.config.max_concurrent_total
-        )
+        self._global_semaphore = asyncio.Semaphore(self.config.max_concurrent_total)
 
         # Per-provider semaphores
         self._provider_semaphores: dict[str, asyncio.Semaphore] = {}
@@ -124,7 +123,7 @@ class ConcurrencyManager:
                             provider_sem.release()
                     finally:
                         self._global_semaphore.release()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._stats["timeout_requests"] += 1
                 raise
 
@@ -162,6 +161,7 @@ class ConcurrencyManager:
         Returns:
             List of results (or exceptions if return_exceptions=True)
         """
+
         async def wrapped_task(provider: str, coro: Callable[[], Any]):
             async with self.acquire(provider):
                 return await coro()
@@ -175,9 +175,7 @@ class ConcurrencyManager:
             **self._stats,
             "current_queue_size": self._queue_size,
             "global_available": self._global_semaphore._value,
-            "provider_available": {
-                p: s._value for p, s in self._provider_semaphores.items()
-            },
+            "provider_available": {p: s._value for p, s in self._provider_semaphores.items()},
         }
 
     def get_availability(self, provider: str) -> dict[str, int]:
@@ -186,9 +184,7 @@ class ConcurrencyManager:
         return {
             "global_available": self._global_semaphore._value,
             "provider_available": provider_sem._value,
-            "queue_available": max(
-                0, self.config.max_queue_size - self._queue_size
-            ),
+            "queue_available": max(0, self.config.max_queue_size - self._queue_size),
         }
 
 
@@ -237,6 +233,7 @@ class ProviderCircuitBreaker:
             if state == "open":
                 # Check if recovery timeout passed
                 import time
+
                 last = self._last_failure.get(provider, 0)
                 if time.time() - last >= self.recovery_timeout:
                     # Move to half-open

@@ -1,5 +1,7 @@
-import { MessageSquare, Mic, MessagesSquare, BarChart3 } from 'lucide-react'
+import { MessageSquare, Mic, MessagesSquare, BarChart3, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { ttsApi, type ProviderInfo } from '@/lib/api'
 
 const features = [
   {
@@ -25,14 +27,54 @@ const features = [
   },
 ]
 
-const providers = [
-  { name: 'Google Cloud', status: 'active', tts: true, stt: true },
-  { name: 'Azure', status: 'active', tts: true, stt: true },
-  { name: 'ElevenLabs', status: 'active', tts: true, stt: false },
-  { name: 'VoAI', status: 'pending', tts: true, stt: true },
-]
-
 export function Dashboard() {
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchProviders() {
+      try {
+        setLoading(true)
+        const response = await ttsApi.getProviders()
+        setProviders(response.data.providers)
+        setError(null)
+      } catch (err) {
+        console.error('Failed to fetch providers:', err)
+        setError('無法載入 Provider 資訊')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProviders()
+  }, [])
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'available':
+        return {
+          label: '已連接',
+          className: 'bg-green-100 text-green-700',
+        }
+      case 'unavailable':
+        return {
+          label: '未設定',
+          className: 'bg-gray-100 text-gray-700',
+        }
+      case 'degraded':
+        return {
+          label: '降級',
+          className: 'bg-yellow-100 text-yellow-700',
+        }
+      default:
+        return {
+          label: '未知',
+          className: 'bg-gray-100 text-gray-700',
+        }
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -72,48 +114,52 @@ export function Dashboard() {
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
         </div>
         <div className="p-4">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b text-left text-sm text-muted-foreground">
-                <th className="pb-3 font-medium">Provider</th>
-                <th className="pb-3 font-medium">狀態</th>
-                <th className="pb-3 font-medium">TTS</th>
-                <th className="pb-3 font-medium">STT</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {providers.map((provider) => (
-                <tr key={provider.name}>
-                  <td className="py-3 font-medium">{provider.name}</td>
-                  <td className="py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        provider.status === 'active'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {provider.status === 'active' ? '已連接' : '待設定'}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    {provider.tts ? (
-                      <span className="text-green-600">✓</span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="py-3">
-                    {provider.stt ? (
-                      <span className="text-green-600">✓</span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">載入中...</span>
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b text-left text-sm text-muted-foreground">
+                  <th className="pb-3 font-medium">Provider</th>
+                  <th className="pb-3 font-medium">狀態</th>
+                  <th className="pb-3 font-medium">支援格式</th>
+                  <th className="pb-3 font-medium">支援語言</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y">
+                {providers.map((provider) => {
+                  const statusDisplay = getStatusDisplay(provider.status)
+                  return (
+                    <tr key={provider.name}>
+                      <td className="py-3 font-medium">{provider.display_name}</td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${statusDisplay.className}`}
+                        >
+                          {statusDisplay.label}
+                        </span>
+                      </td>
+                      <td className="py-3 text-sm text-muted-foreground">
+                        {provider.supported_formats.slice(0, 3).join(', ')}
+                        {provider.supported_formats.length > 3 && '...'}
+                      </td>
+                      <td className="py-3 text-sm text-muted-foreground">
+                        {provider.supported_languages.slice(0, 3).join(', ')}
+                        {provider.supported_languages.length > 3 && '...'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

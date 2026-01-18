@@ -2,12 +2,13 @@
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from src.presentation.api.dependencies import Container, get_container
 from src.presentation.api.middleware.auth import CurrentUserDep
 
 router = APIRouter(prefix="/providers", tags=["Providers"])
@@ -120,19 +121,46 @@ PROVIDER_CONFIGS: dict[ProviderName, ProviderInfo] = {
 
 
 @router.get("", response_model=ProvidersListResponse)
-async def list_providers(current_user: CurrentUserDep) -> ProvidersListResponse:
+async def list_providers(
+    _current_user: CurrentUserDep,
+    container: Container = Depends(get_container),
+) -> ProvidersListResponse:
     """List all available TTS providers.
 
     Returns information about each configured provider including
     supported formats, languages, and parameter ranges.
+    The status reflects actual initialization state.
     """
-    return ProvidersListResponse(providers=list(PROVIDER_CONFIGS.values()))
+    # Get actually initialized providers
+    tts_providers = container.get_tts_providers()
+    stt_providers = container.get_stt_providers()
+
+    # Update status based on actual initialization
+    providers_list = []
+    for provider_name, provider_config in PROVIDER_CONFIGS.items():
+        # Create a copy of the config
+        provider_info = provider_config.model_copy()
+
+        # Check if provider is actually initialized
+        provider_key = provider_name.value
+        is_tts_available = provider_key in tts_providers
+        is_stt_available = provider_key in stt_providers
+
+        # Set status based on availability
+        if is_tts_available or is_stt_available:
+            provider_info.status = ProviderStatus.AVAILABLE
+        else:
+            provider_info.status = ProviderStatus.UNAVAILABLE
+
+        providers_list.append(provider_info)
+
+    return ProvidersListResponse(providers=providers_list)
 
 
 @router.get("/{provider}/health", response_model=ProviderHealthResponse)
 async def check_provider_health(
     provider: ProviderName,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
 ) -> ProviderHealthResponse:
     """Check health status of a specific provider.
 
@@ -166,5 +194,5 @@ async def check_provider_health(
         provider=provider,
         status=health_status,
         latency_ms=latency_ms,
-        checked_at=datetime.now(timezone.utc),
+        checked_at=datetime.now(UTC),
     )

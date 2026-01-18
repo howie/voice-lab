@@ -3,19 +3,20 @@
 T022: Unit tests for provider adapters (Azure, GCP, ElevenLabs, VoAI)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from collections.abc import AsyncGenerator
 
+import pytest
+from pipecat.frames.frames import AudioRawFrame
+
+from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-from src.domain.entities.audio import AudioFormat, AudioData, OutputMode
-from src.infrastructure.providers.tts.azure import AzureTTSProvider, AZURE_VOICES
-from src.infrastructure.providers.tts.google import GoogleTTSProvider, GOOGLE_VOICES
+from src.infrastructure.providers.tts.azure import AZURE_VOICES, AzureTTSProvider
 from src.infrastructure.providers.tts.elevenlabs import (
-    ElevenLabsTTSProvider,
     ELEVENLABS_VOICES,
+    ElevenLabsTTSProvider,
 )
-from src.infrastructure.providers.tts.voai import VoAITTSProvider, VOAI_VOICES
+from src.infrastructure.providers.tts.google import GOOGLE_VOICES, GoogleTTSProvider
+from src.infrastructure.providers.tts.voai import VOAI_VOICES, VoAITTSProvider
 
 
 @pytest.fixture
@@ -34,12 +35,9 @@ def sample_request() -> TTSRequest:
     )
 
 
-@pytest.fixture
-def mock_audio_frame():
-    """Create a mock Pipecat audio frame."""
-    frame = MagicMock()
-    frame.audio = b"\x00\x01\x02\x03" * 100
-    return frame
+def create_mock_audio_frame(audio_data: bytes) -> AudioRawFrame:
+    """Create a mock Pipecat AudioRawFrame that passes isinstance checks."""
+    return AudioRawFrame(audio=audio_data, sample_rate=24000, num_channels=1)
 
 
 class TestAzureTTSProvider:
@@ -65,12 +63,10 @@ class TestAzureTTSProvider:
     @pytest.mark.asyncio
     async def test_synthesize_success(self, sample_request: TTSRequest):
         """Test successful synthesis."""
-        with patch(
-            "src.infrastructure.providers.tts.azure.AzureTTSService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_frame = MagicMock()
-            mock_frame.audio = b"\x00\x01" * 500
+        with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
+            mock_service = MagicMock()
+            audio_data = b"\x00\x01" * 500
+            mock_frame = create_mock_audio_frame(audio_data)
 
             async def mock_run_tts(text):
                 yield mock_frame
@@ -90,12 +86,10 @@ class TestAzureTTSProvider:
     @pytest.mark.asyncio
     async def test_synthesize_stream(self, sample_request: TTSRequest):
         """Test streaming synthesis."""
-        with patch(
-            "src.infrastructure.providers.tts.azure.AzureTTSService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_frame = MagicMock()
-            mock_frame.audio = b"\x00\x01" * 100
+        with patch("src.infrastructure.providers.tts.azure.AzureTTSService") as mock_service_class:
+            mock_service = MagicMock()
+            audio_data = b"\x00\x01" * 100
+            mock_frame = create_mock_audio_frame(audio_data)
 
             async def mock_run_tts(text):
                 for _ in range(3):
@@ -324,9 +318,7 @@ class TestVoAITTSProvider:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            provider = VoAITTSProvider(
-                api_key="test-key", api_endpoint="https://api.voai.tw/v1"
-            )
+            provider = VoAITTSProvider(api_key="test-key", api_endpoint="https://api.voai.tw/v1")
 
             request = TTSRequest(
                 text="你好",
@@ -444,7 +436,7 @@ class TestProviderVoiceMappings:
 
     def test_azure_voices_have_required_fields(self):
         """Test Azure voice mappings have all required fields."""
-        for lang, voices in AZURE_VOICES.items():
+        for _lang, voices in AZURE_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice
@@ -452,7 +444,7 @@ class TestProviderVoiceMappings:
 
     def test_google_voices_have_required_fields(self):
         """Test Google voice mappings have all required fields."""
-        for lang, voices in GOOGLE_VOICES.items():
+        for _lang, voices in GOOGLE_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice
@@ -467,7 +459,7 @@ class TestProviderVoiceMappings:
 
     def test_voai_voices_have_required_fields(self):
         """Test VoAI voice mappings have all required fields."""
-        for lang, voices in VOAI_VOICES.items():
+        for _lang, voices in VOAI_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice

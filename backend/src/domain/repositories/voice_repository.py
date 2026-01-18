@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from src.domain.entities.voice import VoiceProfile, Gender
+from src.domain.entities.voice import Gender, VoiceProfile
 
 
 class IVoiceRepository(ABC):

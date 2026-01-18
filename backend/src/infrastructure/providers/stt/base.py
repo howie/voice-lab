@@ -71,9 +71,7 @@ class BaseSTTProvider(ISTTProvider):
             # Assuming mono 16-bit audio
             bytes_per_sample = 2
             channels = 1
-            duration_seconds = len(audio.data) / (
-                audio.sample_rate * channels * bytes_per_sample
-            )
+            duration_seconds = len(audio.data) / (audio.sample_rate * channels * bytes_per_sample)
             return int(duration_seconds * 1000)
         except Exception:
             return None

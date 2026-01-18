@@ -5,13 +5,12 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from pipecat.services.google import GoogleTTSService
-from pipecat.frames.frames import AudioRawFrame, TTSAudioRawFrame, ErrorFrame
+from pipecat.frames.frames import AudioRawFrame, ErrorFrame, TTSAudioRawFrame
+from pipecat.services.google.tts import GoogleTTSService
 
 from src.application.interfaces.tts_provider import ITTSProvider
-from src.domain.entities.audio import AudioFormat, AudioData
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult, VoiceProfile
-
 
 # Google Cloud TTS voice mappings by language
 GOOGLE_VOICES: dict[str, list[dict[str, Any]]] = {
@@ -46,9 +45,7 @@ class GoogleTTSProvider(ITTSProvider):
     """Google Cloud TTS provider using Pipecat."""
 
     def __init__(self, credentials_path: str | None = None) -> None:
-        self._credentials_path = credentials_path or os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS", ""
-        )
+        self._credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
     def _get_service(self, voice_id: str) -> GoogleTTSService:
         """Get TTS service with the specified voice."""
@@ -83,7 +80,7 @@ class GoogleTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"Google TTS synthesis failed: {str(e)}")
+            raise Exception(f"Google TTS synthesis failed: {str(e)}") from e
 
         full_audio = b"".join(audio_chunks)
         latency_ms = int((time.time() - start_time) * 1000)
@@ -100,9 +97,7 @@ class GoogleTTSProvider(ITTSProvider):
             latency_ms=latency_ms,
         )
 
-    async def synthesize_stream(
-        self, request: TTSRequest
-    ) -> AsyncGenerator[bytes, None]:
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[bytes, None]:
         """Synthesize speech with streaming output."""
         service = self._get_service(request.voice_id)
 
@@ -113,7 +108,7 @@ class GoogleTTSProvider(ITTSProvider):
                 elif isinstance(frame, ErrorFrame):
                     raise Exception(f"TTS Error: {frame.error}")
         except Exception as e:
-            raise Exception(f"Google TTS streaming failed: {str(e)}")
+            raise Exception(f"Google TTS streaming failed: {str(e)}") from e
 
     async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
         """List available Google TTS voices."""
@@ -199,10 +194,8 @@ class GoogleTTSProvider(ITTSProvider):
         else:
             # Logarithmic scale: 1.0 -> 0dB
             import math
-            if volume > 0:
-                gcp_volume = 20 * math.log10(volume)
-            else:
-                gcp_volume = -96.0
+
+            gcp_volume = 20 * math.log10(volume) if volume > 0 else -96.0
 
         return {
             "speaking_rate": gcp_speed,

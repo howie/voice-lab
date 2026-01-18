@@ -24,7 +24,9 @@ class InteractionRequest(BaseSchema):
         default_factory=list, description="Previous conversation messages"
     )
     language: str = Field(default="zh-TW", description="Language code")
-    max_response_tokens: int = Field(default=150, ge=50, le=500, description="Max LLM response tokens")
+    max_response_tokens: int = Field(
+        default=150, ge=50, le=500, description="Max LLM response tokens"
+    )
 
 
 class InteractionResponse(BaseSchema):

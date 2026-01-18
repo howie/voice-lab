@@ -14,6 +14,7 @@ import { PitchSlider } from '@/components/tts/PitchSlider'
 import { VolumeSlider } from '@/components/tts/VolumeSlider'
 import { VoiceSelector } from '@/components/tts/VoiceSelector'
 import { LanguageSelector } from '@/components/tts/LanguageSelector'
+import { getProviderConfig } from '@/config/providers'
 
 export function TTSPage() {
   const {
@@ -41,6 +42,9 @@ export function TTSPage() {
     await synthesize()
   }
 
+  // Get provider-specific text length limits
+  const providerConfig = getProviderConfig(provider)
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,6 +62,9 @@ export function TTSPage() {
           <TextInput
             value={text}
             onChange={setText}
+            maxLength={providerConfig.maxTextLength}
+            recommendedMaxLength={providerConfig.recommendedMaxLength}
+            warningMessage={providerConfig.warningMessage}
             disabled={isLoading}
           />
 

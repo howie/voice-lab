@@ -25,10 +25,10 @@
 
 **Purpose**: Project initialization and STT module structure
 
-- [ ] T001 Create STT provider directory structure in backend/src/infrastructure/providers/stt/
-- [ ] T002 [P] Create STT domain entities directory structure in backend/src/domain/entities/
-- [ ] T003 [P] Create STT frontend directory structure in frontend/src/components/stt/
-- [ ] T004 [P] Add STT TypeScript types in frontend/src/types/stt.ts
+- [x] T001 Create STT provider directory structure in backend/src/infrastructure/providers/stt/ *(already exists)*
+- [x] T002 [P] Create STT domain entities directory structure in backend/src/domain/entities/ *(already exists)*
+- [x] T003 [P] Create STT frontend directory structure in frontend/src/components/stt/
+- [x] T004 [P] Add STT TypeScript types in frontend/src/types/stt.ts
 
 ---
 
@@ -40,39 +40,39 @@
 
 ### Database & Domain Layer
 
-- [ ] T005 Extend existing STTRequest entity with persistence fields in backend/src/domain/entities/stt.py
-- [ ] T006 [P] Create AudioFile entity in backend/src/domain/entities/audio_file.py
-- [ ] T007 [P] Create WERAnalysis entity in backend/src/domain/entities/wer_analysis.py
-- [ ] T008 [P] Create GroundTruth entity in backend/src/domain/entities/ground_truth.py
+- [x] T005 Extend existing STTRequest entity with persistence fields in backend/src/domain/entities/stt.py *(WordTiming, STTRequest, STTResult exist)*
+- [x] T006 [P] Create AudioFile entity in backend/src/domain/entities/audio_file.py
+- [x] T007 [P] Create WERAnalysis entity in backend/src/domain/entities/wer_analysis.py
+- [x] T008 [P] Create GroundTruth entity in backend/src/domain/entities/ground_truth.py
 - [ ] T009 Create Alembic migration for STT tables (audio_files, transcription_requests, transcription_results, wer_analyses, ground_truths)
 
 ### STT Provider Abstraction Layer
 
-- [ ] T010 Define ISTTProvider interface in backend/src/application/interfaces/stt_provider.py
-- [ ] T011 Create BaseSTTProvider abstract class in backend/src/infrastructure/providers/stt/base.py
-- [ ] T012 [P] Implement AzureSTTProvider in backend/src/infrastructure/providers/stt/azure_stt.py
-- [ ] T013 [P] Implement GCPSTTProvider in backend/src/infrastructure/providers/stt/gcp_stt.py
-- [ ] T014 [P] Implement WhisperSTTProvider in backend/src/infrastructure/providers/stt/whisper_stt.py
-- [ ] T015 Create STTProviderFactory in backend/src/infrastructure/providers/stt/factory.py
+- [x] T010 Define ISTTProvider interface in backend/src/application/interfaces/stt_provider.py *(already exists)*
+- [x] T011 Create BaseSTTProvider abstract class in backend/src/infrastructure/providers/stt/base.py *(already exists)*
+- [x] T012 [P] Implement AzureSTTProvider in backend/src/infrastructure/providers/stt/azure_stt.py *(already exists)*
+- [x] T013 [P] Implement GCPSTTProvider in backend/src/infrastructure/providers/stt/gcp_stt.py *(already exists)*
+- [x] T014 [P] Implement WhisperSTTProvider in backend/src/infrastructure/providers/stt/whisper_stt.py *(already exists)*
+- [x] T015 Create STTProviderFactory in backend/src/infrastructure/providers/stt/factory.py
 
 ### Repository Layer
 
-- [ ] T016 Create TranscriptionRepository interface in backend/src/domain/repositories/transcription_repository.py
+- [x] T016 Create TranscriptionRepository interface in backend/src/domain/repositories/transcription_repository.py
 - [ ] T017 Implement TranscriptionRepositoryImpl in backend/src/infrastructure/persistence/transcription_repository_impl.py
 
 ### Service Layer
 
-- [ ] T018 Create STTService in backend/src/application/services/stt_service.py (orchestrates providers + repository)
+- [x] T018 Create STTService in backend/src/application/services/stt_service.py *(using existing TranscribeAudioUseCase)*
 
 ### API Routes Setup
 
-- [ ] T019 Create STT routes blueprint in backend/src/presentation/api/stt_routes.py (skeleton only)
-- [ ] T020 Register STT routes in backend/src/presentation/api/__init__.py
+- [x] T019 Create STT routes blueprint in backend/src/presentation/api/routes/stt.py *(already exists, enhanced)*
+- [x] T020 Register STT routes in backend/src/presentation/api/__init__.py *(already registered)*
 
 ### Frontend Foundation
 
-- [ ] T021 Create STT API client in frontend/src/services/sttApi.ts
-- [ ] T022 Create STT store in frontend/src/stores/sttStore.ts
+- [x] T021 Create STT API client in frontend/src/services/sttApi.ts
+- [x] T022 Create STT store in frontend/src/stores/sttStore.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -86,23 +86,23 @@
 
 ### Tests for User Story 1
 
-- [ ] T023 [P] [US1] Contract test for POST /stt/transcribe endpoint in backend/tests/contract/test_stt_transcribe_contract.py
-- [ ] T024 [P] [US1] Contract test for GET /stt/providers endpoint in backend/tests/contract/test_stt_providers_contract.py
-- [ ] T025 [P] [US1] Unit test for STTService.transcribe() in backend/tests/unit/test_stt_service.py
-- [ ] T026 [P] [US1] Integration test for file upload flow in backend/tests/integration/test_stt_upload_integration.py
+- [x] T023 [P] [US1] Contract test for POST /stt/transcribe endpoint in backend/tests/contract/test_stt_transcribe_contract.py
+- [x] T024 [P] [US1] Contract test for GET /stt/providers endpoint in backend/tests/contract/test_stt_providers_contract.py
+- [x] T025 [P] [US1] Unit test for STTService.transcribe() in backend/tests/unit/test_stt_service.py
+- [x] T026 [P] [US1] Integration test for file upload flow in backend/tests/integration/test_stt_upload_integration.py
 
 ### Implementation for User Story 1
 
-- [ ] T027 [US1] Implement GET /stt/providers endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T028 [US1] Implement POST /stt/transcribe endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T029 [US1] Add audio file validation (format, size limits) in backend/src/application/services/stt_service.py
-- [ ] T030 [US1] Implement audio file storage logic in backend/src/infrastructure/storage/audio_storage.py
-- [ ] T031 [P] [US1] Create AudioUploader component in frontend/src/components/stt/AudioUploader.tsx
-- [ ] T032 [P] [US1] Create ProviderSelector component in frontend/src/components/stt/ProviderSelector.tsx
-- [ ] T033 [P] [US1] Create TranscriptDisplay component in frontend/src/components/stt/TranscriptDisplay.tsx
-- [ ] T034 [US1] Create STTTest page in frontend/src/routes/STTTest.tsx
-- [ ] T035 [US1] Add STT route to frontend router in frontend/src/App.tsx
-- [ ] T036 [US1] Implement file upload flow in STT store (sttStore.ts)
+- [x] T027 [US1] Implement GET /stt/providers endpoint in backend/src/presentation/api/routes/stt.py *(enhanced with full provider info)*
+- [x] T028 [US1] Implement POST /stt/transcribe endpoint in backend/src/presentation/api/routes/stt.py *(enhanced with WER analysis)*
+- [x] T029 [US1] Add audio file validation (format, size limits) in backend/src/presentation/api/routes/stt.py *(file size validation added)*
+- [x] T030 [US1] Implement audio file storage logic *(using existing LocalStorage service)*
+- [x] T031 [P] [US1] Create AudioUploader component in frontend/src/components/stt/AudioUploader.tsx
+- [x] T032 [P] [US1] Create ProviderSelector component in frontend/src/components/stt/ProviderSelector.tsx
+- [x] T033 [P] [US1] Create TranscriptDisplay component in frontend/src/components/stt/TranscriptDisplay.tsx
+- [x] T034 [US1] Create STTTest page in frontend/src/routes/STTTest.tsx *(updated existing page with components)*
+- [x] T035 [US1] Add STT route to frontend router in frontend/src/App.tsx *(already exists)*
+- [x] T036 [US1] Implement file upload flow in STT store (sttStore.ts) *(implemented in T022)*
 
 **Checkpoint**: User Story 1 complete - users can upload audio and get transcriptions
 

@@ -65,14 +65,15 @@ class TestSynthesisFlow:
         """Test complete synthesis flow from request to audio response (batch mode)."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Step 1: Submit synthesis request
@@ -115,14 +116,15 @@ class TestSynthesisFlow:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -155,14 +157,15 @@ class TestSynthesisFlow:
                 language="zh-TW",
             )
             mock_provider.synthesize.return_value = mock_tts_result
-            
+
             mock_result = ProviderCreationResult(
-                provider=mock_provider,
-                used_user_credential=False,
-                provider_name=provider_name
+                provider=mock_provider, used_user_credential=False, provider_name=provider_name
             )
 
-            with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+            with patch(
+                "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+                return_value=mock_result,
+            ):
                 transport = ASGITransport(app=app)
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     payload = {
@@ -200,14 +203,15 @@ class TestWebUIIntegration:
         """Simulate a synthesis request from web UI."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Simulate request from browser with typical headers
@@ -251,14 +255,15 @@ class TestWebUIIntegration:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -339,14 +344,15 @@ class TestErrorHandling:
         """Test that provider unavailability returns service error."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.side_effect = Exception("Service unavailable")
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {

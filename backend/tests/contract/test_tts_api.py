@@ -62,14 +62,15 @@ class TestSynthesizeEndpoint:
         """T020: Test successful synthesis with Azure provider."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -105,14 +106,15 @@ class TestSynthesizeEndpoint:
         )
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="gcp"
+            provider=mock_provider, used_user_credential=False, provider_name="gcp"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -130,14 +132,15 @@ class TestSynthesizeEndpoint:
         """T020: Test successful synthesis with ElevenLabs provider."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="elevenlabs"
+            provider=mock_provider, used_user_credential=False, provider_name="elevenlabs"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -154,14 +157,15 @@ class TestSynthesizeEndpoint:
         """T020: Test successful synthesis with VoAI provider."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="voai"
+            provider=mock_provider, used_user_credential=False, provider_name="voai"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -240,14 +244,15 @@ class TestSynthesizeEndpoint:
         """T020: Verify response matches SynthesizeResponse schema."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -293,14 +298,15 @@ class TestStreamEndpoint:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="voai"
+            provider=mock_provider, used_user_credential=False, provider_name="voai"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -338,14 +344,15 @@ class TestStreamEndpoint:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        
+
         mock_result = ProviderCreationResult(
-            provider=mock_provider,
-            used_user_credential=False,
-            provider_name="azure"
+            provider=mock_provider, used_user_credential=False, provider_name="azure"
         )
 
-        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
+        with patch(
+            "src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata",
+            return_value=mock_result,
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {

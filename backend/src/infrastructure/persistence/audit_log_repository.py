@@ -96,8 +96,8 @@ class SQLAlchemyAuditLogRepository(IAuditLogRepository):
         end_date: datetime | None = None,
     ) -> int:
         """Count audit logs for a user with optional filters."""
-        stmt = select(func.count()).select_from(AuditLogModel).where(
-            AuditLogModel.user_id == user_id
+        stmt = (
+            select(func.count()).select_from(AuditLogModel).where(AuditLogModel.user_id == user_id)
         )
 
         if event_type is not None:

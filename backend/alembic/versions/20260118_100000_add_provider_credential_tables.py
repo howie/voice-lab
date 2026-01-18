@@ -96,12 +96,8 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("user_id", "provider", name="uq_user_provider_credential"),
     )
-    op.create_index(
-        "idx_credentials_user_id", "user_provider_credentials", ["user_id"]
-    )
-    op.create_index(
-        "idx_credentials_provider", "user_provider_credentials", ["provider"]
-    )
+    op.create_index("idx_credentials_user_id", "user_provider_credentials", ["user_id"])
+    op.create_index("idx_credentials_provider", "user_provider_credentials", ["provider"])
     op.create_index(
         "idx_credentials_user_provider",
         "user_provider_credentials",

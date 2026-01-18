@@ -83,9 +83,7 @@ class ValidateProviderKeyUseCase:
         # 1. Get credential
         credential = await self._credential_repo.get_by_id(input_data.credential_id)
         if credential is None:
-            raise CredentialNotFoundError(
-                f"Credential '{input_data.credential_id}' not found"
-            )
+            raise CredentialNotFoundError(f"Credential '{input_data.credential_id}' not found")
 
         # 2. Validate ownership
         if credential.user_id != input_data.user_id:
@@ -129,9 +127,7 @@ class ValidateApiKeyDirectUseCase:
     Used during the add credential flow to validate before saving.
     """
 
-    async def execute(
-        self, provider: str, api_key: str
-    ) -> ProviderValidationResult:
+    async def execute(self, provider: str, api_key: str) -> ProviderValidationResult:
         """Validate an API key directly.
 
         Args:

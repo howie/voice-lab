@@ -1,7 +1,8 @@
 """Base Provider Validator."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass
@@ -11,6 +12,7 @@ class ValidationResult:
     is_valid: bool
     error_message: str | None = None
     quota_info: dict | None = None  # Optional quota information
+    validated_at: datetime | None = field(default=None)  # Timestamp of validation
 
 
 class BaseProviderValidator(ABC):

@@ -20,6 +20,7 @@ from src.application.use_cases.validate_provider_key import (
     ValidateKeyInput,
     ValidateProviderKeyUseCase,
 )
+from src.config import get_settings
 from src.domain.utils.masking import mask_api_key
 from src.infrastructure.persistence.audit_log_repository import (
     SQLAlchemyAuditLogRepository,
@@ -49,6 +50,10 @@ router = APIRouter(prefix="/credentials", tags=["Credentials"])
 providers_router = APIRouter(prefix="/providers", tags=["Providers"])
 
 
+# Development user ID for DISABLE_AUTH mode
+DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
 # Dependency to get current user ID
 # In production, this would come from JWT token validation
 async def get_current_user_id(request: Request) -> uuid.UUID:
@@ -57,6 +62,12 @@ async def get_current_user_id(request: Request) -> uuid.UUID:
     This is a placeholder - in production this would validate JWT token
     and extract user_id from it.
     """
+    settings = get_settings()
+
+    # Development mode: return dev user ID
+    if settings.disable_auth:
+        return DEV_USER_ID
+
     # For now, check if there's a user_id in request state (set by auth middleware)
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -164,9 +175,7 @@ async def add_credential(
             updated_at=cred.updated_at,
         )
     except ProviderNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except CredentialAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -366,10 +375,22 @@ async def validate_credential(
         )
         await session.commit()
 
+        quota_info = None
+        if result.quota_info:
+            from src.presentation.schemas.credential import QuotaInfo
+
+            quota_info = QuotaInfo(
+                character_count=result.quota_info.get("character_count"),
+                character_limit=result.quota_info.get("character_limit"),
+                remaining_characters=result.quota_info.get("remaining_characters"),
+                tier=result.quota_info.get("tier"),
+            )
+
         return ValidationResult(
             is_valid=result.is_valid,
             validated_at=result.validated_at,
             error_message=result.error_message,
+            quota_info=quota_info,
         )
     except CredentialNotFoundError as e:
         raise HTTPException(
@@ -411,10 +432,7 @@ async def list_credential_models(
 
     # Filter by language if specified
     if language:
-        models_data = [
-            m for m in models_data
-            if m.get("language", "").startswith(language)
-        ]
+        models_data = [m for m in models_data if m.get("language", "").startswith(language)]
 
     return ProviderModelsResponse(
         models=[

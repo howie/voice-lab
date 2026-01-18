@@ -6,6 +6,7 @@
 import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const DISABLE_AUTH = import.meta.env.VITE_DISABLE_AUTH === 'true'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -34,8 +35,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Handle common errors
-    if (error.response?.status === 401) {
-      // Handle unauthorized
+    if (error.response?.status === 401 && !DISABLE_AUTH) {
+      // Handle unauthorized (skip redirect in dev mode with auth disabled)
       localStorage.removeItem('auth_token')
       // Only redirect if not already on login page
       if (window.location.pathname !== '/login') {

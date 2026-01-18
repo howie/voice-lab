@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start with loading to prevent redirect race condition
       error: null,
 
       setToken: (token) => {

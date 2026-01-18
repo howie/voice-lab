@@ -23,11 +23,11 @@
 
 **Purpose**: Database migrations and core entity setup
 
-- [ ] T001 Create Alembic migration for Provider table in backend/alembic/versions/xxx_add_provider_table.py
-- [ ] T002 Create Alembic migration for UserProviderCredential table in backend/alembic/versions/xxx_add_credential_table.py
-- [ ] T003 Create Alembic migration for AuditLog table in backend/alembic/versions/xxx_add_audit_log_table.py
-- [ ] T004 Seed Provider reference data (elevenlabs, azure, gemini) in migration
-- [ ] T005 Run migrations and verify database schema
+- [X] T001 Create Alembic migration for Provider table in backend/alembic/versions/xxx_add_provider_table.py
+- [X] T002 Create Alembic migration for UserProviderCredential table in backend/alembic/versions/xxx_add_credential_table.py
+- [X] T003 Create Alembic migration for AuditLog table in backend/alembic/versions/xxx_add_audit_log_table.py
+- [X] T004 Seed Provider reference data (elevenlabs, azure, gemini) in migration
+- [X] T005 Run migrations and verify database schema
 
 ---
 
@@ -37,23 +37,23 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 [P] Create Provider domain entity in backend/src/domain/entities/provider.py
-- [ ] T007 [P] Create UserProviderCredential domain entity in backend/src/domain/entities/provider_credential.py
-- [ ] T008 [P] Create AuditLog domain entity in backend/src/domain/entities/audit_log.py
-- [ ] T009 Add Provider, UserProviderCredential, AuditLog SQLAlchemy models to backend/src/infrastructure/persistence/models.py
-- [ ] T010 [P] Create ProviderCredentialRepository interface in backend/src/domain/repositories/provider_credential_repository.py
-- [ ] T011 [P] Create AuditLogRepository interface in backend/src/domain/repositories/audit_log_repository.py
-- [ ] T012 [P] Implement SQLAlchemy ProviderCredentialRepository in backend/src/infrastructure/persistence/credential_repository.py
-- [ ] T013 [P] Implement SQLAlchemy AuditLogRepository in backend/src/infrastructure/persistence/audit_log_repository.py
-- [ ] T014 Create AuditService for logging operations in backend/src/application/services/audit_service.py
-- [ ] T015 [P] Create BaseProviderValidator abstract class in backend/src/infrastructure/providers/validators/base.py
-- [ ] T016 [P] Implement ElevenLabsValidator in backend/src/infrastructure/providers/validators/elevenlabs.py
-- [ ] T017 [P] Implement AzureValidator in backend/src/infrastructure/providers/validators/azure.py
-- [ ] T018 [P] Implement GeminiValidator in backend/src/infrastructure/providers/validators/gemini.py
-- [ ] T019 Create ProviderValidatorRegistry in backend/src/infrastructure/providers/validators/__init__.py
-- [ ] T020 Create API key masking utility in backend/src/domain/utils/masking.py
-- [ ] T021 [P] Create credential schemas (request/response) in backend/src/presentation/schemas/credential.py
-- [ ] T022 [P] Create provider schemas in backend/src/presentation/schemas/provider.py
+- [X] T006 [P] Create Provider domain entity in backend/src/domain/entities/provider.py
+- [X] T007 [P] Create UserProviderCredential domain entity in backend/src/domain/entities/provider_credential.py
+- [X] T008 [P] Create AuditLog domain entity in backend/src/domain/entities/audit_log.py
+- [X] T009 Add Provider, UserProviderCredential, AuditLog SQLAlchemy models to backend/src/infrastructure/persistence/models.py
+- [X] T010 [P] Create ProviderCredentialRepository interface in backend/src/domain/repositories/provider_credential_repository.py
+- [X] T011 [P] Create AuditLogRepository interface in backend/src/domain/repositories/audit_log_repository.py
+- [X] T012 [P] Implement SQLAlchemy ProviderCredentialRepository in backend/src/infrastructure/persistence/credential_repository.py
+- [X] T013 [P] Implement SQLAlchemy AuditLogRepository in backend/src/infrastructure/persistence/audit_log_repository.py
+- [X] T014 Create AuditService for logging operations in backend/src/application/services/audit_service.py
+- [X] T015 [P] Create BaseProviderValidator abstract class in backend/src/infrastructure/providers/validators/base.py
+- [X] T016 [P] Implement ElevenLabsValidator in backend/src/infrastructure/providers/validators/elevenlabs.py
+- [X] T017 [P] Implement AzureValidator in backend/src/infrastructure/providers/validators/azure.py
+- [X] T018 [P] Implement GeminiValidator in backend/src/infrastructure/providers/validators/gemini.py
+- [X] T019 Create ProviderValidatorRegistry in backend/src/infrastructure/providers/validators/__init__.py
+- [X] T020 Create API key masking utility in backend/src/domain/utils/masking.py
+- [X] T021 [P] Create credential schemas (request/response) in backend/src/presentation/schemas/credential.py
+- [X] T022 [P] Create provider schemas in backend/src/presentation/schemas/provider.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -69,22 +69,22 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T023 [P] [US1] Contract test for POST /credentials in backend/tests/contract/test_add_credential.py
-- [ ] T024 [P] [US1] Unit test for provider validators in backend/tests/unit/test_provider_validators.py
-- [ ] T025 [P] [US1] Integration test for credential creation flow in backend/tests/integration/test_credential_crud.py
+- [X] T023 [P] [US1] Contract test for POST /credentials in backend/tests/contract/test_add_credential.py
+- [X] T024 [P] [US1] Unit test for provider validators in backend/tests/unit/test_provider_validators.py
+- [X] T025 [P] [US1] Integration test for credential creation flow in backend/tests/integration/test_credential_crud.py
 
 ### Implementation for User Story 1
 
-- [ ] T026 [US1] Implement AddProviderCredential use case in backend/src/application/use_cases/add_provider_credential.py
-- [ ] T027 [US1] Implement ValidateProviderKey use case in backend/src/application/use_cases/validate_provider_key.py
-- [ ] T028 [US1] Implement POST /credentials endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T029 [US1] Implement GET /providers endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T030 [US1] Add audit logging for credential.created event
-- [ ] T031 [P] [US1] Create credentialService.ts API client in frontend/src/services/credentialService.ts
-- [ ] T032 [P] [US1] Create ApiKeyInput component in frontend/src/components/ApiKeyInput.tsx
-- [ ] T033 [P] [US1] Create ProviderCard component in frontend/src/components/ProviderCard.tsx
-- [ ] T034 [US1] Create ProviderSettings page with add credential form in frontend/src/pages/ProviderSettings.tsx
-- [ ] T035 [US1] Add route for /settings/providers in frontend router
+- [X] T026 [US1] Implement AddProviderCredential use case in backend/src/application/use_cases/add_provider_credential.py
+- [X] T027 [US1] Implement ValidateProviderKey use case in backend/src/application/use_cases/validate_provider_key.py
+- [X] T028 [US1] Implement POST /credentials endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T029 [US1] Implement GET /providers endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T030 [US1] Add audit logging for credential.created event
+- [X] T031 [P] [US1] Create credentialService.ts API client in frontend/src/services/credentialService.ts
+- [X] T032 [P] [US1] Create ApiKeyInput component in frontend/src/components/settings/ApiKeyInput.tsx
+- [X] T033 [P] [US1] Create ProviderCard component in frontend/src/components/settings/ProviderCard.tsx
+- [X] T034 [US1] Create ProviderSettings page with add credential form in frontend/src/routes/settings/ProviderSettings.tsx
+- [X] T035 [US1] Add route for /settings/providers in frontend router
 
 **Checkpoint**: User Story 1 complete - users can add and validate API keys
 
@@ -98,21 +98,21 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T036 [P] [US2] Contract test for GET /credentials/{id}/models in backend/tests/contract/test_list_models.py
-- [ ] T037 [P] [US2] Contract test for PUT /credentials/{id} (model selection) in backend/tests/contract/test_update_credential.py
+- [X] T036 [P] [US2] Contract test for GET /credentials/{id}/models in backend/tests/contract/test_list_models.py
+- [X] T037 [P] [US2] Contract test for PUT /credentials/{id} (model selection) in backend/tests/contract/test_update_credential.py
 
 ### Implementation for User Story 2
 
-- [ ] T038 [US2] Implement ListProviderModels use case in backend/src/application/use_cases/list_provider_models.py
-- [ ] T039 [US2] Implement UpdateProviderCredential use case for model selection in backend/src/application/use_cases/update_provider_credential.py
-- [ ] T040 [US2] Implement GET /credentials/{id}/models endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T041 [US2] Implement PUT /credentials/{id} endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T042 [US2] Add audit logging for model.selected event
-- [ ] T043 [US2] Implement TTSProviderFactory with credential injection in backend/src/infrastructure/providers/tts/factory.py
-- [ ] T044 [US2] Modify BaseTTSProvider to support credential injection in backend/src/infrastructure/providers/tts/base.py
-- [ ] T045 [P] [US2] Create ModelSelector component in frontend/src/components/ModelSelector.tsx
-- [ ] T046 [US2] Update ProviderSettings to show available models after key validation
-- [ ] T047 [US2] Add model selection persistence in frontend state
+- [X] T038 [US2] Implement ListProviderModels use case in backend/src/application/use_cases/list_provider_models.py
+- [X] T039 [US2] Implement UpdateProviderCredential use case for model selection in backend/src/application/use_cases/update_provider_credential.py
+- [X] T040 [US2] Implement GET /credentials/{id}/models endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T041 [US2] Implement PUT /credentials/{id} endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T042 [US2] Add audit logging for model.selected event
+- [X] T043 [US2] Implement TTSProviderFactory with credential injection in backend/src/infrastructure/providers/tts/factory.py
+- [X] T044 [US2] Modify BaseTTSProvider to support credential injection in backend/src/infrastructure/providers/tts/base.py
+- [X] T045 [P] [US2] Create ModelSelector component in frontend/src/components/settings/ModelSelector.tsx
+- [X] T046 [US2] Update ProviderSettings to show available models after key validation
+- [X] T047 [US2] Add model selection persistence in frontend state
 
 **Checkpoint**: User Story 2 complete - users can select providers and models
 
@@ -126,17 +126,17 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T048 [P] [US3] Contract test for GET /credentials (list all) in backend/tests/contract/test_list_credentials.py
-- [ ] T049 [P] [US3] Integration test for multi-provider management in backend/tests/integration/test_multi_provider.py
+- [X] T048 [P] [US3] Contract test for GET /credentials (list all) in backend/tests/contract/test_list_credentials.py
+- [X] T049 [P] [US3] Integration test for multi-provider management in backend/tests/integration/test_multi_provider.py
 
 ### Implementation for User Story 3
 
-- [ ] T050 [US3] Implement ListProviderCredentials use case in backend/src/application/use_cases/list_provider_credentials.py
-- [ ] T051 [US3] Implement GET /credentials endpoint with user filtering in backend/src/presentation/api/routes/credentials.py
-- [ ] T052 [US3] Add audit logging for credential.viewed event
-- [ ] T053 [US3] Update ProviderSettings to display all configured providers
-- [ ] T054 [US3] Add provider status indicators (valid/invalid) to ProviderCard component
-- [ ] T055 [US3] Implement provider list refresh functionality in frontend
+- [X] T050 [US3] Implement ListProviderCredentials use case in backend/src/application/use_cases/list_provider_credentials.py
+- [X] T051 [US3] Implement GET /credentials endpoint with user filtering in backend/src/presentation/api/routes/credentials.py
+- [X] T052 [US3] Add audit logging for credential.viewed event
+- [X] T053 [US3] Update ProviderSettings to display all configured providers
+- [X] T054 [US3] Add provider status indicators (valid/invalid) to ProviderCard component
+- [X] T055 [US3] Implement provider list refresh functionality in frontend
 
 **Checkpoint**: User Story 3 complete - users can manage multiple providers
 
@@ -150,18 +150,18 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T056 [P] [US4] Contract test for DELETE /credentials/{id} in backend/tests/contract/test_delete_credential.py
-- [ ] T057 [P] [US4] Unit test for key update with revalidation in backend/tests/unit/test_credential_update.py
+- [X] T056 [P] [US4] Contract test for DELETE /credentials/{id} in backend/tests/contract/test_delete_credential.py
+- [X] T057 [P] [US4] Unit test for key update with revalidation in backend/tests/unit/test_credential_update.py
 
 ### Implementation for User Story 4
 
-- [ ] T058 [US4] Implement DeleteProviderCredential use case in backend/src/application/use_cases/delete_provider_credential.py
-- [ ] T059 [US4] Extend UpdateProviderCredential for API key rotation in backend/src/application/use_cases/update_provider_credential.py
-- [ ] T060 [US4] Implement DELETE /credentials/{id} endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T061 [US4] Add audit logging for credential.updated and credential.deleted events
-- [ ] T062 [US4] Add update/delete actions to ProviderCard component
-- [ ] T063 [US4] Add confirmation dialog for credential deletion in frontend
-- [ ] T064 [US4] Implement key rotation UI with revalidation feedback
+- [X] T058 [US4] Implement DeleteProviderCredential use case in backend/src/application/use_cases/delete_provider_credential.py
+- [X] T059 [US4] Extend UpdateProviderCredential for API key rotation in backend/src/application/use_cases/update_provider_credential.py
+- [X] T060 [US4] Implement DELETE /credentials/{id} endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T061 [US4] Add audit logging for credential.updated and credential.deleted events
+- [X] T062 [US4] Add update/delete actions to ProviderCard component
+- [X] T063 [US4] Add confirmation dialog for credential deletion in frontend
+- [X] T064 [US4] Implement key rotation UI with revalidation feedback
 
 **Checkpoint**: User Story 4 complete - users can update and delete credentials
 
@@ -175,18 +175,18 @@
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T065 [P] [US5] Contract test for POST /credentials/{id}/validate in backend/tests/contract/test_validate_credential.py
-- [ ] T066 [P] [US5] Integration test for status refresh in backend/tests/integration/test_provider_status.py
+- [X] T065 [P] [US5] Contract test for POST /credentials/{id}/validate in backend/tests/contract/test_validate_credential.py
+- [X] T066 [P] [US5] Integration test for status refresh in backend/tests/integration/test_provider_status.py
 
 ### Implementation for User Story 5
 
-- [ ] T067 [US5] Implement RevalidateCredential use case in backend/src/application/use_cases/revalidate_credential.py
-- [ ] T068 [US5] Implement POST /credentials/{id}/validate endpoint in backend/src/presentation/api/routes/credentials.py
-- [ ] T069 [US5] Add quota fetching to provider validators (where supported) in backend/src/infrastructure/providers/validators/
-- [ ] T070 [US5] Add audit logging for credential.validated event
-- [ ] T071 [US5] Add status refresh button to ProviderCard
-- [ ] T072 [US5] Display quota information in provider details view
-- [ ] T073 [US5] Add error state handling for invalid credentials in UI
+- [X] T067 [US5] Implement RevalidateCredential use case in backend/src/application/use_cases/revalidate_credential.py
+- [X] T068 [US5] Implement POST /credentials/{id}/validate endpoint in backend/src/presentation/api/routes/credentials.py
+- [X] T069 [US5] Add quota fetching to provider validators (where supported) in backend/src/infrastructure/providers/validators/
+- [X] T070 [US5] Add audit logging for credential.validated event
+- [X] T071 [US5] Add status refresh button to ProviderCard
+- [X] T072 [US5] Display quota information in provider details view
+- [X] T073 [US5] Add error state handling for invalid credentials in UI
 
 **Checkpoint**: User Story 5 complete - users can view status and quota
 

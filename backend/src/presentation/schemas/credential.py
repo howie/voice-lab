@@ -73,12 +73,26 @@ class CredentialResponse(CredentialSummary):
     model_config = {"from_attributes": True}
 
 
+class QuotaInfo(BaseModel):
+    """Quota information from provider."""
+
+    character_count: int | None = Field(
+        default=None, description="Characters used in current period"
+    )
+    character_limit: int | None = Field(
+        default=None, description="Character limit for current tier"
+    )
+    remaining_characters: int | None = Field(default=None, description="Remaining characters")
+    tier: str | None = Field(default=None, description="Subscription tier name")
+
+
 class ValidationResult(BaseModel):
     """Result of credential validation."""
 
     is_valid: bool
-    validated_at: datetime
+    validated_at: datetime | None = None
     error_message: str | None = None
+    quota_info: QuotaInfo | None = None
 
 
 class ValidationError(BaseModel):

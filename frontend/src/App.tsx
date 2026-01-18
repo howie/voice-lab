@@ -7,6 +7,7 @@ import { STTPage } from '@/routes/stt/STTPage'
 import { InteractionPage } from '@/routes/interaction/InteractionPage'
 import { HistoryPage } from '@/routes/history/HistoryPage'
 import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
+import { ProviderSettings } from '@/routes/settings/ProviderSettings'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -41,6 +42,7 @@ function AppContent() {
         <Route path="interaction" element={<InteractionPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
+        <Route path="settings/providers" element={<ProviderSettings />} />
       </Route>
     </Routes>
   )

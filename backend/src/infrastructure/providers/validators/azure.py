@@ -107,13 +107,15 @@ class AzureValidator(BaseProviderValidator):
                         # Filter by language if specified
                         if language and not voice_language.startswith(language):
                             continue
-                        result.append({
-                            "id": voice.get("ShortName"),
-                            "name": voice.get("DisplayName"),
-                            "language": voice_language,
-                            "gender": voice.get("Gender", "").lower(),
-                            "description": voice.get("VoiceType"),
-                        })
+                        result.append(
+                            {
+                                "id": voice.get("ShortName"),
+                                "name": voice.get("DisplayName"),
+                                "language": voice_language,
+                                "gender": voice.get("Gender", "").lower(),
+                                "description": voice.get("VoiceType"),
+                            }
+                        )
                     return result
                 return []
         except (httpx.TimeoutException, httpx.RequestError):

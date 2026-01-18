@@ -29,4 +29,69 @@ Python 3.11+: Follow standard conventions
 - 001-pipecat-tts-server: Added Python 3.11+ + FastAPI 0.109+, azure-cognitiveservices-speech, google-cloud-texttospeech, elevenlabs, httpx
 
 <!-- MANUAL ADDITIONS START -->
+
+## Development Workflow (CRITICAL)
+
+### Before ANY Code Changes
+
+1. **When editing files, ALWAYS follow these rules**:
+   - Use Python 3.10+ type annotations: `X | Y` instead of `Union[X, Y]`
+   - Import `Sequence` from `collections.abc` not `typing`
+   - Follow ruff formatting rules (proper indentation, line breaks, spacing)
+   - No wildcard imports (`from module import *`)
+   - Organize imports: stdlib, third-party, local (with blank lines between)
+
+2. **Before EVERY commit**:
+   ```bash
+   make check  # MUST pass completely
+   ```
+   This runs:
+   - `ruff check` (linting)
+   - `ruff format --check` (formatting)
+   - `mypy` (type checking)
+   - `eslint` (frontend)
+   - `tsc` (frontend type checking)
+
+3. **If make check fails**:
+   - Fix issues BEFORE committing
+   - Use `ruff format .` to auto-format
+   - Use `ruff check . --fix` to auto-fix lint issues
+   - Never commit code that doesn't pass `make check`
+
+### Why This Matters
+
+- Prevents CI failures
+- Maintains code quality
+- Saves time (no back-and-forth fixes)
+- Professional development standards
+
+### Code Format Requirements
+
+**Python**:
+```python
+# ✅ CORRECT
+def foo(x: str | None = None) -> str | int:
+    pass
+
+# ❌ WRONG
+def foo(x: Union[str, None] = None) -> Union[str, int]:
+    pass
+```
+
+**Imports**:
+```python
+# ✅ CORRECT
+import asyncio
+from collections.abc import Sequence
+
+from alembic import context
+from sqlalchemy import pool
+
+from src.domain.models import User
+
+# ❌ WRONG
+from typing import Sequence, Union
+from src.domain.models import *
+```
+
 <!-- MANUAL ADDITIONS END -->

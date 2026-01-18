@@ -374,28 +374,40 @@ class TestListProvidersEndpoint:
         self, mock_provider: Provider, mock_current_user: CurrentUser
     ):
         """T023: Test listing all supported providers."""
+        mock_provider_repo = AsyncMock()
+        mock_provider_repo.list_all.return_value = [mock_provider]
+
+        mock_session = MagicMock()
 
         # Override authentication dependency
         async def override_get_current_user():
             return mock_current_user
 
+        async def override_get_db_session():
+            return mock_session
+
         app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/credentials/providers")
+            with patch(
+                "src.presentation.api.routes.credentials.SQLAlchemyProviderRepository",
+                return_value=mock_provider_repo,
+            ):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                    response = await ac.get("/api/v1/credentials/providers")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert "providers" in data
-            # Verify we get at least one provider
-            assert len(data["providers"]) >= 1
-            # Verify each provider has required fields
-            for provider in data["providers"]:
-                assert "id" in provider
-                assert "name" in provider
-                assert "display_name" in provider
-                assert "type" in provider
+                assert response.status_code == 200
+                data = response.json()
+                assert "providers" in data
+                # Verify we get at least one provider
+                assert len(data["providers"]) >= 1
+                # Verify each provider has required fields
+                for provider in data["providers"]:
+                    assert "id" in provider
+                    assert "name" in provider
+                    assert "display_name" in provider
+                    assert "type" in provider
         finally:
             app.dependency_overrides.clear()

@@ -7,6 +7,9 @@ from src.infrastructure.providers.validators.base import (
     ValidationResult,
 )
 
+# HTTP status codes for rate limiting
+RATE_LIMIT_STATUS_CODES = (429, 503)
+
 
 class GeminiValidator(BaseProviderValidator):
     """Validator for Google Gemini API keys.
@@ -42,6 +45,12 @@ class GeminiValidator(BaseProviderValidator):
                     return ValidationResult(
                         is_valid=False,
                         error_message="API key forbidden - check permissions",
+                    )
+                elif response.status_code in RATE_LIMIT_STATUS_CODES:
+                    retry_after = response.headers.get("Retry-After", "unknown")
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Rate limited. Please retry after {retry_after} seconds",
                     )
                 else:
                     return ValidationResult(

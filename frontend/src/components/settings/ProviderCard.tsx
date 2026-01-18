@@ -161,7 +161,7 @@ export function ProviderCard({
           <div>
             <h3 className="font-medium">{provider.display_name}</h3>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {provider.type.map((t) => (
+              {provider.type?.map((t) => (
                 <span key={t} className="uppercase">
                   {t}
                 </span>

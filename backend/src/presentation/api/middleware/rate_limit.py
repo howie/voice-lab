@@ -43,6 +43,7 @@ class RateLimitConfig:
         default_factory=lambda: [
             "/health",
             "/api/v1/providers",
+            "/api/v1/credentials/providers",
             "/docs",
             "/openapi.json",
         ]

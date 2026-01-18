@@ -196,16 +196,16 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T074 [P] Add audit logging for credential.used events in TTS/STT operations
-- [ ] T075 [P] Unit tests for audit logging service in backend/tests/unit/test_audit_logging.py
-- [ ] T076 [P] Update API documentation with new endpoints
-- [ ] T077 Implement fallback to system-level API keys when user credentials unavailable
-- [ ] T078 Add error handling for network timeouts during validation
-- [ ] T079 Add rate limit handling for provider API validation
-- [ ] T080 [P] Frontend tests for ProviderSettings in frontend/tests/ProviderSettings.test.tsx
-- [ ] T081 Run quickstart.md validation
-- [ ] T082 Code cleanup and refactoring
-- [ ] T083 Performance testing for credential operations
+- [X] T074 [P] Add audit logging for credential.used events in TTS/STT operations
+- [X] T075 [P] Unit tests for audit logging service in backend/tests/unit/test_audit_logging.py
+- [X] T076 [P] Update API documentation with new endpoints
+- [X] T077 Implement fallback to system-level API keys when user credentials unavailable
+- [X] T078 Add error handling for network timeouts during validation
+- [X] T079 Add rate limit handling for provider API validation
+- [X] T080 [P] Frontend tests for ProviderSettings in frontend/tests/ProviderSettings.test.tsx
+- [X] T081 Run quickstart.md validation
+- [X] T082 Code cleanup and refactoring
+- [X] T083 Performance testing for credential operations
 
 ---
 

@@ -47,7 +47,7 @@ from src.presentation.schemas.provider import (
 )
 
 router = APIRouter(prefix="/credentials", tags=["Credentials"])
-providers_router = APIRouter(prefix="/providers", tags=["Providers"])
+providers_router = APIRouter(prefix="/credentials/providers", tags=["Providers"])
 
 
 # Development user ID for DISABLE_AUTH mode

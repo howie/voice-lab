@@ -2,14 +2,21 @@
 
 T030: Update TTS API route POST /tts/synthesize (batch mode)
 T031: Add TTS API route POST /tts/stream (streaming mode)
+T074: Add audit logging for credential.used events
 """
 
 import base64
+import logging
+import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.services.audit_service import AuditService
 from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.config import get_settings
 from src.domain.config.provider_limits import validate_text_length
 from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest
@@ -18,6 +25,14 @@ from src.domain.errors import (
     ProviderError,
     SynthesisError,
 )
+from src.infrastructure.persistence.audit_log_repository import (
+    SQLAlchemyAuditLogRepository,
+)
+from src.infrastructure.persistence.credential_repository import (
+    SQLAlchemyProviderCredentialRepository,
+)
+from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.providers.tts.factory import TTSProviderFactory
 from src.infrastructure.storage.local_storage import LocalStorage
 from src.presentation.api.dependencies import get_container
 from src.presentation.api.schemas.tts import (
@@ -27,6 +42,37 @@ from src.presentation.api.schemas.tts import (
 )
 
 router = APIRouter(prefix="/tts", tags=["tts"])
+logger = logging.getLogger(__name__)
+
+# Development user ID for DISABLE_AUTH mode
+DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+async def get_optional_user_id(request: Request) -> uuid.UUID | None:
+    """Get the current user ID from the request if available.
+
+    This is optional - TTS can work without authentication using system credentials.
+    """
+    settings = get_settings()
+
+    # Development mode: return dev user ID
+    if settings.disable_auth:
+        return DEV_USER_ID
+
+    # Check if there's a user_id in request state (set by auth middleware)
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is not None:
+        return user_id
+
+    # Allow a header-based user ID for BYOL mode
+    user_id_header = request.headers.get("X-User-Id")
+    if user_id_header:
+        try:
+            return uuid.UUID(user_id_header)
+        except ValueError:
+            return None
+
+    return None
 
 
 def get_provider(provider_name: str, container=None):
@@ -50,41 +96,76 @@ def get_storage() -> LocalStorage:
 
 
 @router.post("/synthesize", response_model=SynthesizeResponse)
-async def synthesize(request: SynthesizeRequest):
+async def synthesize(
+    request_data: SynthesizeRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
     """Synthesize speech from text (batch mode).
 
     Returns complete audio data as base64 encoded string.
+
+    If authenticated, uses user's stored API key (BYOL mode).
+    Falls back to system credentials if no user credential is available.
     """
     # Validate text length for provider (outside try-except to ensure proper HTTP status)
-    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    is_valid, error_msg, exceeds_recommended = validate_text_length(
+        request_data.provider, request_data.text
+    )
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 
     # Log warning if exceeds recommended length
     if exceeds_recommended:
-        print(
-            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        logger.warning(
+            "Text length (%d) exceeds recommended limit for %s",
+            len(request_data.text),
+            request_data.provider,
         )
 
     try:
-        provider = get_provider(request.provider)
+        # Get optional user ID for BYOL mode
+        user_id = await get_optional_user_id(request)
+
+        # Try to use user credential if available
+        credential_repo = SQLAlchemyProviderCredentialRepository(session)
+        provider_result = await TTSProviderFactory.create_with_metadata(
+            provider_name=request_data.provider,
+            user_id=user_id,
+            credential_repo=credential_repo,
+        )
+
+        # Log credential usage if user credential was used
+        if provider_result.used_user_credential and user_id and provider_result.credential_id:
+            audit_repo = SQLAlchemyAuditLogRepository(session)
+            audit_service = AuditService(audit_repo)
+            await audit_service.log_credential_used(
+                user_id=user_id,
+                credential_id=provider_result.credential_id,
+                provider=provider_result.provider_name,
+                operation="tts.synthesize",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            await session.commit()
+
         storage = get_storage()
-        use_case = SynthesizeSpeech(provider, storage=storage)
+        use_case = SynthesizeSpeech(provider_result.provider, storage=storage)
 
         # Map output format
         try:
-            output_format = AudioFormat(request.output_format)
+            output_format = AudioFormat(request_data.output_format)
         except ValueError:
             output_format = AudioFormat.MP3
 
         domain_request = TTSRequest(
-            text=request.text,
-            voice_id=request.voice_id,
-            provider=request.provider,
-            language=request.language,
-            speed=request.speed,
-            pitch=request.pitch,
-            volume=request.volume,
+            text=request_data.text,
+            voice_id=request_data.voice_id,
+            provider=request_data.provider,
+            language=request_data.language,
+            speed=request_data.speed,
+            pitch=request_data.pitch,
+            volume=request_data.volume,
             output_format=output_format,
             output_mode=OutputMode.BATCH,
         )
@@ -113,39 +194,74 @@ async def synthesize(request: SynthesizeRequest):
 
 
 @router.post("/stream")
-async def stream(request: StreamRequest):
+async def stream(
+    request_data: StreamRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
     """Synthesize speech from text (streaming mode).
 
     Returns audio data as a streaming response.
+
+    If authenticated, uses user's stored API key (BYOL mode).
+    Falls back to system credentials if no user credential is available.
     """
     # Validate text length for provider
-    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    is_valid, error_msg, exceeds_recommended = validate_text_length(
+        request_data.provider, request_data.text
+    )
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 
     if exceeds_recommended:
-        print(
-            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        logger.warning(
+            "Text length (%d) exceeds recommended limit for %s",
+            len(request_data.text),
+            request_data.provider,
         )
 
     try:
-        provider = get_provider(request.provider)
-        use_case = SynthesizeSpeech(provider)
+        # Get optional user ID for BYOL mode
+        user_id = await get_optional_user_id(request)
+
+        # Try to use user credential if available
+        credential_repo = SQLAlchemyProviderCredentialRepository(session)
+        provider_result = await TTSProviderFactory.create_with_metadata(
+            provider_name=request_data.provider,
+            user_id=user_id,
+            credential_repo=credential_repo,
+        )
+
+        # Log credential usage if user credential was used
+        if provider_result.used_user_credential and user_id and provider_result.credential_id:
+            audit_repo = SQLAlchemyAuditLogRepository(session)
+            audit_service = AuditService(audit_repo)
+            await audit_service.log_credential_used(
+                user_id=user_id,
+                credential_id=provider_result.credential_id,
+                provider=provider_result.provider_name,
+                operation="tts.stream",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            await session.commit()
+
+        use_case = SynthesizeSpeech(provider_result.provider)
 
         # Map output format
         try:
-            output_format = AudioFormat(request.output_format)
+            output_format = AudioFormat(request_data.output_format)
         except ValueError:
             output_format = AudioFormat.MP3
 
         domain_request = TTSRequest(
-            text=request.text,
-            voice_id=request.voice_id,
-            provider=request.provider,
-            language=request.language,
-            speed=request.speed,
-            pitch=request.pitch,
-            volume=request.volume,
+            text=request_data.text,
+            voice_id=request_data.voice_id,
+            provider=request_data.provider,
+            language=request_data.language,
+            speed=request_data.speed,
+            pitch=request_data.pitch,
+            volume=request_data.volume,
             output_format=output_format,
             output_mode=OutputMode.STREAMING,
         )
@@ -162,8 +278,8 @@ async def stream(request: StreamRequest):
             audio_stream(),
             media_type=content_type,
             headers={
-                "X-Provider": request.provider,
-                "X-Voice-ID": request.voice_id,
+                "X-Provider": request_data.provider,
+                "X-Voice-ID": request_data.voice_id,
             },
         )
 
@@ -178,40 +294,75 @@ async def stream(request: StreamRequest):
 
 
 @router.post("/synthesize/binary")
-async def synthesize_binary(request: SynthesizeRequest):
+async def synthesize_binary(
+    request_data: SynthesizeRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
     """Synthesize speech and return raw binary audio data.
 
     Alternative endpoint that returns audio directly instead of base64.
+
+    If authenticated, uses user's stored API key (BYOL mode).
+    Falls back to system credentials if no user credential is available.
     """
     # Validate text length for provider
-    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
+    is_valid, error_msg, exceeds_recommended = validate_text_length(
+        request_data.provider, request_data.text
+    )
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 
     if exceeds_recommended:
-        print(
-            f"Warning: Text length ({len(request.text)}) exceeds recommended limit for {request.provider}"
+        logger.warning(
+            "Text length (%d) exceeds recommended limit for %s",
+            len(request_data.text),
+            request_data.provider,
         )
 
     try:
-        provider = get_provider(request.provider)
+        # Get optional user ID for BYOL mode
+        user_id = await get_optional_user_id(request)
+
+        # Try to use user credential if available
+        credential_repo = SQLAlchemyProviderCredentialRepository(session)
+        provider_result = await TTSProviderFactory.create_with_metadata(
+            provider_name=request_data.provider,
+            user_id=user_id,
+            credential_repo=credential_repo,
+        )
+
+        # Log credential usage if user credential was used
+        if provider_result.used_user_credential and user_id and provider_result.credential_id:
+            audit_repo = SQLAlchemyAuditLogRepository(session)
+            audit_service = AuditService(audit_repo)
+            await audit_service.log_credential_used(
+                user_id=user_id,
+                credential_id=provider_result.credential_id,
+                provider=provider_result.provider_name,
+                operation="tts.synthesize_binary",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            await session.commit()
+
         storage = get_storage()
-        use_case = SynthesizeSpeech(provider, storage=storage)
+        use_case = SynthesizeSpeech(provider_result.provider, storage=storage)
 
         # Map output format
         try:
-            output_format = AudioFormat(request.output_format)
+            output_format = AudioFormat(request_data.output_format)
         except ValueError:
             output_format = AudioFormat.MP3
 
         domain_request = TTSRequest(
-            text=request.text,
-            voice_id=request.voice_id,
-            provider=request.provider,
-            language=request.language,
-            speed=request.speed,
-            pitch=request.pitch,
-            volume=request.volume,
+            text=request_data.text,
+            voice_id=request_data.voice_id,
+            provider=request_data.provider,
+            language=request_data.language,
+            speed=request_data.speed,
+            pitch=request_data.pitch,
+            volume=request_data.volume,
             output_format=output_format,
             output_mode=OutputMode.BATCH,
         )
@@ -224,7 +375,7 @@ async def synthesize_binary(request: SynthesizeRequest):
             headers={
                 "X-Duration-Ms": str(result.duration_ms),
                 "X-Latency-Ms": str(result.latency_ms),
-                "X-Provider": request.provider,
+                "X-Provider": request_data.provider,
                 "X-Storage-Path": result.storage_path or "",
             },
         )

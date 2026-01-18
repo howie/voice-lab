@@ -29,12 +29,8 @@ export function TextInput({
 }: TextInputProps) {
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value
-    // Truncate to maxLength instead of rejecting the entire change
     if (newValue.length <= maxLength) {
       onChange(newValue)
-    } else {
-      // Allow partial paste by truncating
-      onChange(newValue.slice(0, maxLength))
     }
   }
 

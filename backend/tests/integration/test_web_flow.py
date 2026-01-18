@@ -12,6 +12,8 @@ from httpx import ASGITransport, AsyncClient
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult
+from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.providers.tts.factory import ProviderCreationResult
 from src.main import app
 
 
@@ -39,15 +41,22 @@ def mock_tts_result(mock_audio_bytes: bytes) -> TTSResult:
     )
 
 
-def create_mock_container(mock_provider, provider_name: str):
-    """Create a mock container with the given provider."""
-    mock_container = MagicMock()
-    mock_container.get_tts_providers.return_value = {provider_name: mock_provider}
-    return mock_container
-
-
 class TestSynthesisFlow:
     """Integration tests for the complete synthesis flow."""
+
+    @pytest.fixture(autouse=True)
+    def override_dependencies(self):
+        """Override database dependencies."""
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()
+
+        async def get_mock_session():
+            yield mock_session
+
+        app.dependency_overrides[get_db_session] = get_mock_session
+        yield
+        app.dependency_overrides = {}
 
     @pytest.mark.asyncio
     async def test_complete_synthesis_flow_batch_mode(
@@ -56,9 +65,14 @@ class TestSynthesisFlow:
         """Test complete synthesis flow from request to audio response (batch mode)."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        mock_container = create_mock_container(mock_provider, "azure")
+        
+        mock_result = ProviderCreationResult(
+            provider=mock_provider,
+            used_user_credential=False,
+            provider_name="azure"
+        )
 
-        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
+        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Step 1: Submit synthesis request
@@ -101,9 +115,14 @@ class TestSynthesisFlow:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        mock_container = create_mock_container(mock_provider, "azure")
+        
+        mock_result = ProviderCreationResult(
+            provider=mock_provider,
+            used_user_credential=False,
+            provider_name="azure"
+        )
 
-        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
+        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -136,11 +155,14 @@ class TestSynthesisFlow:
                 language="zh-TW",
             )
             mock_provider.synthesize.return_value = mock_tts_result
-            mock_container = create_mock_container(mock_provider, provider_name)
+            
+            mock_result = ProviderCreationResult(
+                provider=mock_provider,
+                used_user_credential=False,
+                provider_name=provider_name
+            )
 
-            with patch(
-                "src.presentation.api.routes.tts.get_container", return_value=mock_container
-            ):
+            with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
                 transport = ASGITransport(app=app)
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     payload = {
@@ -159,14 +181,33 @@ class TestSynthesisFlow:
 class TestWebUIIntegration:
     """Tests simulating web UI interactions."""
 
+    @pytest.fixture(autouse=True)
+    def override_dependencies(self):
+        """Override database dependencies."""
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()
+
+        async def get_mock_session():
+            yield mock_session
+
+        app.dependency_overrides[get_db_session] = get_mock_session
+        yield
+        app.dependency_overrides = {}
+
     @pytest.mark.asyncio
     async def test_web_ui_synthesis_request(self, mock_tts_result: TTSResult):
         """Simulate a synthesis request from web UI."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
-        mock_container = create_mock_container(mock_provider, "azure")
+        
+        mock_result = ProviderCreationResult(
+            provider=mock_provider,
+            used_user_credential=False,
+            provider_name="azure"
+        )
 
-        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
+        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Simulate request from browser with typical headers
@@ -210,9 +251,14 @@ class TestWebUIIntegration:
 
         mock_provider = MagicMock()
         mock_provider.synthesize_stream = mock_stream
-        mock_container = create_mock_container(mock_provider, "azure")
+        
+        mock_result = ProviderCreationResult(
+            provider=mock_provider,
+            used_user_credential=False,
+            provider_name="azure"
+        )
 
-        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
+        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
@@ -230,6 +276,20 @@ class TestWebUIIntegration:
 
 class TestErrorHandling:
     """Test error handling in the synthesis flow."""
+
+    @pytest.fixture(autouse=True)
+    def override_dependencies(self):
+        """Override database dependencies."""
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()
+
+        async def get_mock_session():
+            yield mock_session
+
+        app.dependency_overrides[get_db_session] = get_mock_session
+        yield
+        app.dependency_overrides = {}
 
     @pytest.mark.asyncio
     async def test_empty_text_returns_validation_error(self):
@@ -279,9 +339,14 @@ class TestErrorHandling:
         """Test that provider unavailability returns service error."""
         mock_provider = AsyncMock()
         mock_provider.synthesize.side_effect = Exception("Service unavailable")
-        mock_container = create_mock_container(mock_provider, "azure")
+        
+        mock_result = ProviderCreationResult(
+            provider=mock_provider,
+            used_user_credential=False,
+            provider_name="azure"
+        )
 
-        with patch("src.presentation.api.routes.tts.get_container", return_value=mock_container):
+        with patch("src.presentation.api.routes.tts.TTSProviderFactory.create_with_metadata", return_value=mock_result):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {

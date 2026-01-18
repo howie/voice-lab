@@ -15,7 +15,20 @@ from src.domain.entities.provider import Provider
 from src.domain.entities.provider_credential import UserProviderCredential
 from src.infrastructure.providers.validators.base import ValidationResult
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
+
+
+@pytest.fixture
+def mock_current_user() -> CurrentUser:
+    """Create a mock current user for authentication."""
+    return CurrentUser(
+        id="test-user-id",
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="test-google-id",
+    )
 
 
 @pytest.fixture
@@ -357,20 +370,30 @@ class TestListProvidersEndpoint:
     """Contract tests for GET /api/v1/providers endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_providers_success(self, mock_provider: Provider):
+    async def test_list_providers_success(
+        self, mock_provider: Provider, mock_current_user: CurrentUser
+    ):
         """T023: Test listing all supported providers."""
-        # This endpoint returns the actual registered providers
-        # which may be different from what we mock
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get("/api/v1/providers")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "providers" in data
-        # Verify we get at least one provider
-        assert len(data["providers"]) >= 1
-        # Verify each provider has required fields
-        for provider in data["providers"]:
-            assert "name" in provider
-            assert "display_name" in provider
+        # Override authentication dependency
+        async def override_get_current_user():
+            return mock_current_user
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                response = await ac.get("/api/v1/providers")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "providers" in data
+            # Verify we get at least one provider
+            assert len(data["providers"]) >= 1
+            # Verify each provider has required fields
+            for provider in data["providers"]:
+                assert "name" in provider
+                assert "display_name" in provider
+        finally:
+            app.dependency_overrides.clear()

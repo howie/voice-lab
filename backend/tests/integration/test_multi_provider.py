@@ -14,6 +14,7 @@ from src.domain.entities.provider import Provider
 from src.domain.entities.provider_credential import UserProviderCredential
 from src.infrastructure.providers.validators.base import ValidationResult
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -21,6 +22,18 @@ from src.presentation.api.routes import credentials as credentials_module
 def mock_user_id() -> uuid.UUID:
     """Generate a mock user ID for testing."""
     return uuid.uuid4()
+
+
+@pytest.fixture
+def mock_current_user() -> CurrentUser:
+    """Create a mock current user for authentication."""
+    return CurrentUser(
+        id="test-user-id",
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="test-google-id",
+    )
 
 
 @pytest.fixture
@@ -162,6 +175,7 @@ class TestMultiProviderManagement:
         self,
         mock_user_id: uuid.UUID,
         mock_providers: list[Provider],
+        mock_current_user: CurrentUser,
     ):
         """T049: Test viewing all providers with their credential status."""
         # Create credentials with different statuses
@@ -193,10 +207,14 @@ class TestMultiProviderManagement:
         async def override_get_db_session():
             return mock_session
 
+        async def override_get_current_user():
+            return mock_current_user
+
         app.dependency_overrides[credentials_module.get_current_user_id] = (
             override_get_current_user_id
         )
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             with (

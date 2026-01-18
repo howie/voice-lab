@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-16
 ## Active Technologies
 - Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) (001-pipecat-tts-server)
 - Local filesystem (`storage/{provider}/{uuid}.mp3`), SQLAlchemy + PostgreSQL (metadata) (001-pipecat-tts-server)
+- Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+ (002-provider-mgmt-interface)
+- PostgreSQL with TDE (Transparent Data Encryption) (002-provider-mgmt-interface)
 
 - Python 3.11+ + FastAPI 0.109+, azure-cognitiveservices-speech, google-cloud-texttospeech, elevenlabs, httpx (001-pipecat-tts-server)
 
@@ -24,6 +26,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
+- 002-provider-mgmt-interface: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+
 - 001-pipecat-tts-server: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
 
 - 001-pipecat-tts-server: Added Python 3.11+ + FastAPI 0.109+, azure-cognitiveservices-speech, google-cloud-texttospeech, elevenlabs, httpx

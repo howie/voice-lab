@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     debug: bool = True
     api_prefix: str = "/api/v1"
 
+    # Authentication
+    # IMPORTANT: Set to true ONLY for local development to skip auth
+    disable_auth: bool = False
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

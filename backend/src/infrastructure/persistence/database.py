@@ -26,3 +26,7 @@ class Base(DeclarativeBase):
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+
+# Alias for the dependency
+get_db_session = get_db

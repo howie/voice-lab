@@ -5,7 +5,8 @@ import {
   Mic,
   MessagesSquare,
   History,
-  Settings
+  Settings,
+  Key
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: '互動測試', href: '/interaction', icon: MessagesSquare },
   { name: '歷史紀錄', href: '/history', icon: History },
   { name: '進階功能', href: '/advanced', icon: Settings },
+  { name: 'API 金鑰', href: '/settings/providers', icon: Key },
 ]
 
 export function Sidebar() {

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from src.presentation.api.routes import (
     auth,
     compare,
+    credentials,
     health,
     history,
     interaction,
@@ -27,5 +28,7 @@ api_router.include_router(stt.router, prefix="/stt", tags=["STT"])
 api_router.include_router(interaction.router, prefix="/interaction", tags=["Interaction"])
 api_router.include_router(compare.router, prefix="/compare", tags=["Compare"])
 api_router.include_router(history.router, prefix="/history", tags=["History"])
+api_router.include_router(credentials.router)  # Credentials routes have their own prefix
+api_router.include_router(credentials.providers_router)  # Providers (credential management) routes
 
 __all__ = ["api_router"]

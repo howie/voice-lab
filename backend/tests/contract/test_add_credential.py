@@ -367,7 +367,7 @@ class TestAddCredentialEndpoint:
 
 
 class TestListProvidersEndpoint:
-    """Contract tests for GET /api/v1/providers endpoint."""
+    """Contract tests for GET /api/v1/credentials/providers endpoint."""
 
     @pytest.mark.asyncio
     async def test_list_providers_success(
@@ -384,7 +384,7 @@ class TestListProvidersEndpoint:
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/providers")
+                response = await ac.get("/api/v1/credentials/providers")
 
             assert response.status_code == 200
             data = response.json()
@@ -393,7 +393,9 @@ class TestListProvidersEndpoint:
             assert len(data["providers"]) >= 1
             # Verify each provider has required fields
             for provider in data["providers"]:
+                assert "id" in provider
                 assert "name" in provider
                 assert "display_name" in provider
+                assert "type" in provider
         finally:
             app.dependency_overrides.clear()

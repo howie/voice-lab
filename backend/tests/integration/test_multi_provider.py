@@ -230,7 +230,7 @@ class TestMultiProviderManagement:
                 transport = ASGITransport(app=app)
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     # Get all providers
-                    providers_response = await ac.get("/api/v1/providers")
+                    providers_response = await ac.get("/api/v1/credentials/providers")
                     assert providers_response.status_code == 200
                     providers_data = providers_response.json()
 

@@ -172,7 +172,7 @@ export const providerService = {
    * List all supported providers
    */
   listProviders: async (): Promise<Provider[]> => {
-    const response = await api.get<ProviderListResponse>('/providers')
+    const response = await api.get<ProviderListResponse>('/credentials/providers')
     return response.data.providers
   },
 
@@ -180,7 +180,7 @@ export const providerService = {
    * Get a specific provider by ID
    */
   getProvider: async (providerId: string): Promise<Provider> => {
-    const response = await api.get<Provider>(`/providers/${providerId}`)
+    const response = await api.get<Provider>(`/credentials/providers/${providerId}`)
     return response.data
   },
 }

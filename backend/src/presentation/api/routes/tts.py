@@ -56,9 +56,7 @@ async def synthesize(request: SynthesizeRequest):
     Returns complete audio data as base64 encoded string.
     """
     # Validate text length for provider (outside try-except to ensure proper HTTP status)
-    is_valid, error_msg, exceeds_recommended = validate_text_length(
-        request.provider, request.text
-    )
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 
@@ -121,9 +119,7 @@ async def stream(request: StreamRequest):
     Returns audio data as a streaming response.
     """
     # Validate text length for provider
-    is_valid, error_msg, exceeds_recommended = validate_text_length(
-        request.provider, request.text
-    )
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 
@@ -188,9 +184,7 @@ async def synthesize_binary(request: SynthesizeRequest):
     Alternative endpoint that returns audio directly instead of base64.
     """
     # Validate text length for provider
-    is_valid, error_msg, exceeds_recommended = validate_text_length(
-        request.provider, request.text
-    )
+    is_valid, error_msg, exceeds_recommended = validate_text_length(request.provider, request.text)
     if not is_valid:
         raise HTTPException(status_code=400, detail={"error": error_msg})
 

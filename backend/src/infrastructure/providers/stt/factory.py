@@ -7,8 +7,12 @@ Creates STT provider instances based on configuration and credentials.
 from typing import Any
 
 from src.application.interfaces.stt_provider import ISTTProvider
+from src.infrastructure.providers.stt.assemblyai_stt import AssemblyAISTTProvider
 from src.infrastructure.providers.stt.azure_stt import AzureSTTProvider
+from src.infrastructure.providers.stt.deepgram_stt import DeepgramSTTProvider
+from src.infrastructure.providers.stt.elevenlabs_stt import ElevenLabsSTTProvider
 from src.infrastructure.providers.stt.gcp_stt import GCPSTTProvider
+from src.infrastructure.providers.stt.speechmatics_stt import SpeechmaticsSTTProvider
 from src.infrastructure.providers.stt.whisper_stt import WhisperSTTProvider
 
 
@@ -47,6 +51,46 @@ class STTProviderFactory:
             "supported_formats": ["mp3", "mp4", "wav", "webm", "m4a"],
             "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"],
         },
+        "deepgram": {
+            "name": "deepgram",
+            "display_name": "Deepgram Nova-2",
+            "supports_streaming": True,
+            "supports_child_mode": False,
+            "max_duration_sec": 3600,
+            "max_file_size_mb": 2000,
+            "supported_formats": ["mp3", "wav", "ogg", "flac", "webm", "m4a"],
+            "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"],
+        },
+        "assemblyai": {
+            "name": "assemblyai",
+            "display_name": "AssemblyAI",
+            "supports_streaming": True,
+            "supports_child_mode": False,
+            "max_duration_sec": 3600,
+            "max_file_size_mb": 2000,
+            "supported_formats": ["mp3", "wav", "ogg", "flac", "webm", "m4a"],
+            "supported_languages": ["zh-TW", "en-US", "ja-JP", "ko-KR"],
+        },
+        "elevenlabs": {
+            "name": "elevenlabs",
+            "display_name": "ElevenLabs Scribe",
+            "supports_streaming": False,
+            "supports_child_mode": False,
+            "max_duration_sec": 600,
+            "max_file_size_mb": 25,
+            "supported_formats": ["mp3", "wav", "flac", "m4a"],
+            "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"],
+        },
+        "speechmatics": {
+            "name": "speechmatics",
+            "display_name": "Speechmatics",
+            "supports_streaming": True,
+            "supports_child_mode": False,
+            "max_duration_sec": 7200,
+            "max_file_size_mb": 2000,
+            "supported_formats": ["mp3", "wav", "ogg", "flac"],
+            "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"],
+        },
     }
 
     @classmethod
@@ -54,7 +98,7 @@ class STTProviderFactory:
         """Create an STT provider instance.
 
         Args:
-            provider_name: Name of the provider ('azure', 'gcp', 'whisper')
+            provider_name: Name of the provider
             credentials: Provider-specific credentials
 
         Returns:
@@ -71,58 +115,69 @@ class STTProviderFactory:
             return cls._create_gcp(credentials)
         elif provider_name == "whisper":
             return cls._create_whisper(credentials)
+        elif provider_name == "deepgram":
+            return cls._create_deepgram(credentials)
+        elif provider_name == "assemblyai":
+            return cls._create_assemblyai(credentials)
+        elif provider_name == "elevenlabs":
+            return cls._create_elevenlabs(credentials)
+        elif provider_name == "speechmatics":
+            return cls._create_speechmatics(credentials)
         else:
             raise ValueError(f"Unknown STT provider: {provider_name}")
 
     @classmethod
     def _create_azure(cls, credentials: dict[str, Any]) -> AzureSTTProvider:
-        """Create Azure STT provider."""
         subscription_key = credentials.get("subscription_key") or credentials.get("api_key")
         region = credentials.get("region", "eastasia")
-
         if not subscription_key:
             raise ValueError("Azure STT requires 'subscription_key' or 'api_key'")
-
-        return AzureSTTProvider(
-            subscription_key=subscription_key,
-            region=region,
-        )
+        return AzureSTTProvider(subscription_key=subscription_key, region=region)
 
     @classmethod
     def _create_gcp(cls, credentials: dict[str, Any]) -> GCPSTTProvider:
-        """Create GCP STT provider."""
-        # GCP can use service account JSON or application default credentials
-        service_account_json = credentials.get("service_account_json")
-        project_id = credentials.get("project_id")
-
         return GCPSTTProvider(
-            service_account_json=service_account_json,
-            project_id=project_id,
+            credentials_path=credentials.get("credentials_path")
+            or credentials.get("service_account_json"),
         )
 
     @classmethod
     def _create_whisper(cls, credentials: dict[str, Any]) -> WhisperSTTProvider:
-        """Create OpenAI Whisper STT provider."""
         api_key = credentials.get("api_key")
-
         if not api_key:
             raise ValueError("Whisper STT requires 'api_key'")
-
         return WhisperSTTProvider(api_key=api_key)
 
     @classmethod
+    def _create_deepgram(cls, credentials: dict[str, Any]) -> DeepgramSTTProvider:
+        api_key = credentials.get("api_key")
+        if not api_key:
+            raise ValueError("Deepgram STT requires 'api_key'")
+        return DeepgramSTTProvider(api_key=api_key)
+
+    @classmethod
+    def _create_assemblyai(cls, credentials: dict[str, Any]) -> AssemblyAISTTProvider:
+        api_key = credentials.get("api_key")
+        if not api_key:
+            raise ValueError("AssemblyAI STT requires 'api_key'")
+        return AssemblyAISTTProvider(api_key=api_key)
+
+    @classmethod
+    def _create_elevenlabs(cls, credentials: dict[str, Any]) -> ElevenLabsSTTProvider:
+        api_key = credentials.get("api_key")
+        if not api_key:
+            raise ValueError("ElevenLabs STT requires 'api_key'")
+        return ElevenLabsSTTProvider(api_key=api_key)
+
+    @classmethod
+    def _create_speechmatics(cls, credentials: dict[str, Any]) -> SpeechmaticsSTTProvider:
+        api_key = credentials.get("api_key")
+        if not api_key:
+            raise ValueError("Speechmatics STT requires 'api_key'")
+        return SpeechmaticsSTTProvider(api_key=api_key)
+
+    @classmethod
     def get_provider_info(cls, provider_name: str) -> dict[str, Any]:
-        """Get provider metadata.
-
-        Args:
-            provider_name: Name of the provider
-
-        Returns:
-            Provider information dictionary
-
-        Raises:
-            ValueError: If provider name is unknown
-        """
         provider_name = provider_name.lower()
         if provider_name not in cls.PROVIDER_INFO:
             raise ValueError(f"Unknown STT provider: {provider_name}")
@@ -130,18 +185,8 @@ class STTProviderFactory:
 
     @classmethod
     def list_providers(cls) -> list[dict[str, Any]]:
-        """List all available STT providers with their metadata.
-
-        Returns:
-            List of provider information dictionaries
-        """
         return list(cls.PROVIDER_INFO.values())
 
     @classmethod
     def get_supported_providers(cls) -> list[str]:
-        """Get list of supported provider names.
-
-        Returns:
-            List of provider names
-        """
         return list(cls.PROVIDER_INFO.keys())

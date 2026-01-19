@@ -191,3 +191,179 @@ class AuditLogModel(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="audit_logs")
+
+
+class AudioFileModel(Base):
+    """Audio file model for STT testing."""
+
+    __tablename__ = "audio_files"
+    __table_args__ = (
+        Index("idx_audio_file_user_id", "user_id"),
+        Index("idx_audio_file_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    format: Mapped[str] = mapped_column(String(10), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_rate: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)  # 'upload' or 'recording'
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    ground_truth: Mapped["GroundTruthModel | None"] = relationship(
+        "GroundTruthModel", back_populates="audio_file", uselist=False, cascade="all, delete-orphan"
+    )
+    transcription_requests: Mapped[list["TranscriptionRequestModel"]] = relationship(
+        "TranscriptionRequestModel", back_populates="audio_file", cascade="all, delete-orphan"
+    )
+
+
+class GroundTruthModel(Base):
+    """Ground truth text for accuracy calculation."""
+
+    __tablename__ = "ground_truths"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    audio_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("audio_files.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    language: Mapped[str] = mapped_column(String(10), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    audio_file: Mapped["AudioFileModel"] = relationship(
+        "AudioFileModel", back_populates="ground_truth"
+    )
+    wer_analyses: Mapped[list["WERAnalysisModel"]] = relationship(
+        "WERAnalysisModel", back_populates="ground_truth", cascade="all, delete-orphan"
+    )
+
+
+class TranscriptionRequestModel(Base):
+    """STT transcription request."""
+
+    __tablename__ = "transcription_requests"
+    __table_args__ = (
+        Index("idx_transcription_request_audio", "audio_file_id"),
+        Index("idx_transcription_request_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    audio_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("audio_files.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    language: Mapped[str] = mapped_column(String(10), nullable=False, default="zh-TW")
+    child_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending"
+    )  # 'pending', 'processing', 'completed', 'failed'
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    audio_file: Mapped["AudioFileModel"] = relationship(
+        "AudioFileModel", back_populates="transcription_requests"
+    )
+    result: Mapped["TranscriptionResultModel | None"] = relationship(
+        "TranscriptionResultModel",
+        back_populates="request",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class TranscriptionResultModel(Base):
+    """STT transcription result."""
+
+    __tablename__ = "transcription_results"
+    __table_args__ = (Index("idx_transcription_result_request", "request_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    request_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("transcription_requests.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    transcript: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    request: Mapped["TranscriptionRequestModel"] = relationship(
+        "TranscriptionRequestModel", back_populates="result"
+    )
+    words: Mapped[list["WordTimingModel"]] = relationship(
+        "WordTimingModel", back_populates="result", cascade="all, delete-orphan"
+    )
+    wer_analysis: Mapped["WERAnalysisModel | None"] = relationship(
+        "WERAnalysisModel", back_populates="result", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class WordTimingModel(Base):
+    """Word-level timing from STT."""
+
+    __tablename__ = "word_timings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    result_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("transcription_results.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    word: Mapped[str] = mapped_column(String(255), nullable=False)
+    start_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=True)
+
+    # Relationships
+    result: Mapped["TranscriptionResultModel"] = relationship(
+        "TranscriptionResultModel", back_populates="words"
+    )
+
+
+class WERAnalysisModel(Base):
+    """WER/CER analysis result."""
+
+    __tablename__ = "wer_analyses"
+    __table_args__ = (Index("idx_wer_analysis_result", "result_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    result_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("transcription_results.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    ground_truth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ground_truths.id", ondelete="CASCADE"), nullable=False
+    )
+    error_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    error_type: Mapped[str] = mapped_column(String(10), nullable=False)  # 'WER' or 'CER'
+    insertions: Mapped[int] = mapped_column(Integer, nullable=False)
+    deletions: Mapped[int] = mapped_column(Integer, nullable=False)
+    substitutions: Mapped[int] = mapped_column(Integer, nullable=False)
+    alignment: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    result: Mapped["TranscriptionResultModel"] = relationship(
+        "TranscriptionResultModel", back_populates="wer_analysis"
+    )
+    ground_truth: Mapped["GroundTruthModel"] = relationship(
+        "GroundTruthModel", back_populates="wer_analyses"
+    )

@@ -10,9 +10,18 @@ from src.infrastructure.persistence.database import Base
 
 # Import models to register them with Base.metadata
 from src.infrastructure.persistence.models import (  # noqa: F401
+    AudioFileModel,
+    AuditLogModel,
+    GroundTruthModel,
+    ProviderModel,
     SynthesisLog,
+    TranscriptionRequestModel,
+    TranscriptionResultModel,
     User,
+    UserProviderCredentialModel,
     VoiceCache,
+    WERAnalysisModel,
+    WordTimingModel,
 )
 
 # this is the Alembic Config object, which provides

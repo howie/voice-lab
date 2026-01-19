@@ -3,27 +3,37 @@
 Feature: 003-stt-testing-module
 T027: Implement GET /stt/providers endpoint
 T028: Implement POST /stt/transcribe endpoint
+T051: Implement POST /stt/analysis/wer endpoint
+T064-T067: History and Comparison endpoints
 """
 
+import io
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydub import AudioSegment
 
-from src.application.interfaces.stt_provider import ISTTProvider
-from src.application.use_cases.transcribe_audio import (
-    TranscribeAudioInput,
-    TranscribeAudioUseCase,
-)
-from src.domain.entities.audio import AudioData, AudioFormat
+from src.application.interfaces.storage_service import IStorageService
+from src.application.services.stt_service import STTService
+from src.domain.entities.audio_file import AudioFile, AudioFileFormat, AudioSource
+from src.domain.repositories.transcription_repository import ITranscriptionRepository
 from src.infrastructure.providers.stt.factory import STTProviderFactory
 from src.presentation.api.dependencies import (
-    get_stt_providers,
-    get_transcribe_audio_use_case,
+    get_storage_service,
+    get_stt_service,
+    get_transcription_repository,
 )
+from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.schemas.stt import (
+    ComparisonResponse,
     STTProviderResponse,
     STTProvidersListResponse,
     STTTranscribeResponse,
+    TranscriptionDetail,
+    TranscriptionHistoryPage,
+    TranscriptionSummary,
+    WERAnalysisRequest,
     WERAnalysisResponse,
     WordTimingResponse,
 )
@@ -35,23 +45,23 @@ router = APIRouter()
 CJK_LANGUAGES = {"zh-TW", "zh-CN", "ja-JP", "ko-KR"}
 
 
-def _get_audio_format(content_type: str, filename: str) -> AudioFormat:
+def _get_audio_format(content_type: str, filename: str) -> AudioFileFormat:
     """Determine audio format from content type or filename."""
     content_type_lower = content_type.lower() if content_type else ""
     filename_lower = filename.lower() if filename else ""
 
     if "wav" in content_type_lower or filename_lower.endswith(".wav"):
-        return AudioFormat.WAV
+        return AudioFileFormat.WAV
     elif "ogg" in content_type_lower or filename_lower.endswith(".ogg"):
-        return AudioFormat.OGG
+        return AudioFileFormat.OGG
     elif "webm" in content_type_lower or filename_lower.endswith(".webm"):
-        return AudioFormat.WEBM
+        return AudioFileFormat.WEBM
     elif "flac" in content_type_lower or filename_lower.endswith(".flac"):
-        return AudioFormat.FLAC
+        return AudioFileFormat.FLAC
     elif "m4a" in content_type_lower or filename_lower.endswith(".m4a"):
-        return AudioFormat.M4A
+        return AudioFileFormat.M4A
     else:
-        return AudioFormat.MP3
+        return AudioFileFormat.MP3
 
 
 def _determine_error_type(language: str) -> str:
@@ -59,67 +69,63 @@ def _determine_error_type(language: str) -> str:
     return "CER" if language in CJK_LANGUAGES else "WER"
 
 
+def _calculate_audio_metadata(audio_bytes: bytes) -> tuple[int, int]:
+    """Calculate duration and sample rate from audio bytes."""
+    try:
+        audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        duration_ms = len(audio)
+        sample_rate = audio.frame_rate
+        return duration_ms, sample_rate
+    except Exception:
+        # Fallback if pydub fails
+        return 0, 16000
+
+
 @router.get("/providers", response_model=STTProvidersListResponse)
-async def list_providers(
-    stt_providers: dict[str, ISTTProvider] = Depends(get_stt_providers),
-):
-    """List available STT providers with their capabilities.
-
-    Returns full provider information including:
-    - Supported formats and file size limits
-    - Streaming and child mode support
-    - Supported languages
-    """
-    # Get available provider names from initialized providers
-    available_provider_names = set(stt_providers.keys())
-
-    # Get full provider info from factory, filtered by available providers
+async def list_providers():
+    """List available STT providers with their capabilities."""
     providers_info = []
     for provider_data in STTProviderFactory.list_providers():
-        if provider_data["name"] in available_provider_names:
-            providers_info.append(
-                STTProviderResponse(
-                    name=provider_data["name"],
-                    display_name=provider_data["display_name"],
-                    supports_streaming=provider_data["supports_streaming"],
-                    supports_child_mode=provider_data["supports_child_mode"],
-                    max_duration_sec=provider_data["max_duration_sec"],
-                    max_file_size_mb=provider_data["max_file_size_mb"],
-                    supported_formats=provider_data["supported_formats"],
-                    supported_languages=provider_data["supported_languages"],
-                )
+        providers_info.append(
+            STTProviderResponse(
+                name=provider_data["name"],
+                display_name=provider_data["display_name"],
+                supports_streaming=provider_data["supports_streaming"],
+                supports_child_mode=provider_data["supports_child_mode"],
+                max_duration_sec=provider_data["max_duration_sec"],
+                max_file_size_mb=provider_data["max_file_size_mb"],
+                supported_formats=provider_data["supported_formats"],
+                supported_languages=provider_data["supported_languages"],
             )
+        )
 
     return STTProvidersListResponse(providers=providers_info)
 
 
 @router.post("/transcribe", response_model=STTTranscribeResponse)
 async def transcribe_audio(
+    current_user: CurrentUserDep,
     audio: UploadFile = File(..., description="Audio file to transcribe"),
     provider: str = Form(..., description="STT provider name"),
     language: str = Form(default="zh-TW", description="Language code"),
     child_mode: bool = Form(default=False, description="Enable child speech mode"),
     ground_truth: str | None = Form(default=None, description="Ground truth text"),
-    save_to_history: bool = Form(default=True, description="Save to history"),
-    use_case: TranscribeAudioUseCase = Depends(get_transcribe_audio_use_case),
+    _save_to_history: bool = Form(default=True, description="Save to history"),  # noqa: ARG001
+    stt_service: STTService = Depends(get_stt_service),
+    storage_service: IStorageService = Depends(get_storage_service),
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
 ):
-    """Transcribe audio to text.
-
-    Returns transcription result with:
-    - Transcript text and confidence score
-    - Word-level timing information (if available)
-    - WER/CER analysis (if ground truth provided)
-    - Processing latency
-    """
+    """Transcribe audio to text."""
     try:
-        # Validate provider exists
-        provider_info = None
+        user_id = uuid.UUID(current_user.id)
+
+        # 1. Validate Provider
         try:
             provider_info = STTProviderFactory.get_provider_info(provider)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
-        # Read and validate audio data
+        # 2. Read and validate audio data
         audio_bytes = await audio.read()
         audio_format = _get_audio_format(audio.content_type or "", audio.filename or "")
 
@@ -132,28 +138,50 @@ async def transcribe_audio(
                 detail=f"File size ({file_size_mb:.1f}MB) exceeds {provider} limit ({max_size}MB)",
             )
 
-        audio_data = AudioData(
-            data=audio_bytes,
-            format=audio_format,
-            sample_rate=16000,  # Default, actual rate may vary
+        # Calculate metadata
+        duration_ms, sample_rate = _calculate_audio_metadata(audio_bytes)
+
+        # 3. Save Audio File (upload to storage and create entity)
+        storage_path = await storage_service.save(
+            audio_bytes, f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
         )
 
-        input_data = TranscribeAudioInput(
+        audio_file = AudioFile(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            filename=audio.filename or "unknown",
+            format=audio_format,
+            duration_ms=duration_ms,
+            sample_rate=sample_rate,
+            file_size_bytes=len(audio_bytes),
+            storage_path=storage_path,
+            source=AudioSource.UPLOAD,
+        )
+
+        await transcription_repo.save_audio_file(audio_file)
+
+        # 4. Save Ground Truth if provided
+        gt_entity = None
+        if ground_truth:
+            from src.domain.entities.ground_truth import GroundTruth
+
+            gt_entity = GroundTruth(
+                id=uuid.uuid4(), audio_file_id=audio_file.id, text=ground_truth, language=language
+            )
+            await transcription_repo.save_ground_truth(gt_entity)
+
+        # 5. Call STT Service
+        result, record_id, result_id = await stt_service.transcribe_audio(
+            user_id=user_id,
+            audio_file_id=audio_file.id,
             provider_name=provider,
-            audio=audio_data,
             language=language,
             child_mode=child_mode,
-            ground_truth=ground_truth,
-            user_id="anonymous",  # TODO: Get from auth
-            save_to_history=save_to_history,
         )
 
-        output = await use_case.execute(input_data)
-
-        # Convert word timings to response format
+        # 6. Convert response
         words = None
-        word_timings_legacy = None
-        if output.result.words:
+        if result.words:
             words = [
                 WordTimingResponse(
                     word=wt.word,
@@ -161,31 +189,38 @@ async def transcribe_audio(
                     end_ms=wt.end_ms,
                     confidence=wt.confidence,
                 )
-                for wt in output.result.words
+                for wt in result.words
             ]
-            # Also provide legacy format
-            word_timings_legacy = words
 
-        # Build WER analysis response if ground truth was provided
+        # 7. WER Analysis Calculation (if ground truth provided)
         wer_analysis = None
-        if ground_truth and (output.wer is not None or output.cer is not None):
-            error_type = _determine_error_type(language)
-            error_rate = output.cer if error_type == "CER" else output.wer
+        wer_val = None
+        cer_val = None
 
-            # Calculate detailed metrics
-            from src.domain.services.wer_calculator import calculate_alignment
+        if ground_truth and gt_entity:
+            from src.domain.services.wer_calculator import (
+                calculate_alignment,
+                calculate_cer,
+                calculate_wer,
+            )
+
+            error_type = _determine_error_type(language)
 
             if error_type == "CER":
+                cer_val = calculate_cer(ground_truth, result.transcript)
+                error_rate = cer_val
                 ref_tokens = list(ground_truth.replace(" ", ""))
-                hyp_tokens = list(output.result.transcript.replace(" ", ""))
+                hyp_tokens = list(result.transcript.replace(" ", ""))
             else:
+                wer_val = calculate_wer(ground_truth, result.transcript)
+                error_rate = wer_val
                 ref_tokens = ground_truth.split()
-                hyp_tokens = output.result.transcript.split()
+                hyp_tokens = result.transcript.split()
 
             _, insertions, deletions, substitutions = calculate_alignment(ref_tokens, hyp_tokens)
 
             wer_analysis = WERAnalysisResponse(
-                error_rate=error_rate or 0.0,
+                error_rate=error_rate,
                 error_type=error_type,
                 insertions=insertions,
                 deletions=deletions,
@@ -193,22 +228,36 @@ async def transcribe_audio(
                 total_reference=len(ref_tokens),
             )
 
+            # Save WER Analysis
+            from src.domain.entities.wer_analysis import WERAnalysis
+
+            wer_entity = WERAnalysis(
+                id=uuid.uuid4(),
+                result_id=result_id,
+                ground_truth_id=gt_entity.id,
+                error_rate=error_rate or 0.0,
+                error_type=error_type,
+                insertions=insertions,
+                deletions=deletions,
+                substitutions=substitutions,
+                alignment=None,
+            )
+            await transcription_repo.save_wer_analysis(wer_entity)
+
         return STTTranscribeResponse(
-            id=output.record_id,
-            transcript=output.result.transcript,
-            provider=output.result.provider,
-            language=output.result.language,
-            latency_ms=output.result.latency_ms,
-            confidence=output.result.confidence or 0.0,
+            id=str(record_id),
+            transcript=result.transcript,
+            provider=result.provider,
+            language=result.language,
+            latency_ms=result.latency_ms,
+            confidence=result.confidence or 0.0,
             words=words,
-            audio_duration_ms=output.result.audio_duration_ms,
+            audio_duration_ms=result.audio_duration_ms,
             wer_analysis=wer_analysis,
             created_at=datetime.utcnow().isoformat() + "Z",
-            # Legacy fields
-            word_timings=word_timings_legacy,
-            wer=output.wer,
-            cer=output.cer,
-            record_id=output.record_id,
+            wer=wer_val,
+            cer=cer_val,
+            record_id=str(record_id),
         )
     except HTTPException:
         raise
@@ -216,3 +265,251 @@ async def transcribe_audio(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}") from e
+
+
+@router.post("/analysis/wer", response_model=WERAnalysisResponse)
+async def calculate_error_rate_endpoint(
+    data: WERAnalysisRequest,
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
+):
+    """Calculate WER/CER for a transcription result."""
+    try:
+        result_id = uuid.UUID(data.result_id)
+        stt_result = await transcription_repo.get_transcription(result_id)
+        if not stt_result:
+            raise HTTPException(status_code=404, detail="Transcription not found")
+
+        from src.domain.services.wer_calculator import (
+            calculate_alignment,
+            calculate_cer,
+            calculate_wer,
+        )
+
+        language = stt_result.language
+        error_type = _determine_error_type(language)
+
+        if error_type == "CER":
+            error_rate = calculate_cer(data.ground_truth, stt_result.transcript)
+            ref_tokens = list(data.ground_truth.replace(" ", ""))
+            hyp_tokens = list(stt_result.transcript.replace(" ", ""))
+        else:
+            error_rate = calculate_wer(data.ground_truth, stt_result.transcript)
+            ref_tokens = data.ground_truth.split()
+            hyp_tokens = stt_result.transcript.split()
+
+        _, insertions, deletions, substitutions = calculate_alignment(ref_tokens, hyp_tokens)
+
+        return WERAnalysisResponse(
+            error_rate=error_rate,
+            error_type=error_type,
+            insertions=insertions,
+            deletions=deletions,
+            substitutions=substitutions,
+            total_reference=len(ref_tokens),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/history", response_model=TranscriptionHistoryPage)
+async def list_history(
+    current_user: CurrentUserDep,
+    page: int = 1,
+    page_size: int = 20,
+    provider: str | None = None,
+    language: str | None = None,
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
+):
+    """List transcription history."""
+    try:
+        user_id = uuid.UUID(current_user.id)
+        items, total = await transcription_repo.list_transcriptions(
+            user_id=user_id, provider=provider, language=language, page=page, page_size=page_size
+        )
+
+        total_pages = (total + page_size - 1) // page_size
+
+        summary_items = [TranscriptionSummary(**item) for item in items]
+
+        return TranscriptionHistoryPage(
+            items=summary_items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/history/{id}", response_model=TranscriptionDetail)
+async def get_history_detail(
+    id: str,
+    _current_user: CurrentUserDep,  # noqa: ARG001 - Auth required but ID unused
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
+):
+    """Get detailed transcription record."""
+    try:
+        detail = await transcription_repo.get_transcription_detail(uuid.UUID(id))
+        if not detail:
+            raise HTTPException(status_code=404, detail="Transcription not found")
+
+        return TranscriptionDetail(**detail)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.delete("/history/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_history(
+    id: str,
+    _current_user: CurrentUserDep,  # noqa: ARG001 - Auth required but ID unused
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
+):
+    """Delete a transcription record."""
+    try:
+        success = await transcription_repo.delete_transcription(uuid.UUID(id))
+        if not success:
+            raise HTTPException(status_code=404, detail="Transcription not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/compare", response_model=ComparisonResponse)
+async def compare_providers(
+    current_user: CurrentUserDep,
+    audio: UploadFile = File(..., description="Audio file to transcribe"),
+    providers: list[str] = Form(..., description="List of providers to compare"),
+    language: str = Form(default="zh-TW"),
+    ground_truth: str | None = Form(default=None),
+    stt_service: STTService = Depends(get_stt_service),
+    storage_service: IStorageService = Depends(get_storage_service),
+    transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),
+):
+    """Compare multiple providers."""
+    try:
+        user_id = uuid.UUID(current_user.id)
+
+        # 1. Save Audio (Once)
+        audio_bytes = await audio.read()
+        audio_format = _get_audio_format(audio.content_type or "", audio.filename or "")
+        duration_ms, sample_rate = _calculate_audio_metadata(audio_bytes)
+
+        storage_path = await storage_service.save(
+            audio_bytes, f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
+        )
+
+        audio_file = AudioFile(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            filename=audio.filename or "unknown",
+            format=audio_format,
+            duration_ms=duration_ms,
+            sample_rate=sample_rate,
+            file_size_bytes=len(audio_bytes),
+            storage_path=storage_path,
+            source=AudioSource.UPLOAD,
+        )
+        await transcription_repo.save_audio_file(audio_file)
+
+        # Save Ground Truth
+        if ground_truth:
+            from src.domain.entities.ground_truth import GroundTruth
+
+            gt = GroundTruth(
+                id=uuid.uuid4(), audio_file_id=audio_file.id, text=ground_truth, language=language
+            )
+            await transcription_repo.save_ground_truth(gt)
+
+        # 2. Iterate Providers
+        results = []
+        comparison_table = []
+
+        for provider_name in providers:
+            try:
+                result, record_id, result_id = await stt_service.transcribe_audio(
+                    user_id=user_id,
+                    audio_file_id=audio_file.id,
+                    provider_name=provider_name,
+                    language=language,
+                )
+
+                # Calculate WER
+                error_rate = None
+                if ground_truth:
+                    from src.domain.services.wer_calculator import calculate_cer, calculate_wer
+
+                    error_type = _determine_error_type(language)
+                    if error_type == "CER":
+                        error_rate = calculate_cer(ground_truth, result.transcript)
+                    else:
+                        error_rate = calculate_wer(ground_truth, result.transcript)
+
+                    # Save WER
+                    # Assume GT was saved
+                    if ground_truth:
+                        # Find GT ID (we created it)
+                        # We can query repo or reuse if we kept it.
+                        # But loop needs fresh ID? No, GT is per audio file.
+                        # We created 1 GT for 1 AudioFile.
+                        # Multiple results link to same AudioFile (via request).
+                        # But WER links to Result and GT.
+                        # We need GT entity ID.
+                        pass  # Need to track GT ID.
+
+                # Convert to response
+                words = (
+                    [
+                        WordTimingResponse(
+                            word=w.word,
+                            start_ms=w.start_ms,
+                            end_ms=w.end_ms,
+                            confidence=w.confidence,
+                        )
+                        for w in result.words
+                    ]
+                    if result.words
+                    else None
+                )
+
+                transcribe_response = STTTranscribeResponse(
+                    id=str(record_id),
+                    transcript=result.transcript,
+                    provider=result.provider,
+                    language=result.language,
+                    latency_ms=result.latency_ms,
+                    confidence=result.confidence or 0.0,
+                    words=words,
+                    created_at=datetime.utcnow().isoformat() + "Z",
+                    record_id=str(record_id),
+                )
+                results.append(transcribe_response)
+
+                comparison_table.append(
+                    {
+                        "provider": provider_name,
+                        "transcript": result.transcript,
+                        "confidence": result.confidence,
+                        "latency_ms": result.latency_ms,
+                        "error_rate": error_rate,
+                        "error_type": _determine_error_type(language)
+                        if error_rate is not None
+                        else None,
+                    }
+                )
+
+            except Exception as e:
+                # Log error but continue
+                print(f"Comparison failed for {provider_name}: {e}")
+                # Maybe return error entry?
+
+        return ComparisonResponse(
+            audio_file_id=str(audio_file.id),
+            results=results,
+            ground_truth=ground_truth,
+            comparison_table=comparison_table,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

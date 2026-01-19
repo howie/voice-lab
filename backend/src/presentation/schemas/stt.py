@@ -57,6 +57,13 @@ class STTTranscribeRequest(BaseSchema):
     save_to_history: bool = Field(default=True, description="Save to test history")
 
 
+class WERAnalysisRequest(BaseSchema):
+    """Request for WER/CER analysis."""
+
+    result_id: str = Field(..., description="Transcription result ID")
+    ground_truth: str = Field(..., description="Ground truth text")
+
+
 class WERAnalysisResponse(BaseSchema):
     """WER/CER analysis result matching frontend WERAnalysis type."""
 
@@ -93,3 +100,54 @@ class STTTranscribeResponse(BaseSchema):
     wer: float | None = Field(default=None, description="Deprecated: Use wer_analysis")
     cer: float | None = Field(default=None, description="Deprecated: Use wer_analysis")
     record_id: str | None = Field(default=None, description="Deprecated: Use 'id'")
+
+
+class TranscriptionSummary(BaseSchema):
+    """Summary of a transcription record."""
+
+    id: str
+    provider: str
+    language: str
+    transcript_preview: str
+    duration_ms: int | None
+    confidence: float
+    has_ground_truth: bool
+    error_rate: float | None
+    created_at: str
+
+
+class TranscriptionHistoryPage(BaseSchema):
+    """Paginated transcription history."""
+
+    items: list[TranscriptionSummary]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class AudioFileResponse(BaseSchema):
+    """Audio file details."""
+
+    id: str
+    filename: str
+    duration_ms: int
+    format: str
+    download_url: str | None = None
+
+
+class TranscriptionDetail(STTTranscribeResponse):
+    """Detailed transcription record."""
+
+    audio_file: AudioFileResponse
+    ground_truth: str | None
+    child_mode: bool
+
+
+class ComparisonResponse(BaseSchema):
+    """Comparison results for multiple providers."""
+
+    audio_file_id: str
+    results: list[STTTranscribeResponse]
+    ground_truth: str | None
+    comparison_table: list[dict]

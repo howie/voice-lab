@@ -45,7 +45,7 @@ class CurrentUser:
 
 # Create a default development user when auth is disabled
 DEV_USER = CurrentUser(
-    id="dev-user-id",
+    id="00000000-0000-0000-0000-000000000001",
     email="dev@localhost",
     name="Development User",
     picture_url=None,

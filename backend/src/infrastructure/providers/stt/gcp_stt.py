@@ -20,12 +20,16 @@ class GCPSTTProvider(BaseSTTProvider):
         AudioFormat.FLAC: speech.RecognitionConfig.AudioEncoding.FLAC,
     }
 
-    def __init__(self, credentials_path: str | None = None):
+    def __init__(
+        self,
+        credentials_path: str | None = None,
+        _project_id: str | None = None,  # noqa: ARG002 - Reserved for future ADC use
+    ):
         """Initialize GCP STT provider.
 
         Args:
             credentials_path: Path to GCP service account JSON file.
-                            If None, uses default credentials.
+            _project_id: GCP project ID (reserved for ADC, not yet implemented).
         """
         super().__init__("gcp")
 
@@ -33,6 +37,18 @@ class GCPSTTProvider(BaseSTTProvider):
             self._client = speech.SpeechClient.from_service_account_json(credentials_path)
         else:
             self._client = speech.SpeechClient()
+
+    @property
+    def display_name(self) -> str:
+        return "Google Cloud STT"
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+
+    @property
+    def supports_child_mode(self) -> bool:
+        return True
 
     async def _do_transcribe(
         self, request: STTRequest
@@ -43,6 +59,18 @@ class GCPSTTProvider(BaseSTTProvider):
         if request.audio is None and request.audio_url is None:
             raise ValueError("Either audio or audio_url must be provided")
 
+        model = "latest_long"
+        speech_contexts = []
+
+        if request.child_mode:
+            model = "command_and_search"
+            speech_contexts = [
+                speech.SpeechContext(
+                    phrases=["媽媽", "爸爸", "老師", "小朋友"],
+                    boost=10.0,
+                )
+            ]
+
         # Build recognition config
         config = speech.RecognitionConfig(
             encoding=self._get_encoding(request.audio),
@@ -50,26 +78,9 @@ class GCPSTTProvider(BaseSTTProvider):
             language_code=self._map_language(request.language),
             enable_word_time_offsets=True,
             enable_automatic_punctuation=True,
-            model="latest_long" if not request.child_mode else "command_and_search",
+            model=model,
+            speech_contexts=speech_contexts,
         )
-
-        # Add child mode specific config
-        if request.child_mode:
-            # Use alternative language models that work better with children
-            config = speech.RecognitionConfig(
-                encoding=self._get_encoding(request.audio),
-                sample_rate_hertz=request.audio.sample_rate if request.audio else 16000,
-                language_code=self._map_language(request.language),
-                enable_word_time_offsets=True,
-                enable_automatic_punctuation=True,
-                model="command_and_search",
-                speech_contexts=[
-                    speech.SpeechContext(
-                        phrases=["媽媽", "爸爸", "老師", "小朋友"],
-                        boost=10.0,
-                    )
-                ],
-            )
 
         # Build audio
         if request.audio:
@@ -105,8 +116,8 @@ class GCPSTTProvider(BaseSTTProvider):
                 word_timings.append(
                     WordTiming(
                         word=word_info.word,
-                        start_time=word_info.start_time.total_seconds(),
-                        end_time=word_info.end_time.total_seconds(),
+                        start_ms=int(word_info.start_time.total_seconds() * 1000),
+                        end_ms=int(word_info.end_time.total_seconds() * 1000),
                         confidence=alternative.confidence,
                     )
                 )

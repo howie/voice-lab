@@ -44,7 +44,7 @@
 - [x] T006 [P] Create AudioFile entity in backend/src/domain/entities/audio_file.py
 - [x] T007 [P] Create WERAnalysis entity in backend/src/domain/entities/wer_analysis.py
 - [x] T008 [P] Create GroundTruth entity in backend/src/domain/entities/ground_truth.py
-- [ ] T009 Create Alembic migration for STT tables (audio_files, transcription_requests, transcription_results, wer_analyses, ground_truths)
+- [x] T009 Create Alembic migration for STT tables (audio_files, transcription_requests, transcription_results, wer_analyses, ground_truths)
 
 ### STT Provider Abstraction Layer
 
@@ -53,16 +53,16 @@
 - [x] T012 [P] Implement AzureSTTProvider in backend/src/infrastructure/providers/stt/azure_stt.py *(already exists)*
 - [x] T013 [P] Implement GCPSTTProvider in backend/src/infrastructure/providers/stt/gcp_stt.py *(already exists)*
 - [x] T014 [P] Implement WhisperSTTProvider in backend/src/infrastructure/providers/stt/whisper_stt.py *(already exists)*
-- [ ] T014a [P] Implement DeepgramSTTProvider in backend/src/infrastructure/providers/stt/deepgram_stt.py
-- [ ] T014b [P] Implement AssemblyAISTTProvider in backend/src/infrastructure/providers/stt/assemblyai_stt.py
-- [ ] T014c [P] Implement ElevenLabsSTTProvider in backend/src/infrastructure/providers/stt/elevenlabs_stt.py
-- [ ] T014d [P] Implement SpeechmaticsSTTProvider in backend/src/infrastructure/providers/stt/speechmatics_stt.py
+- [x] T014a [P] Implement DeepgramSTTProvider in backend/src/infrastructure/providers/stt/deepgram_stt.py
+- [x] T014b [P] Implement AssemblyAISTTProvider in backend/src/infrastructure/providers/stt/assemblyai_stt.py
+- [x] T014c [P] Implement ElevenLabsSTTProvider in backend/src/infrastructure/providers/stt/elevenlabs_stt.py
+- [x] T014d [P] Implement SpeechmaticsSTTProvider in backend/src/infrastructure/providers/stt/speechmatics_stt.py
 - [x] T015 Create STTProviderFactory in backend/src/infrastructure/providers/stt/factory.py
 
 ### Repository Layer
 
 - [x] T016 Create TranscriptionRepository interface in backend/src/domain/repositories/transcription_repository.py
-- [ ] T017 Implement TranscriptionRepositoryImpl in backend/src/infrastructure/persistence/transcription_repository_impl.py
+- [x] T017 Implement TranscriptionRepositoryImpl in backend/src/infrastructure/persistence/transcription_repository_impl.py
 
 ### Service Layer
 

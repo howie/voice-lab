@@ -32,14 +32,17 @@ class BaseSTTProvider(ISTTProvider):
         if request.audio:
             audio_duration_ms = self._estimate_audio_duration(request.audio)
 
+        metadata = {}
+        if audio_duration_ms:
+            metadata["audio_duration_ms"] = audio_duration_ms
+
         return STTResult(
+            request=request,
             transcript=transcript,
-            provider=self.name,
-            language=request.language,
+            confidence=confidence or 0.0,
             latency_ms=latency_ms,
-            confidence=confidence,
-            word_timings=word_timings,
-            audio_duration_ms=audio_duration_ms,
+            words=word_timings or [],
+            metadata=metadata,
         )
 
     @abstractmethod

@@ -13,7 +13,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydub import AudioSegment
 
 from src.application.interfaces.storage_service import IStorageService
@@ -347,8 +347,8 @@ async def calculate_error_rate_endpoint(
 @router.get("/history", response_model=TranscriptionHistoryPage)
 async def list_history(
     current_user: CurrentUserDep,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(default=1, ge=1, description="Page number (>=1)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Items per page (1-100)"),
     provider: str | None = None,
     language: str | None = None,
     transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),

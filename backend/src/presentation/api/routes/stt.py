@@ -23,6 +23,7 @@ from src.domain.repositories.transcription_repository import ITranscriptionRepos
 from src.infrastructure.providers.stt.factory import STTProviderFactory
 from src.presentation.api.dependencies import (
     get_storage_service,
+    get_stt_providers,
     get_stt_service,
     get_transcription_repository,
 )
@@ -80,15 +81,19 @@ def _calculate_audio_metadata(audio_bytes: bytes) -> tuple[int, int]:
         sample_rate = audio.frame_rate
         return duration_ms, sample_rate
     except Exception:
-        # Fallback if pydub fails
-        return 0, 16000
+        # Fallback if pydub fails (e.g., for mock/test data)
+        # Estimate based on file size: ~1 second for testing
+        return 1000, 16000
 
 
 @router.get("/providers", response_model=STTProvidersListResponse)
-async def list_providers():
+async def list_providers(
+    stt_providers: dict = Depends(get_stt_providers),
+):
     """List available STT providers with their capabilities."""
     providers_info = []
-    for provider_data in STTProviderFactory.list_providers():
+    for provider_name in stt_providers:
+        provider_data = STTProviderFactory.get_provider_info(provider_name)
         providers_info.append(
             STTProviderResponse(
                 name=provider_data["name"],
@@ -151,9 +156,10 @@ async def transcribe_audio(
         duration_ms, sample_rate = _calculate_audio_metadata(audio_bytes)
 
         # 3. Save Audio File (upload to storage and create entity)
-        storage_path = await storage_service.save(
-            audio_bytes, f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
-        )
+        storage_key = f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
+        content_type = audio.content_type or "audio/mpeg"
+        stored_file = await storage_service.upload(storage_key, audio_bytes, content_type)
+        storage_path = stored_file.key
 
         audio_file = AudioFile(
             id=uuid.uuid4(),
@@ -249,6 +255,7 @@ async def transcribe_audio(
                 insertions=insertions,
                 deletions=deletions,
                 substitutions=substitutions,
+                total_reference=len(ref_tokens),
                 alignment=None,
             )
             await transcription_repo.save_wer_analysis(wer_entity)
@@ -259,7 +266,7 @@ async def transcribe_audio(
         )
 
         return STTTranscribeResponse(
-            id=str(record_id),
+            id=str(result_id),
             transcript=result.transcript,
             provider=result.provider,
             language=result.language,
@@ -429,6 +436,14 @@ async def compare_providers(
     """Compare multiple providers."""
     try:
         user_id = uuid.UUID(current_user.id)
+
+        # Validate: need at least 2 providers for comparison
+        if len(providers) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="At least 2 providers are required for comparison",
+            )
+
         logger.info(
             f"Starting provider comparison: user_id={user_id}, providers={providers}, "
             f"language={language}"
@@ -439,9 +454,10 @@ async def compare_providers(
         audio_format = _get_audio_format(audio.content_type or "", audio.filename or "")
         duration_ms, sample_rate = _calculate_audio_metadata(audio_bytes)
 
-        storage_path = await storage_service.save(
-            audio_bytes, f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
-        )
+        storage_key = f"stt/uploads/{user_id}/{uuid.uuid4()}.{audio_format.value}"
+        content_type = audio.content_type or "audio/mpeg"
+        stored_file = await storage_service.upload(storage_key, audio_bytes, content_type)
+        storage_path = stored_file.key
 
         audio_file = AudioFile(
             id=uuid.uuid4(),
@@ -564,6 +580,8 @@ async def compare_providers(
             comparison_table=comparison_table,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Provider comparison failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -58,7 +58,7 @@ class STTService:
 
         # 2. Load Audio Data
         try:
-            audio_bytes = await self._storage_service.load(audio_file.storage_path)
+            audio_bytes = await self._storage_service.download(audio_file.storage_path)
         except Exception as e:
             raise RuntimeError(f"Failed to load audio file: {e}") from e
 

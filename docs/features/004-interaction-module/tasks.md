@@ -88,8 +88,8 @@
 
 ### Tests for User Story 1 (TDD - Write First, Must Fail)
 
-- [ ] T027a [P] [US1] Write integration test for basic conversation flow in backend/tests/integration/test_realtime_conversation.py
-- [ ] T027b [P] [US1] Write unit tests for Realtime API clients in backend/tests/unit/test_realtime_mode.py
+- [x] T027a [P] [US1] Write integration test for basic conversation flow in backend/tests/integration/test_realtime_conversation.py
+- [x] T027b [P] [US1] Write unit tests for Realtime API clients in backend/tests/unit/test_realtime_mode.py
 
 ### Backend Implementation for US1
 

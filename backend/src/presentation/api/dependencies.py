@@ -191,6 +191,16 @@ class Container:
             except Exception as e:
                 print(f"Failed to initialize Whisper STT: {e}")
 
+        # ElevenLabs STT
+        elevenlabs_key = os.getenv("ELEVENLABS_API_KEY")
+        if elevenlabs_key:
+            try:
+                from src.infrastructure.providers.stt import ElevenLabsSTTProvider
+
+                providers["elevenlabs"] = ElevenLabsSTTProvider(api_key=elevenlabs_key)
+            except Exception as e:
+                print(f"Failed to initialize ElevenLabs STT: {e}")
+
         return providers
 
     def _create_llm_providers(self) -> dict[str, ILLMProvider]:

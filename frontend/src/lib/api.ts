@@ -78,6 +78,7 @@ export interface VoiceProfile {
 export interface ProviderInfo {
   name: string
   display_name: string
+  type?: 'tts' | 'stt' | 'llm'
   supported_formats: string[]
   supported_languages: string[]
   supported_params: {
@@ -94,10 +95,19 @@ export interface ProvidersResponse {
   providers: ProviderInfo[]
 }
 
+export interface ProvidersSummaryResponse {
+  tts: ProviderInfo[]
+  stt: ProviderInfo[]
+  llm: ProviderInfo[]
+}
+
 // TTS API
 export const ttsApi = {
   // Get available providers
   getProviders: () => api.get<ProvidersResponse>('/providers'),
+
+  // Get providers summary (grouped by type)
+  getProvidersSummary: () => api.get<ProvidersSummaryResponse>('/providers/summary'),
 
   // Get provider health status
   getProviderHealth: (provider: string) =>

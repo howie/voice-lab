@@ -9,9 +9,14 @@
   - 可調整語速 (0.5x - 2.0x)、音調 (-20 到 +20)、音量 (0% - 200%)
   - 多語言支援：繁體中文、簡體中文、英文、日文、韓文
   - 即時波形顯示
-- **STT 測試**: 錄音或上傳音檔，測試各家語音辨識準確度（支援兒童語音模式）
-- **互動測試**: 測試即時語音對話的延遲和回應品質
-- **歷史紀錄**: 保存所有測試結果，支援匯出報表
+- **STT 測試**: 錄音或上傳音檔，測試各家語音辨識準確度
+  - 支援 8 家 Provider：Azure、GCP、Whisper、Deepgram、AssemblyAI、ElevenLabs、Speechmatics
+  - WER/CER 準確度計算與對齊視覺化
+  - 兒童語音模式 (Azure, GCP)
+  - 多 Provider 並行比較
+  - 麥克風錄音 (WebM/MP4) 與檔案上傳 (MP3, WAV, M4A, FLAC, WEBM)
+- **API Key 管理**: BYOL (Bring Your Own License) 模式，安全儲存和驗證 API 金鑰
+- **歷史紀錄**: 保存所有測試結果，支援搜尋和篩選
 - **Google SSO 登入**: 安全的 OAuth 2.0 身份驗證
 
 ## 技術棧
@@ -104,21 +109,39 @@ voice-lab/
 
 ## 支援的 Provider
 
-| Provider | TTS | STT | 備註 |
-|----------|-----|-----|------|
-| Google Cloud | ✅ | ✅ | Cloud Text-to-Speech, Cloud Speech-to-Text |
+### TTS (Text-to-Speech)
+
+| Provider | 批次模式 | 串流模式 | 備註 |
+|----------|---------|---------|------|
+| Google Cloud | ✅ | ✅ | Cloud Text-to-Speech |
 | Microsoft Azure | ✅ | ✅ | Azure Speech Services |
-| ElevenLabs | ✅ | ❌ | 高品質 TTS |
+| ElevenLabs | ✅ | ✅ | 高品質 TTS |
 | VoAI | ✅ | ✅ | 台灣本土服務 |
+
+### STT (Speech-to-Text)
+
+| Provider | 兒童模式 | Word Timestamps | 最大檔案 | 備註 |
+|----------|---------|----------------|---------|------|
+| Microsoft Azure | ✅ | ✅ | 200 MB | Azure Speech Services |
+| Google Cloud | ✅ | ✅ | 480 MB | Cloud Speech-to-Text |
+| OpenAI Whisper | ❌ | ✅ | 25 MB | 高準確度 |
+| Deepgram | ❌ | ✅ | 2 GB | Nova-2 模型 |
+| AssemblyAI | ❌ | ✅ | 5 GB | Universal-2 模型 |
+| ElevenLabs | ❌ | ✅ | 1 GB | Scribe 模型 |
+| Speechmatics | ❌ | ✅ | 1 GB | 多語言支援 |
 
 ## 文件
 
 - [PRD](docs/planning/PRD.md) - 產品需求文件
 - [Overall Plan](docs/planning/overall-plan.md) - 技術架構和實作計劃
+- [Roadmap](docs/features/roadmap.md) - 產品開發路線圖
 - [TTS Quickstart](docs/features/001-pipecat-tts-server/quickstart.md) - TTS 功能快速入門
+- [STT Quickstart](docs/features/003-stt-testing-module/quickstart.md) - STT 功能快速入門
 - [API Reference](docs/features/001-pipecat-tts-server/api-reference.md) - API 參考文件
 
 ## API 快速範例
+
+### TTS (語音合成)
 
 ```bash
 # 語音合成
@@ -133,6 +156,30 @@ curl -X POST "http://localhost:8000/api/v1/tts/synthesize" \
 
 # 列出可用語音
 curl "http://localhost:8000/api/v1/voices?language=zh-TW" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### STT (語音辨識)
+
+```bash
+# 語音辨識
+curl -X POST "http://localhost:8000/api/v1/stt/transcribe" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -F "audio=@test_audio.mp3" \
+     -F "provider=azure" \
+     -F "language=zh-TW"
+
+# 多 Provider 比較
+curl -X POST "http://localhost:8000/api/v1/stt/compare" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -F "audio=@test_audio.mp3" \
+     -F "providers=azure" \
+     -F "providers=whisper" \
+     -F "language=zh-TW" \
+     -F "ground_truth=正確的轉錄文字"
+
+# 列出可用 Provider
+curl "http://localhost:8000/api/v1/stt/providers" \
      -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 

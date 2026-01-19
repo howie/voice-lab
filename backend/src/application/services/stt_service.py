@@ -1,5 +1,6 @@
 """STT Service."""
 
+import logging
 import os
 from uuid import UUID
 
@@ -9,6 +10,8 @@ from src.domain.entities.stt import STTRequest, STTResult
 from src.domain.repositories.provider_credential_repository import IProviderCredentialRepository
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
 from src.infrastructure.providers.stt.factory import STTProviderFactory
+
+logger = logging.getLogger(__name__)
 
 
 class STTService:
@@ -48,18 +51,27 @@ class STTService:
             ValueError: If audio file not found, access denied, or provider error
             RuntimeError: If transcription fails
         """
+        logger.info(
+            f"Starting STT transcription: user_id={user_id}, audio_file_id={audio_file_id}, "
+            f"provider={provider_name}, language={language}, child_mode={child_mode}"
+        )
+
         # 1. Get Audio File Info
         audio_file = await self._transcription_repo.get_audio_file(audio_file_id)
         if not audio_file:
+            logger.error(f"Audio file not found: {audio_file_id}")
             raise ValueError(f"Audio file {audio_file_id} not found")
 
         if str(audio_file.user_id) != str(user_id):
+            logger.warning(f"Access denied to audio file {audio_file_id} for user {user_id}")
             raise ValueError("Access denied to audio file")
 
         # 2. Load Audio Data
+        logger.debug(f"Loading audio data from storage: {audio_file.storage_path}")
         try:
             audio_bytes = await self._storage_service.download(audio_file.storage_path)
         except Exception as e:
+            logger.error(f"Failed to load audio file from storage: {e}", exc_info=True)
             raise RuntimeError(f"Failed to load audio file: {e}") from e
 
         # Ensure we have bytes
@@ -73,10 +85,12 @@ class STTService:
         )
 
         # 3. Get Credentials (BYOL or System Fallback)
+        logger.debug(f"Fetching credentials for provider: {provider_name}")
         credentials = {}
         user_cred = await self._credential_repo.get_by_user_and_provider(user_id, provider_name)
 
         if user_cred:
+            logger.info(f"Using user BYOL credential for provider: {provider_name}")
             credentials["api_key"] = user_cred.api_key
             if provider_name == "azure":
                 # Azure needs subscription_key, map api_key to it if needed, or Factory handles it
@@ -112,9 +126,11 @@ class STTService:
             system_creds = {k: v for k, v in system_creds.items() if v}
 
             if system_creds or provider_name == "gcp":
+                logger.info(f"Using system credentials for provider: {provider_name}")
                 provider = STTProviderFactory.create(provider_name, system_creds)
             else:
                 # If we really can't create it (and original error was due to missing creds)
+                logger.error(f"No credentials available for provider: {provider_name}")
                 raise ValueError(
                     f"Provider '{provider_name}' not configured (no user or system credentials)"
                 ) from None
@@ -127,11 +143,19 @@ class STTService:
             child_mode=child_mode,
         )
 
+        logger.debug(f"Calling provider.transcribe for: {provider_name}")
         result = await provider.transcribe(request)
+
+        logger.info(
+            f"Transcription completed: provider={provider_name}, "
+            f"latency_ms={result.latency_ms}, confidence={result.confidence}"
+        )
 
         # 6. Save Result
         record_id, result_id = await self._transcription_repo.save_transcription(
             result, audio_file_id, user_id
         )
+
+        logger.info(f"Transcription saved: record_id={record_id}, result_id={result_id}")
 
         return result, record_id, result_id

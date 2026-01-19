@@ -144,9 +144,7 @@ class TestHistoryDetailEndpoint:
         """Test that 404 is returned for non-existent history."""
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/api/v1/stt/history/00000000-0000-0000-0000-000000000000"
-            )
+            response = await client.get("/api/v1/stt/history/00000000-0000-0000-0000-000000000000")
 
         # Should return 404 for non-existent ID
         assert response.status_code == 404
@@ -168,9 +166,7 @@ class TestHistoryDetailEndpoint:
         """
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/api/v1/stt/history/00000000-0000-0000-0000-000000000000"
-            )
+            response = await client.get("/api/v1/stt/history/00000000-0000-0000-0000-000000000000")
 
         # If found (200), verify response structure
         if response.status_code == 200:

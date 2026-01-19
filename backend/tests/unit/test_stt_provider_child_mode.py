@@ -56,9 +56,7 @@ class TestAzureChildMode:
                 # Simulate successful recognition
                 event = MagicMock()
                 event.result.reason = MagicMock()
-                event.result.reason = (
-                    Mock()
-                )  # speechsdk.ResultReason.RecognizedSpeech
+                event.result.reason = Mock()  # speechsdk.ResultReason.RecognizedSpeech
                 event.result.text = "媽媽 爸爸"
                 event.result.properties.get.return_value = "{}"
 
@@ -68,9 +66,7 @@ class TestAzureChildMode:
                     callback(event)
 
                 # Trigger session stopped
-                for callback_tuple in (
-                    mock_recognizer.session_stopped.connect.call_args_list
-                ):
+                for callback_tuple in mock_recognizer.session_stopped.connect.call_args_list:
                     callback = callback_tuple[0][0]
                     callback(event)
 
@@ -84,9 +80,7 @@ class TestAzureChildMode:
                 assert mock_grammar.addPhrase.called
 
                 # Verify common child-related phrases were added
-                added_phrases = [
-                    call[0][0] for call in mock_grammar.addPhrase.call_args_list
-                ]
+                added_phrases = [call[0][0] for call in mock_grammar.addPhrase.call_args_list]
                 assert "媽媽" in added_phrases
                 assert "爸爸" in added_phrases
                 assert "老師" in added_phrases
@@ -135,9 +129,7 @@ class TestAzureChildMode:
                     callback = callback_tuple[0][0]
                     callback(event)
 
-                for callback_tuple in (
-                    mock_recognizer.session_stopped.connect.call_args_list
-                ):
+                for callback_tuple in mock_recognizer.session_stopped.connect.call_args_list:
                     callback = callback_tuple[0][0]
                     callback(event)
 

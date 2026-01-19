@@ -526,7 +526,9 @@ async def compare_providers(
                     "confidence": result.confidence,
                     "latency_ms": result.latency_ms,
                     "error_rate": error_rate,
-                    "error_type": _determine_error_type(language) if error_rate is not None else None,
+                    "error_type": _determine_error_type(language)
+                    if error_rate is not None
+                    else None,
                 }
 
                 return (transcribe_response, table_entry)

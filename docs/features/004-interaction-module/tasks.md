@@ -63,12 +63,12 @@
 
 ### Frontend Foundation
 
-- [ ] T021 [P] Create interaction TypeScript types in frontend/src/types/interaction.ts
-- [ ] T022 [P] Create useWebSocket hook in frontend/src/hooks/useWebSocket.ts
-- [ ] T023 [P] Create useMicrophone hook in frontend/src/hooks/useMicrophone.ts
-- [ ] T024 [P] Create useAudioPlayback hook in frontend/src/hooks/useAudioPlayback.ts
-- [ ] T025 Create interactionStore with Zustand in frontend/src/stores/interactionStore.ts
-- [ ] T026 Create interactionService API client in frontend/src/services/interactionService.ts
+- [x] T021 [P] Create interaction TypeScript types in frontend/src/types/interaction.ts
+- [x] T022 [P] Create useWebSocket hook in frontend/src/hooks/useWebSocket.ts
+- [x] T023 [P] Create useMicrophone hook in frontend/src/hooks/useMicrophone.ts
+- [x] T024 [P] Create useAudioPlayback hook in frontend/src/hooks/useAudioPlayback.ts
+- [x] T025 Create interactionStore with Zustand in frontend/src/stores/interactionStore.ts
+- [x] T026 Create interactionService API client in frontend/src/services/interactionApi.ts
 
 ### Contract Tests (TDD - Write First, Must Fail)
 

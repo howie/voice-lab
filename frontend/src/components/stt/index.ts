@@ -4,5 +4,6 @@
  */
 
 export { AudioUploader } from './AudioUploader'
+export { AudioRecorder } from './AudioRecorder'
 export { ProviderSelector } from './ProviderSelector'
 export { TranscriptDisplay } from './TranscriptDisplay'

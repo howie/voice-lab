@@ -2,18 +2,25 @@
  * STT Page
  * Feature: 003-stt-testing-module
  * T034: Create STTTest page
+ * T043: Integrate AudioRecorder into STTTest page
  *
  * Main page for speech-to-text testing with audio upload,
- * provider selection, and transcription display.
+ * microphone recording, provider selection, and transcription display.
  */
 
+import { useState } from 'react'
 import { useSTTStore } from '@/stores/sttStore'
 import { AudioUploader } from '@/components/stt/AudioUploader'
+import { AudioRecorder } from '@/components/stt/AudioRecorder'
 import { ProviderSelector } from '@/components/stt/ProviderSelector'
 import { TranscriptDisplay } from '@/components/stt/TranscriptDisplay'
 import { SUPPORTED_LANGUAGES } from '@/types/stt'
 
+type InputMode = 'upload' | 'record'
+
 export function STTPage() {
+  const [inputMode, setInputMode] = useState<InputMode>('upload')
+
   const {
     selectedProvider,
     availableProviders,
@@ -24,6 +31,10 @@ export function STTPage() {
     groundTruth,
     setGroundTruth,
     audioFile,
+    audioBlob,
+    setAudioBlob,
+    isRecording,
+    setIsRecording,
     isTranscribing,
     transcriptionResult,
     werAnalysis,
@@ -31,6 +42,7 @@ export function STTPage() {
     error,
     transcribe,
     calculateErrorRate,
+    clearAudio,
   } = useSTTStore()
 
   // Find current provider info
@@ -63,10 +75,109 @@ export function STTPage() {
             <ProviderSelector disabled={isTranscribing} showCapabilities={true} />
           </div>
 
-          {/* Audio Upload */}
+          {/* Audio Input */}
           <div className="rounded-xl border bg-card p-6">
             <h2 className="mb-4 text-lg font-semibold">音訊輸入</h2>
-            <AudioUploader provider={currentProvider} disabled={isTranscribing} />
+
+            {/* Input Mode Tabs */}
+            <div className="mb-4 flex rounded-lg bg-muted p-1">
+              <button
+                onClick={() => setInputMode('upload')}
+                className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                  inputMode === 'upload'
+                    ? 'bg-background text-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                  >
+                    <path d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z" />
+                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                  </svg>
+                  上傳檔案
+                </span>
+              </button>
+              <button
+                onClick={() => setInputMode('record')}
+                className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                  inputMode === 'record'
+                    ? 'bg-background text-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                  >
+                    <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                    <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
+                  </svg>
+                  即時錄音
+                </span>
+              </button>
+            </div>
+
+            {/* Input Content */}
+            {inputMode === 'upload' ? (
+              <AudioUploader provider={currentProvider} disabled={isTranscribing || isRecording} />
+            ) : (
+              <AudioRecorder
+                onRecordingComplete={(blob) => {
+                  setAudioBlob(blob)
+                  setIsRecording(false)
+                }}
+                onRecordingStart={() => {
+                  clearAudio()
+                  setIsRecording(true)
+                }}
+                onRecordingStop={() => {
+                  setIsRecording(false)
+                }}
+                onError={(err) => {
+                  console.error('Recording error:', err)
+                  setIsRecording(false)
+                }}
+                maxDuration={currentProvider?.max_duration_sec || 300}
+                disabled={isTranscribing}
+              />
+            )}
+
+            {/* Show recorded audio info */}
+            {audioBlob && inputMode === 'record' && (
+              <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                <div className="flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-5 w-5 text-green-500"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-sm">
+                    錄音完成 ({(audioBlob.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <button
+                  onClick={clearAudio}
+                  className="text-sm text-red-500 hover:text-red-600"
+                >
+                  清除
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Options */}
@@ -127,7 +238,7 @@ export function STTPage() {
             {/* Transcribe Button */}
             <button
               onClick={handleTranscribe}
-              disabled={isTranscribing || !audioFile}
+              disabled={isTranscribing || isRecording || (!audioFile && !audioBlob)}
               className="mt-4 w-full rounded-lg bg-primary py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isTranscribing ? (

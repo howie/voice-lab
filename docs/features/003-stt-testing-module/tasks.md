@@ -116,17 +116,17 @@
 
 ### Tests for User Story 2
 
-- [ ] T037 [P] [US2] Unit test for AudioRecorder component in frontend/tests/stt/AudioRecorder.test.tsx
-- [ ] T038 [P] [US2] Integration test for recording → transcribe flow in backend/tests/integration/test_stt_recording_integration.py
+- [x] T037 [P] [US2] Unit test for AudioRecorder component in frontend/src/components/stt/__tests__/AudioRecorder.test.tsx
+- [x] T038 [P] [US2] Integration test for recording → transcribe flow in backend/tests/integration/test_stt_recording_integration.py
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] Create AudioRecorder component with MediaRecorder API in frontend/src/components/stt/AudioRecorder.tsx
-- [ ] T040 [US2] Create WaveformDisplay component (reuse TTS pattern) in frontend/src/components/shared/WaveformDisplay.tsx
-- [ ] T041 [US2] Implement Safari fallback (WebM → MP4) in AudioRecorder component
-- [ ] T042 [US2] Add microphone permission handling in frontend/src/components/stt/AudioRecorder.tsx
-- [ ] T043 [US2] Integrate AudioRecorder into STTTest page in frontend/src/routes/STTTest.tsx
-- [ ] T044 [US2] Add recording state management to STT store (sttStore.ts)
+- [x] T039 [US2] Create AudioRecorder component with MediaRecorder API in frontend/src/components/stt/AudioRecorder.tsx
+- [x] T040 [US2] Create WaveformDisplay component (canvas-based visualization in AudioRecorder)
+- [x] T041 [US2] Implement Safari fallback (WebM → MP4) in AudioRecorder component
+- [x] T042 [US2] Add microphone permission handling in frontend/src/components/stt/AudioRecorder.tsx
+- [x] T043 [US2] Integrate AudioRecorder into STTTest page in frontend/src/routes/stt/STTPage.tsx
+- [x] T044 [US2] Add recording state management to STT store (sttStore.ts) *(already existed)*
 
 **Checkpoint**: User Story 2 complete - users can record and transcribe via microphone
 

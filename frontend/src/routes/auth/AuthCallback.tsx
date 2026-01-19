@@ -41,9 +41,12 @@ export function AuthCallback() {
 
         // Redirect to home or original destination
         navigate('/', { replace: true })
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Auth callback error:', err)
-        setError(err.response?.data?.detail || '認證處理失敗')
+        const errorMessage =
+          (err as { response?: { data?: { detail?: string } } })?.response?.data
+            ?.detail || '認證處理失敗'
+        setError(errorMessage)
       }
     }
 

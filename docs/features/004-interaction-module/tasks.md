@@ -23,12 +23,12 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create interaction module directory structure per plan.md
-- [ ] T002 [P] Create database migration for interaction_sessions table in backend/src/infrastructure/database/migrations/
-- [ ] T003 [P] Create database migration for conversation_turns table in backend/src/infrastructure/database/migrations/
-- [ ] T004 [P] Create database migration for latency_metrics table in backend/src/infrastructure/database/migrations/
-- [ ] T005 [P] Create database migration for system_prompt_templates table in backend/src/infrastructure/database/migrations/
-- [ ] T006 Create audio storage directory structure (storage/interactions/) and add to .gitignore
+- [x] T001 Create interaction module directory structure per plan.md
+- [x] T002 [P] Create database migration for interaction_sessions table in backend/src/infrastructure/database/migrations/
+- [x] T003 [P] Create database migration for conversation_turns table in backend/src/infrastructure/database/migrations/
+- [x] T004 [P] Create database migration for latency_metrics table in backend/src/infrastructure/database/migrations/
+- [x] T005 [P] Create database migration for system_prompt_templates table in backend/src/infrastructure/database/migrations/
+- [x] T006 Create audio storage directory structure (storage/interactions/) and add to .gitignore
 
 ---
 

@@ -9,6 +9,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Enum,
     Float,
     ForeignKey,
     Index,
@@ -21,6 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.domain.entities.interaction_enums import InteractionMode, SessionStatus
 from src.infrastructure.persistence.database import Base
 
 
@@ -191,6 +193,11 @@ class AuditLogModel(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="audit_logs")
+
+
+# =============================================================================
+# STT Module Models (Phase 3)
+# =============================================================================
 
 
 class AudioFileModel(Base):
@@ -366,4 +373,125 @@ class WERAnalysisModel(Base):
     )
     ground_truth: Mapped["GroundTruthModel"] = relationship(
         "GroundTruthModel", back_populates="wer_analyses"
+    )
+
+
+# =============================================================================
+# Interaction Module Models (Phase 4)
+# =============================================================================
+
+
+class InteractionSessionModel(Base):
+    """SQLAlchemy model for interaction sessions."""
+
+    __tablename__ = "interaction_sessions"
+    __table_args__ = (
+        Index("idx_session_user_id", "user_id"),
+        Index("idx_session_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    mode: Mapped[InteractionMode] = mapped_column(
+        Enum(InteractionMode, name="interaction_mode", create_type=False), nullable=False
+    )
+    provider_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[SessionStatus] = mapped_column(
+        Enum(SessionStatus, name="session_status", create_type=False),
+        nullable=False,
+        default=SessionStatus.ACTIVE,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    turns: Mapped[list["ConversationTurnModel"]] = relationship(
+        "ConversationTurnModel", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class ConversationTurnModel(Base):
+    """SQLAlchemy model for conversation turns."""
+
+    __tablename__ = "conversation_turns"
+    __table_args__ = (
+        Index("idx_turn_session_id", "session_id"),
+        Index("idx_turn_session_number", "session_id", "turn_number"),
+        UniqueConstraint("session_id", "turn_number", name="uq_turn_session_number"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interaction_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    turn_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_audio_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    user_transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_audio_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    interrupted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    session: Mapped["InteractionSessionModel"] = relationship(
+        "InteractionSessionModel", back_populates="turns"
+    )
+    latency_metrics: Mapped["LatencyMetricsModel | None"] = relationship(
+        "LatencyMetricsModel", back_populates="turn", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class LatencyMetricsModel(Base):
+    """SQLAlchemy model for latency metrics."""
+
+    __tablename__ = "latency_metrics"
+    __table_args__ = (Index("idx_latency_turn_id", "turn_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    turn_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversation_turns.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    total_latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    stt_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_ttft_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tts_ttfb_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    realtime_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    turn: Mapped["ConversationTurnModel"] = relationship(
+        "ConversationTurnModel", back_populates="latency_metrics"
+    )
+
+
+class SystemPromptTemplateModel(Base):
+    """SQLAlchemy model for system prompt templates."""
+
+    __tablename__ = "system_prompt_templates"
+    __table_args__ = (Index("idx_template_category", "category"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    prompt_content: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

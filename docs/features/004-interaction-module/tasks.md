@@ -96,9 +96,9 @@
 - [x] T027 [US1] Implement OpenAI Realtime API client in backend/src/domain/services/interaction/openai_realtime.py
 - [x] T027c [P] [US1] Implement Gemini Live API client in backend/src/domain/services/interaction/gemini_realtime.py
 - [x] T027d [US1] Create RealtimeMode factory with provider selection in backend/src/domain/services/interaction/realtime_mode.py
-- [ ] T028 [US1] Create StartSession use case in backend/src/application/use_cases/interaction/start_session.py
-- [ ] T029 [US1] Create ProcessAudio use case in backend/src/application/use_cases/interaction/process_audio.py
-- [ ] T030 [US1] Create EndSession use case in backend/src/application/use_cases/interaction/end_session.py
+- [x] T028 [US1] Create StartSession use case in backend/src/application/use_cases/interaction/start_session.py
+- [x] T029 [US1] Create ProcessAudio use case in backend/src/application/use_cases/interaction/process_audio.py
+- [x] T030 [US1] Create EndSession use case in backend/src/application/use_cases/interaction/end_session.py
 - [ ] T031 [US1] Implement WebSocket message handlers for start_session, audio_chunk, end_session in backend/src/infrastructure/websocket/interaction_handler.py
 - [ ] T032 [US1] Add connection_ready and session_started WebSocket responses
 - [ ] T033 [US1] Add audio_chunk streaming from Realtime API to client

@@ -184,17 +184,19 @@ curl -X POST "http://localhost:8000/api/v1/stt/compare" \
 
 ## 進階用法
 
-### 自動分段處理
+### 自動分段處理 (計劃中功能)
 
-長音檔（超過 Provider 單次限制）會自動分段處理：
+> **注意**: 此功能尚在開發中 (T075)。目前系統會在檔案超過限制時返回錯誤。
+
+計劃中:長音檔（超過 Provider 單次限制）將自動分段處理：
 
 ```bash
-# 上傳 5 分鐘音檔
+# 上傳 5 分鐘音檔 (計劃中)
 curl -X POST ".../stt/transcribe" \
   -F "audio=@long_audio.mp3" \
   -F "provider=azure"
 
-# 系統自動分段辨識並合併結果
+# 系統將自動分段辨識並合併結果 (尚未實作)
 ```
 
 ### 歷史紀錄管理

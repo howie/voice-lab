@@ -7,7 +7,9 @@ T051: Implement POST /stt/analysis/wer endpoint
 T064-T067: History and Comparison endpoints
 """
 
+import asyncio
 import io
+import logging
 import uuid
 from datetime import datetime
 
@@ -39,6 +41,7 @@ from src.presentation.schemas.stt import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # CJK languages for determining WER vs CER
@@ -120,6 +123,10 @@ async def transcribe_audio(
     """Transcribe audio to text."""
     try:
         user_id = uuid.UUID(current_user.id)
+        logger.info(
+            f"Starting transcription: user_id={user_id}, provider={provider}, "
+            f"language={language}, child_mode={child_mode}"
+        )
 
         # 1. Validate Provider
         try:
@@ -246,6 +253,11 @@ async def transcribe_audio(
             )
             await transcription_repo.save_wer_analysis(wer_entity)
 
+        logger.info(
+            f"Transcription completed: record_id={record_id}, provider={provider}, "
+            f"latency_ms={result.latency_ms}, confidence={result.confidence}"
+        )
+
         return STTTranscribeResponse(
             id=str(record_id),
             transcript=result.transcript,
@@ -264,8 +276,10 @@ async def transcribe_audio(
     except HTTPException:
         raise
     except ValueError as e:
+        logger.error(f"Transcription validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        logger.error(f"Transcription failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}") from e
 
 
@@ -277,6 +291,7 @@ async def calculate_error_rate_endpoint(
     """Calculate WER/CER for a transcription result."""
     try:
         result_id = uuid.UUID(data.result_id)
+        logger.info(f"Calculating error rate for result_id={result_id}")
         stt_result = await transcription_repo.get_transcription(result_id)
         if not stt_result:
             raise HTTPException(status_code=404, detail="Transcription not found")
@@ -301,6 +316,11 @@ async def calculate_error_rate_endpoint(
 
         _, insertions, deletions, substitutions = calculate_alignment(ref_tokens, hyp_tokens)
 
+        logger.info(
+            f"Error rate calculated: result_id={result_id}, "
+            f"error_type={error_type}, error_rate={error_rate:.4f}"
+        )
+
         return WERAnalysisResponse(
             error_rate=error_rate,
             error_type=error_type,
@@ -310,8 +330,10 @@ async def calculate_error_rate_endpoint(
             total_reference=len(ref_tokens),
         )
     except ValueError as e:
+        logger.error(f"Error rate calculation validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        logger.error(f"Error rate calculation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -327,6 +349,10 @@ async def list_history(
     """List transcription history."""
     try:
         user_id = uuid.UUID(current_user.id)
+        logger.info(
+            f"Fetching transcription history: user_id={user_id}, page={page}, "
+            f"page_size={page_size}, provider={provider}, language={language}"
+        )
         items, total = await transcription_repo.list_transcriptions(
             user_id=user_id, provider=provider, language=language, page=page, page_size=page_size
         )
@@ -334,6 +360,8 @@ async def list_history(
         total_pages = (total + page_size - 1) // page_size
 
         summary_items = [TranscriptionSummary(**item) for item in items]
+
+        logger.info(f"Retrieved {len(items)} transcriptions (total={total}) for user_id={user_id}")
 
         return TranscriptionHistoryPage(
             items=summary_items,
@@ -343,6 +371,7 @@ async def list_history(
             total_pages=total_pages,
         )
     except Exception as e:
+        logger.error(f"Failed to fetch transcription history: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -354,12 +383,16 @@ async def get_history_detail(
 ):
     """Get detailed transcription record."""
     try:
+        logger.info(f"Fetching transcription detail: id={id}")
         detail = await transcription_repo.get_transcription_detail(uuid.UUID(id))
         if not detail:
+            logger.warning(f"Transcription detail not found: id={id}")
             raise HTTPException(status_code=404, detail="Transcription not found")
 
+        logger.info(f"Retrieved transcription detail: id={id}")
         return TranscriptionDetail(**detail)
     except ValueError as e:
+        logger.error(f"Invalid transcription ID: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
@@ -371,10 +404,14 @@ async def delete_history(
 ):
     """Delete a transcription record."""
     try:
+        logger.info(f"Deleting transcription: id={id}")
         success = await transcription_repo.delete_transcription(uuid.UUID(id))
         if not success:
+            logger.warning(f"Transcription not found for deletion: id={id}")
             raise HTTPException(status_code=404, detail="Transcription not found")
+        logger.info(f"Successfully deleted transcription: id={id}")
     except ValueError as e:
+        logger.error(f"Invalid transcription ID for deletion: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
@@ -392,6 +429,10 @@ async def compare_providers(
     """Compare multiple providers."""
     try:
         user_id = uuid.UUID(current_user.id)
+        logger.info(
+            f"Starting provider comparison: user_id={user_id}, providers={providers}, "
+            f"language={language}"
+        )
 
         # 1. Save Audio (Once)
         audio_bytes = await audio.read()
@@ -424,12 +465,11 @@ async def compare_providers(
             )
             await transcription_repo.save_ground_truth(gt)
 
-        # 2. Iterate Providers
-        results = []
-        comparison_table = []
-
-        for provider_name in providers:
+        # 2. Process Providers in Parallel (T077 Performance Optimization)
+        async def _transcribe_one_provider(provider_name: str) -> tuple | None:
+            """Transcribe audio with one provider, returning (response, table_entry) or None on error."""
             try:
+                logger.info(f"Comparing provider: {provider_name}")
                 result, record_id, result_id = await stt_service.transcribe_audio(
                     user_id=user_id,
                     audio_file_id=audio_file.id,
@@ -447,18 +487,6 @@ async def compare_providers(
                         error_rate = calculate_cer(ground_truth, result.transcript)
                     else:
                         error_rate = calculate_wer(ground_truth, result.transcript)
-
-                    # Save WER
-                    # Assume GT was saved
-                    if ground_truth:
-                        # Find GT ID (we created it)
-                        # We can query repo or reuse if we kept it.
-                        # But loop needs fresh ID? No, GT is per audio file.
-                        # We created 1 GT for 1 AudioFile.
-                        # Multiple results link to same AudioFile (via request).
-                        # But WER links to Result and GT.
-                        # We need GT entity ID.
-                        pass  # Need to track GT ID.
 
                 # Convert to response
                 words = (
@@ -486,25 +514,46 @@ async def compare_providers(
                     created_at=datetime.utcnow().isoformat() + "Z",
                     record_id=str(record_id),
                 )
-                results.append(transcribe_response)
 
-                comparison_table.append(
-                    {
-                        "provider": provider_name,
-                        "transcript": result.transcript,
-                        "confidence": result.confidence,
-                        "latency_ms": result.latency_ms,
-                        "error_rate": error_rate,
-                        "error_type": _determine_error_type(language)
-                        if error_rate is not None
-                        else None,
-                    }
+                logger.info(
+                    f"Provider comparison result: provider={provider_name}, "
+                    f"latency_ms={result.latency_ms}, confidence={result.confidence}"
                 )
 
+                table_entry = {
+                    "provider": provider_name,
+                    "transcript": result.transcript,
+                    "confidence": result.confidence,
+                    "latency_ms": result.latency_ms,
+                    "error_rate": error_rate,
+                    "error_type": _determine_error_type(language) if error_rate is not None else None,
+                }
+
+                return (transcribe_response, table_entry)
+
             except Exception as e:
-                # Log error but continue
-                print(f"Comparison failed for {provider_name}: {e}")
-                # Maybe return error entry?
+                # Log error but continue with other providers
+                logger.warning(
+                    f"Comparison failed for provider {provider_name}: {str(e)}", exc_info=True
+                )
+                return None
+
+        # Execute all providers in parallel
+        provider_tasks = [_transcribe_one_provider(provider_name) for provider_name in providers]
+        provider_results = await asyncio.gather(*provider_tasks)
+
+        # Collect successful results
+        results = []
+        comparison_table = []
+        for provider_result in provider_results:
+            if provider_result is not None:
+                response, table_entry = provider_result
+                results.append(response)
+                comparison_table.append(table_entry)
+
+        logger.info(
+            f"Provider comparison completed: {len(results)}/{len(providers)} providers succeeded"
+        )
 
         return ComparisonResponse(
             audio_file_id=str(audio_file.id),
@@ -514,4 +563,5 @@ async def compare_providers(
         )
 
     except Exception as e:
+        logger.error(f"Provider comparison failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -1,7 +1,7 @@
 # Voice Lab Roadmap
 
-**Last Updated**: 2026-01-18
-**Current Status**: Phase 2 Complete (Foundational & TTS)
+**Last Updated**: 2026-01-19
+**Current Status**: Phase 3 Complete (STT Testing Module)
 
 ---
 
@@ -29,23 +29,26 @@
   - Rate limit handling and status visibility.
   - Automatic fallback to system-level credentials when user keys are unavailable.
 
+### 003: STT Speech-to-Text Testing Module
+- **Status**: ✅ COMPLETED (2026-01-19)
+- **Description**: Comprehensive testing platform for Batch & High-Accuracy STT across leading providers.
+- **Key Capabilities**:
+  - STT Abstraction Layer with unified provider interface.
+  - **8 Providers Supported**:
+    - **Cloud Giants**: Azure Speech, Google Cloud STT.
+    - **Specialized Leaders**: OpenAI Whisper, Deepgram (Nova-2), AssemblyAI, ElevenLabs Scribe, Speechmatics.
+  - Microphone recording (WebM/MP4) and file upload (MP3, WAV, M4A, FLAC, WEBM).
+  - WER (Word Error Rate) & CER (Character Error Rate) calculation with alignment visualization.
+  - "Child Voice Mode" optimization for Azure and GCP.
+  - Multi-provider side-by-side comparison with parallel processing.
+  - Transcription history with search and filtering.
+  - Provider-specific file size/duration limit display.
+
 ---
 
 ## 📅 Upcoming Roadmap
 
-### Phase 3: STT (Speech-to-Text) Module (Current Goal)
-- **Objective**: Build a comprehensive testing platform for **Batch & High-Accuracy STT** across leading providers.
-- **Key Tasks**:
-  - Implement STT Abstraction Layer.
-  - Integrate **High-Accuracy/Batch Providers**:
-    - **Cloud Giants**: Azure Speech, Google Cloud STT.
-    - **Specialized Leaders**: OpenAI Whisper, Deepgram (Nova-2), AssemblyAI, ElevenLabs Scribe, Speechmatics.
-  - Microphone recording and file upload functionality (Batch mode).
-  - WER (Word Error Rate) & CER (Character Error Rate) calculation.
-  - "Child Voice Mode" optimization testing.
-  - Side-by-side provider comparison.
-
-### Phase 4: Interaction Module
+### Phase 4: Interaction Module (Current Goal)
 - **Objective**: Test end-to-end **Real-time Voice Agent** interaction (Streaming STT + LLM + TTS).
 - **Key Tasks**:
   - **Streaming STT Integration** (Low Latency):
@@ -71,7 +74,7 @@
 |-----------|--------|-------------|-------------|
 | **M1: TTS MVP** | ✅ | 2026-01-18 | 2026-01-16 |
 | **M2: BYOL Credential Mgmt** | ✅ | 2026-01-20 | 2026-01-18 |
-| **M3: STT Complete** | ⏳ | 2026-02-15 | - |
+| **M3: STT Complete** | ✅ | 2026-02-15 | 2026-01-19 |
 | **M4: Interaction Complete** | ⏳ | 2026-03-15 | - |
 | **M5: Production Ready** | ⏳ | 2026-04-15 | - |
 

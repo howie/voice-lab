@@ -1,7 +1,7 @@
 import { MessageSquare, Mic, MessagesSquare, BarChart3, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ttsApi, type ProviderInfo } from '@/lib/api'
+import { ttsApi, type ProviderInfo, type ProvidersSummaryResponse } from '@/lib/api'
 
 const features = [
   {
@@ -27,8 +27,15 @@ const features = [
   },
 ]
 
+interface ProviderSection {
+  title: string
+  type: 'tts' | 'stt' | 'llm'
+  color: string
+  providers: ProviderInfo[]
+}
+
 export function Dashboard() {
-  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [providersSummary, setProvidersSummary] = useState<ProvidersSummaryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,8 +43,8 @@ export function Dashboard() {
     async function fetchProviders() {
       try {
         setLoading(true)
-        const response = await ttsApi.getProviders()
-        setProviders(response.data.providers)
+        const response = await ttsApi.getProvidersSummary()
+        setProvidersSummary(response.data)
         setError(null)
       } catch (err) {
         console.error('Failed to fetch providers:', err)
@@ -74,6 +81,29 @@ export function Dashboard() {
         }
     }
   }
+
+  const sections: ProviderSection[] = providersSummary
+    ? [
+        {
+          title: 'TTS (文字轉語音)',
+          type: 'tts',
+          color: 'border-l-blue-500',
+          providers: providersSummary.tts,
+        },
+        {
+          title: 'STT (語音辨識)',
+          type: 'stt',
+          color: 'border-l-green-500',
+          providers: providersSummary.stt,
+        },
+        {
+          title: 'LLM (大型語言模型)',
+          type: 'llm',
+          color: 'border-l-purple-500',
+          providers: providersSummary.llm,
+        },
+      ]
+    : []
 
   return (
     <div className="space-y-8">
@@ -124,41 +154,54 @@ export function Dashboard() {
               <p className="text-sm text-red-600">{error}</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b text-left text-sm text-muted-foreground">
-                  <th className="pb-3 font-medium">Provider</th>
-                  <th className="pb-3 font-medium">狀態</th>
-                  <th className="pb-3 font-medium">支援格式</th>
-                  <th className="pb-3 font-medium">支援語言</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {providers.map((provider) => {
-                  const statusDisplay = getStatusDisplay(provider.status)
-                  return (
-                    <tr key={provider.name}>
-                      <td className="py-3 font-medium">{provider.display_name}</td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${statusDisplay.className}`}
-                        >
-                          {statusDisplay.label}
-                        </span>
-                      </td>
-                      <td className="py-3 text-sm text-muted-foreground">
-                        {provider.supported_formats.slice(0, 3).join(', ')}
-                        {provider.supported_formats.length > 3 && '...'}
-                      </td>
-                      <td className="py-3 text-sm text-muted-foreground">
-                        {provider.supported_languages.slice(0, 3).join(', ')}
-                        {provider.supported_languages.length > 3 && '...'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div className="space-y-6">
+              {sections.map((section) => (
+                <div key={section.type} className={`border-l-4 ${section.color} pl-4`}>
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                    {section.title}
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b text-left text-sm text-muted-foreground">
+                          <th className="pb-2 pr-4 font-medium">Provider</th>
+                          <th className="pb-2 pr-4 font-medium">狀態</th>
+                          <th className="pb-2 pr-4 font-medium">支援格式</th>
+                          <th className="pb-2 font-medium">支援語言</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {section.providers.map((provider) => {
+                          const statusDisplay = getStatusDisplay(provider.status)
+                          return (
+                            <tr key={`${section.type}-${provider.name}`}>
+                              <td className="py-2 pr-4 font-medium">{provider.display_name}</td>
+                              <td className="py-2 pr-4">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusDisplay.className}`}
+                                >
+                                  {statusDisplay.label}
+                                </span>
+                              </td>
+                              <td className="py-2 pr-4 text-sm text-muted-foreground">
+                                {provider.supported_formats.length > 0
+                                  ? provider.supported_formats.slice(0, 3).join(', ') +
+                                    (provider.supported_formats.length > 3 ? '...' : '')
+                                  : '-'}
+                              </td>
+                              <td className="py-2 text-sm text-muted-foreground">
+                                {provider.supported_languages.slice(0, 3).join(', ')}
+                                {provider.supported_languages.length > 3 && '...'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

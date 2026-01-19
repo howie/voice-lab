@@ -57,6 +57,16 @@ class STTResult:
         return self.request.provider
 
     @property
+    def language(self) -> str:
+        """Get language from request."""
+        return self.request.language
+
+    @property
+    def audio_duration_ms(self) -> int | None:
+        """Get audio duration in milliseconds from metadata."""
+        return self.metadata.get("audio_duration_ms")
+
+    @property
     def word_count(self) -> int:
         """Get word count of transcript."""
         return len(self.transcript.split())

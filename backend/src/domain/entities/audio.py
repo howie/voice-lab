@@ -21,6 +21,7 @@ class AudioFormat(Enum):
     OGG = "ogg"
     PCM = "pcm"
     FLAC = "flac"
+    M4A = "m4a"  # AAC audio in MP4 container
 
     @property
     def mime_type(self) -> str:
@@ -33,6 +34,7 @@ class AudioFormat(Enum):
             AudioFormat.OGG: "audio/ogg",
             AudioFormat.PCM: "audio/pcm",
             AudioFormat.FLAC: "audio/flac",
+            AudioFormat.M4A: "audio/mp4",
         }
         return mime_types[self]
 

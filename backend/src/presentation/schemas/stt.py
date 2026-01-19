@@ -1,17 +1,50 @@
-"""STT API Schemas."""
+"""STT API Schemas.
+
+Feature: 003-stt-testing-module
+Schemas for STT endpoints matching frontend expectations.
+"""
+
+from typing import Literal
 
 from pydantic import Field
 
 from src.presentation.schemas.common import BaseSchema
 
+# --- Provider Schemas ---
+
+
+class STTProviderResponse(BaseSchema):
+    """STT provider information matching frontend STTProvider type."""
+
+    name: str = Field(..., description="Provider identifier (azure, gcp, whisper)")
+    display_name: str = Field(..., description="Human-readable name")
+    supports_streaming: bool = Field(..., description="Whether provider supports streaming")
+    supports_child_mode: bool = Field(..., description="Whether provider supports child mode")
+    max_duration_sec: int = Field(..., description="Maximum audio duration in seconds")
+    max_file_size_mb: int = Field(..., description="Maximum file size in MB")
+    supported_formats: list[str] = Field(..., description="Supported audio formats")
+    supported_languages: list[str] = Field(..., description="Supported language codes")
+
+
+class STTProvidersListResponse(BaseSchema):
+    """Response for GET /stt/providers."""
+
+    providers: list[STTProviderResponse]
+
+
+# --- Word Timing Schemas ---
+
 
 class WordTimingResponse(BaseSchema):
-    """Word timing information."""
+    """Word timing information matching frontend WordTiming type."""
 
-    word: str
-    start_time: float
-    end_time: float
-    confidence: float | None = None
+    word: str = Field(..., description="The transcribed word")
+    start_ms: int = Field(..., description="Start time in milliseconds")
+    end_ms: int = Field(..., description="End time in milliseconds")
+    confidence: float | None = Field(default=None, description="Confidence score 0-1")
+
+
+# --- Transcription Schemas ---
 
 
 class STTTranscribeRequest(BaseSchema):
@@ -24,20 +57,39 @@ class STTTranscribeRequest(BaseSchema):
     save_to_history: bool = Field(default=True, description="Save to test history")
 
 
-class STTTranscribeResponse(BaseSchema):
-    """Response from STT transcription."""
+class WERAnalysisResponse(BaseSchema):
+    """WER/CER analysis result matching frontend WERAnalysis type."""
 
+    error_rate: float = Field(..., description="Error rate (0-1)")
+    error_type: Literal["WER", "CER"] = Field(..., description="Type of error rate")
+    insertions: int = Field(..., description="Number of inserted words/chars")
+    deletions: int = Field(..., description="Number of deleted words/chars")
+    substitutions: int = Field(..., description="Number of substituted words/chars")
+    total_reference: int = Field(..., description="Total words/chars in reference")
+
+
+class STTTranscribeResponse(BaseSchema):
+    """Response from STT transcription matching frontend TranscriptionResponse."""
+
+    id: str | None = Field(default=None, description="Transcription result ID")
     transcript: str = Field(..., description="Transcribed text")
     provider: str = Field(..., description="Provider used")
     language: str = Field(..., description="Language detected/used")
     latency_ms: int = Field(..., description="Processing latency in milliseconds")
-    confidence: float | None = Field(default=None, description="Transcription confidence")
-    word_timings: list[WordTimingResponse] | None = Field(
+    confidence: float = Field(default=0.0, description="Transcription confidence 0-1")
+    words: list[WordTimingResponse] | None = Field(
         default=None, description="Word-level timing information"
     )
     audio_duration_ms: int | None = Field(default=None, description="Audio duration in ms")
-    wer: float | None = Field(default=None, description="Word Error Rate if ground truth provided")
-    cer: float | None = Field(
-        default=None, description="Character Error Rate if ground truth provided"
+    wer_analysis: WERAnalysisResponse | None = Field(
+        default=None, description="WER/CER analysis if ground truth provided"
     )
-    record_id: str | None = Field(default=None, description="Test record ID if saved")
+    created_at: str | None = Field(default=None, description="ISO timestamp")
+
+    # Legacy fields for backwards compatibility
+    word_timings: list[WordTimingResponse] | None = Field(
+        default=None, description="Deprecated: Use 'words' instead"
+    )
+    wer: float | None = Field(default=None, description="Deprecated: Use wer_analysis")
+    cer: float | None = Field(default=None, description="Deprecated: Use wer_analysis")
+    record_id: str | None = Field(default=None, description="Deprecated: Use 'id'")

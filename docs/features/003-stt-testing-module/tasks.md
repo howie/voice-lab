@@ -192,16 +192,16 @@
 
 ### Tests for Phase 7
 
-- [ ] T061 [P] Contract test for POST /stt/compare endpoint in backend/tests/contract/test_stt_compare_contract.py
-- [ ] T062 [P] Contract test for GET /stt/history endpoint in backend/tests/contract/test_stt_history_contract.py
-- [ ] T063 [P] Contract test for DELETE /stt/history/{id} endpoint in backend/tests/contract/test_stt_history_contract.py
+- [x] T061 [P] Contract test for POST /stt/compare endpoint in backend/tests/contract/test_stt_compare_contract.py
+- [x] T062 [P] Contract test for GET /stt/history endpoint in backend/tests/contract/test_stt_history_contract.py
+- [x] T063 [P] Contract test for DELETE /stt/history/{id} endpoint in backend/tests/contract/test_stt_history_contract.py
 
 ### Implementation for Phase 7
 
-- [ ] T064 Implement POST /stt/compare endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T065 Implement GET /stt/history endpoint with pagination in backend/src/presentation/api/stt_routes.py
-- [ ] T066 Implement GET /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T067 Implement DELETE /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py
+- [x] T064 Implement POST /stt/compare endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T065 Implement GET /stt/history endpoint with pagination in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T066 Implement GET /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T067 Implement DELETE /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
 - [ ] T068 [P] Create ProviderComparison component in frontend/src/components/stt/ProviderComparison.tsx
 - [ ] T069 [P] Create TranscriptionHistory component in frontend/src/components/stt/TranscriptionHistory.tsx
 - [ ] T070 Create STTHistory page in frontend/src/routes/STTHistory.tsx

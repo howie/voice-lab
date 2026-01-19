@@ -34,22 +34,26 @@
 ## 📅 Upcoming Roadmap
 
 ### Phase 3: STT (Speech-to-Text) Module (Current Goal)
-- **Objective**: Build a testing platform for Speech-to-Text across different providers.
+- **Objective**: Build a comprehensive testing platform for **Batch & High-Accuracy STT** across leading providers.
 - **Key Tasks**:
   - Implement STT Abstraction Layer.
-  - Integrate GCP, Azure, and VoAI STT.
-  - Microphone recording and file upload functionality.
-  - Streaming transcription via WebSocket.
-  - WER (Word Error Rate) calculation and ground-truth comparison.
+  - Integrate **High-Accuracy/Batch Providers**:
+    - **Cloud Giants**: Azure Speech, Google Cloud STT.
+    - **Specialized Leaders**: OpenAI Whisper, Deepgram (Nova-2), AssemblyAI, ElevenLabs Scribe, Speechmatics.
+  - Microphone recording and file upload functionality (Batch mode).
+  - WER (Word Error Rate) & CER (Character Error Rate) calculation.
   - "Child Voice Mode" optimization testing.
+  - Side-by-side provider comparison.
 
 ### Phase 4: Interaction Module
-- **Objective**: Test end-to-end real-time voice interaction (STT + LLM + TTS).
+- **Objective**: Test end-to-end **Real-time Voice Agent** interaction (Streaming STT + LLM + TTS).
 - **Key Tasks**:
+  - **Streaming STT Integration** (Low Latency):
+    - Deepgram (Nova-2/Flux), AssemblyAI Streaming, OpenAI Realtime API.
   - Real-time voice chat interface.
   - End-to-end latency measurement (STT -> LLM -> TTS).
   - System Prompt configuration and scenario templates.
-  - Support for打斷 (Barge-in) testing.
+  - Support for Interruption (Barge-in) testing.
 
 ### Phase 5: Polish & Advanced Features
 - **Objective**: Professional-grade features and reporting.

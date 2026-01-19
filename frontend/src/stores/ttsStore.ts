@@ -130,11 +130,14 @@ export const useTTSStore = create<TTSState>()(
           })
 
           set({ result: response.data, isLoading: false })
-        } catch (error: any) {
+        } catch (error: unknown) {
           const message =
-            error.response?.data?.error?.message ||
-            error.message ||
-            '語音合成失敗'
+            (
+              error as {
+                response?: { data?: { error?: { message?: string } } }
+              }
+            )?.response?.data?.error?.message ||
+            (error instanceof Error ? error.message : '語音合成失敗')
           set({ error: message, isLoading: false })
         }
       },

@@ -57,7 +57,7 @@ paths:
                   description: Audio file (MP3, WAV, M4A, FLAC, WEBM)
                 provider:
                   type: string
-                  enum: [azure, gcp, whisper]
+                  enum: [azure, gcp, whisper, deepgram, assemblyai, elevenlabs, speechmatics]
                   description: STT provider to use
                 language:
                   type: string
@@ -120,7 +120,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [azure, gcp, whisper]
+            enum: [azure, gcp, whisper, deepgram, assemblyai, elevenlabs, speechmatics]
           description: Filter by provider
         - name: language
           in: query
@@ -199,7 +199,7 @@ paths:
                   type: array
                   items:
                     type: string
-                    enum: [azure, gcp, whisper]
+                    enum: [azure, gcp, whisper, deepgram, assemblyai, elevenlabs, speechmatics]
                   minItems: 2
                   maxItems: 3
                 language:
@@ -255,10 +255,10 @@ components:
       properties:
         name:
           type: string
-          example: azure
+          example: deepgram
         display_name:
           type: string
-          example: Azure Speech Services
+          example: Deepgram Nova-2
         supports_streaming:
           type: boolean
         max_duration_sec:

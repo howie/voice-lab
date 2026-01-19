@@ -240,9 +240,7 @@ class TestSTTRecordingIntegration:
             app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
 
     @pytest.mark.asyncio
-    async def test_recording_with_multiple_providers(
-        self, mock_audio_data: AudioData
-    ):
+    async def test_recording_with_multiple_providers(self, mock_audio_data: AudioData):
         """Test recording transcription with different providers."""
         # Setup Azure result
         azure_request = STTRequest(

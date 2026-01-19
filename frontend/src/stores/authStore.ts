@@ -66,9 +66,10 @@ export const useAuthStore = create<AuthState>()(
           // Get Google OAuth URL and redirect
           const response = await authApi.getGoogleAuthUrl()
           window.location.href = response.data.url
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : '登入失敗'
           set({
-            error: error.message || '登入失敗',
+            error: message,
             isLoading: false,
           })
         }
@@ -79,7 +80,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           await authApi.logout()
-        } catch (error) {
+        } catch {
           // Ignore logout errors
         } finally {
           localStorage.removeItem('auth_token')
@@ -113,24 +114,23 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true })
 
-        try {
-          const response = await authApi.getCurrentUser()
-          set({
-            user: response.data,
-            token,
-            isAuthenticated: true,
-            isLoading: false,
-          })
-        } catch (error) {
-          localStorage.removeItem('auth_token')
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-          })
-        }
-      },
+                try {
+                  const response = await authApi.getCurrentUser()
+                  set({
+                    user: response.data,
+                    token,
+                    isAuthenticated: true,
+                    isLoading: false,
+                  })
+                        } catch {
+                          localStorage.removeItem('auth_token')
+                          set({
+                            user: null,
+                            token: null,
+                            isAuthenticated: false,
+                            isLoading: false,
+                          })
+                        }      },
 
       clearError: () => set({ error: null }),
     }),

@@ -35,13 +35,9 @@ export function VoiceSelector({
       try {
         const response = await ttsApi.getVoices(provider, language)
         setVoices(response.data)
-
-        // Auto-select first voice if current selection is invalid
-        if (response.data.length > 0 && !response.data.find(v => v.id === value)) {
-          onChange(response.data[0].id)
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load voices')
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load voices'
+        setError(message)
         setVoices([])
       } finally {
         setIsLoading(false)
@@ -52,6 +48,13 @@ export function VoiceSelector({
       loadVoices()
     }
   }, [provider, language])
+
+  // Auto-select first voice if current selection is invalid
+  useEffect(() => {
+    if (voices.length > 0 && !voices.find((v) => v.id === value)) {
+      onChange(voices[0].id)
+    }
+  }, [voices, value, onChange])
 
   // Group voices by gender
   const groupedVoices = voices.reduce<Record<string, VoiceProfile[]>>(

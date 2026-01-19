@@ -53,6 +53,10 @@
 - [x] T012 [P] Implement AzureSTTProvider in backend/src/infrastructure/providers/stt/azure_stt.py *(already exists)*
 - [x] T013 [P] Implement GCPSTTProvider in backend/src/infrastructure/providers/stt/gcp_stt.py *(already exists)*
 - [x] T014 [P] Implement WhisperSTTProvider in backend/src/infrastructure/providers/stt/whisper_stt.py *(already exists)*
+- [ ] T014a [P] Implement DeepgramSTTProvider in backend/src/infrastructure/providers/stt/deepgram_stt.py
+- [ ] T014b [P] Implement AssemblyAISTTProvider in backend/src/infrastructure/providers/stt/assemblyai_stt.py
+- [ ] T014c [P] Implement ElevenLabsSTTProvider in backend/src/infrastructure/providers/stt/elevenlabs_stt.py
+- [ ] T014d [P] Implement SpeechmaticsSTTProvider in backend/src/infrastructure/providers/stt/speechmatics_stt.py
 - [x] T015 Create STTProviderFactory in backend/src/infrastructure/providers/stt/factory.py
 
 ### Repository Layer

@@ -259,6 +259,38 @@ STT_PROVIDERS = {
         "max_file_size_mb": 25,
         "supported_formats": ["mp3", "mp4", "wav", "webm", "m4a"],
         "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+    },
+    "deepgram": {
+        "display_name": "Deepgram Nova-2",
+        "supports_streaming": True,
+        "max_duration_sec": 3600,
+        "max_file_size_mb": 2000,
+        "supported_formats": ["mp3", "wav", "ogg", "flac", "webm", "m4a"],
+        "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+    },
+    "assemblyai": {
+        "display_name": "AssemblyAI",
+        "supports_streaming": True,
+        "max_duration_sec": 3600,
+        "max_file_size_mb": 2000,
+        "supported_formats": ["mp3", "wav", "ogg", "flac", "webm", "m4a"],
+        "supported_languages": ["zh-TW", "en-US", "ja-JP", "ko-KR"]
+    },
+    "elevenlabs": {
+        "display_name": "ElevenLabs Scribe",
+        "supports_streaming": False,
+        "max_duration_sec": 600,
+        "max_file_size_mb": 25,
+        "supported_formats": ["mp3", "wav", "flac", "m4a"],
+        "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+    },
+    "speechmatics": {
+        "display_name": "Speechmatics",
+        "supports_streaming": True,
+        "max_duration_sec": 7200,
+        "max_file_size_mb": 2000,
+        "supported_formats": ["mp3", "wav", "ogg", "flac"],
+        "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
     }
 }
 ```

@@ -16,6 +16,7 @@ import { ProviderSelector } from '@/components/stt/ProviderSelector'
 import { TranscriptDisplay } from '@/components/stt/TranscriptDisplay'
 import { WERDisplay } from '@/components/stt/WERDisplay'
 import { GroundTruthInput } from '@/components/stt/GroundTruthInput'
+import { ChildModeToggle } from '@/components/stt/ChildModeToggle'
 import { SUPPORTED_LANGUAGES } from '@/types/stt'
 
 type InputMode = 'upload' | 'record'
@@ -207,19 +208,12 @@ export function STTPage() {
 
               {/* Child Mode Toggle */}
               {currentProvider?.supports_child_mode && (
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="childMode"
-                    checked={childMode}
-                    onChange={(e) => setChildMode(e.target.checked)}
-                    disabled={isTranscribing}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <label htmlFor="childMode" className="text-sm">
-                    兒童語音模式最佳化
-                  </label>
-                </div>
+                <ChildModeToggle
+                  checked={childMode}
+                  onChange={setChildMode}
+                  disabled={isTranscribing}
+                  providerName={currentProvider.display_name}
+                />
               )}
 
               {/* Ground Truth Input */}

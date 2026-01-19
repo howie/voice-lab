@@ -170,15 +170,15 @@
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Unit test for child mode parameter handling in backend/tests/unit/test_stt_provider_child_mode.py
+- [x] T055 [P] [US4] Unit test for child mode parameter handling in backend/tests/unit/test_stt_provider_child_mode.py
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Add child_mode parameter to Azure provider (phrase hints) in backend/src/infrastructure/providers/stt/azure_stt.py
-- [ ] T057 [US4] Add child_mode parameter to GCP provider (model selection) in backend/src/infrastructure/providers/stt/gcp_stt.py
-- [ ] T058 [US4] Add ChildModeToggle component in frontend/src/components/stt/ChildModeToggle.tsx
-- [ ] T059 [US4] Show child mode availability per provider in ProviderSelector component
-- [ ] T060 [US4] Integrate child mode toggle into STTTest page
+- [x] T056 [US4] Add child_mode parameter to Azure provider (phrase hints) in backend/src/infrastructure/providers/stt/azure_stt.py *(already implemented)*
+- [x] T057 [US4] Add child_mode parameter to GCP provider (model selection) in backend/src/infrastructure/providers/stt/gcp_stt.py *(already implemented)*
+- [x] T058 [US4] Add ChildModeToggle component in frontend/src/components/stt/ChildModeToggle.tsx
+- [x] T059 [US4] Show child mode availability per provider in ProviderSelector component *(already implemented)*
+- [x] T060 [US4] Integrate child mode toggle into STTTest page
 
 **Checkpoint**: User Story 4 complete - users can test child voice optimization
 

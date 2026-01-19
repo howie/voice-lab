@@ -23,6 +23,14 @@ class AzureSTTProvider(BaseSTTProvider):
         self._subscription_key = subscription_key
         self._region = region
 
+    @property
+    def display_name(self) -> str:
+        return "Azure Cognitive Services STT"
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+
     def _create_speech_config(self, language: str) -> speechsdk.SpeechConfig:
         """Create speech config for recognition."""
         config = speechsdk.SpeechConfig(

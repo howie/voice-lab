@@ -40,26 +40,26 @@
 
 ### Backend Domain Layer
 
-- [ ] T007 [P] Create InteractionMode and SessionStatus enums in backend/src/domain/entities/interaction_enums.py
-- [ ] T008 [P] Create InteractionSession entity in backend/src/domain/entities/interaction_session.py
-- [ ] T009 [P] Create ConversationTurn entity in backend/src/domain/entities/conversation_turn.py
-- [ ] T010 [P] Create LatencyMetrics entity in backend/src/domain/entities/latency_metrics.py
-- [ ] T011 [P] Create SystemPromptTemplate entity in backend/src/domain/entities/system_prompt_template.py
-- [ ] T012 Create InteractionRepository interface in backend/src/domain/repositories/interaction_repository.py
-- [ ] T013 Create base InteractionMode service interface in backend/src/domain/services/interaction/base.py
-- [ ] T014 Create LatencyTracker service in backend/src/domain/services/interaction/latency_tracker.py
+- [x] T007 [P] Create InteractionMode and SessionStatus enums in backend/src/domain/entities/interaction_enums.py
+- [x] T008 [P] Create InteractionSession entity in backend/src/domain/entities/interaction_session.py
+- [x] T009 [P] Create ConversationTurn entity in backend/src/domain/entities/conversation_turn.py
+- [x] T010 [P] Create LatencyMetrics entity in backend/src/domain/entities/latency_metrics.py
+- [x] T011 [P] Create SystemPromptTemplate entity in backend/src/domain/entities/system_prompt_template.py
+- [x] T012 Create InteractionRepository interface in backend/src/domain/repositories/interaction_repository.py
+- [x] T013 Create base InteractionMode service interface in backend/src/domain/services/interaction/base.py
+- [x] T014 Create LatencyTracker service in backend/src/domain/services/interaction/latency_tracker.py
 
 ### Backend Infrastructure Layer
 
-- [ ] T015 [P] Implement InteractionRepository with SQLAlchemy in backend/src/infrastructure/repositories/interaction_repository_impl.py
-- [ ] T016 [P] Create AudioStorageService for file management in backend/src/infrastructure/storage/audio_storage.py
-- [ ] T017 Create WebSocket handler base class in backend/src/infrastructure/websocket/base_handler.py
-- [ ] T018 Implement InteractionWebSocketHandler in backend/src/infrastructure/websocket/interaction_handler.py
+- [x] T015 [P] Implement InteractionRepository with SQLAlchemy in backend/src/infrastructure/persistence/interaction_repository_impl.py
+- [x] T016 [P] Create AudioStorageService for file management in backend/src/infrastructure/storage/audio_storage.py
+- [x] T017 Create WebSocket handler base class in backend/src/infrastructure/websocket/base_handler.py
+- [x] T018 Implement InteractionWebSocketHandler in backend/src/infrastructure/websocket/interaction_handler.py
 
 ### Backend Presentation Layer
 
-- [ ] T019 [P] Create WebSocket router in backend/src/presentation/api/ws_router.py
-- [ ] T020 [P] Create interaction REST router scaffold in backend/src/presentation/api/interaction_router.py
+- [x] T019 [P] Create WebSocket router in backend/src/presentation/api/routes/interaction_ws.py
+- [x] T020 [P] Create interaction REST router (extended) in backend/src/presentation/api/routes/interaction.py
 
 ### Frontend Foundation
 

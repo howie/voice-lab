@@ -86,9 +86,13 @@ class TestMultiProviderManagement:
             credentials_db[provider] = cred
             return cred
 
+        def save_credential(c):
+            c.id = c.id
+            return c
+
         mock_credential_repo = AsyncMock()
         mock_credential_repo.exists.return_value = False
-        mock_credential_repo.save.side_effect = lambda c: setattr(c, "id", c.id) or c
+        mock_credential_repo.save.side_effect = save_credential
         mock_credential_repo.list_by_user.side_effect = lambda _uid: list(credentials_db.values())
 
         mock_provider_repo = AsyncMock()

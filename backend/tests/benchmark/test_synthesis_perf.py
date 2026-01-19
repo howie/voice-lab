@@ -6,6 +6,7 @@ T066: Add performance benchmarks
 import asyncio
 import statistics
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import pytest
@@ -44,7 +45,7 @@ class BenchmarkResult:
 
 def run_benchmark(
     name: str,
-    func: callable,
+    func: Callable,
     iterations: int = 100,
     warmup: int = 5,
 ) -> BenchmarkResult:
@@ -91,7 +92,7 @@ def run_benchmark(
 
 async def run_async_benchmark(
     name: str,
-    func: callable,
+    func: Callable,
     iterations: int = 100,
     warmup: int = 5,
 ) -> BenchmarkResult:

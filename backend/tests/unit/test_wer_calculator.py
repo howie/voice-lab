@@ -5,7 +5,8 @@ Task: T045, T046 - Unit tests for WER/CER calculation
 """
 
 import pytest
-from backend.src.domain.services.wer_calculator import (
+
+from src.domain.services.wer_calculator import (
     calculate_alignment,
     calculate_cer,
     calculate_error_rate,

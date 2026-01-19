@@ -23,6 +23,19 @@ from src.presentation.api.dependencies import (
     get_stt_service,
     get_transcription_repository,
 )
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
+
+
+@pytest.fixture
+def mock_current_user() -> CurrentUser:
+    """Create a mock current user for authentication."""
+    return CurrentUser(
+        id="00000000-0000-0000-0000-000000000001",
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="test-google-id",
+    )
 
 
 @pytest.fixture
@@ -66,8 +79,8 @@ class TestTranscribeEndpoint:
     """Contract tests for POST /api/v1/stt/transcribe endpoint."""
 
     @pytest.fixture(autouse=True)
-    def setup_dependencies(self):
-        """Override database dependencies."""
+    def setup_dependencies(self, mock_current_user):
+        """Override database and auth dependencies."""
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         mock_session.flush = AsyncMock()
@@ -75,7 +88,11 @@ class TestTranscribeEndpoint:
         async def get_mock_session():
             yield mock_session
 
+        async def get_mock_current_user():
+            return mock_current_user
+
         app.dependency_overrides[get_db_session] = get_mock_session
+        app.dependency_overrides[get_current_user] = get_mock_current_user
         yield
         app.dependency_overrides.clear()
 

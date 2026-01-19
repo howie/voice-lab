@@ -11,11 +11,35 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
+
+
+@pytest.fixture
+def mock_current_user() -> CurrentUser:
+    """Create a mock current user for authentication."""
+    return CurrentUser(
+        id="00000000-0000-0000-0000-000000000001",
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="test-google-id",
+    )
 
 
 @pytest.mark.asyncio
 class TestCompareEndpointContract:
     """Contract tests for multi-provider comparison endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def setup_auth(self, mock_current_user: CurrentUser):
+        """Override authentication for all tests."""
+
+        async def get_mock_current_user():
+            return mock_current_user
+
+        app.dependency_overrides[get_current_user] = get_mock_current_user
+        yield
+        app.dependency_overrides.clear()
 
     async def test_compare_requires_audio_file(self) -> None:
         """Test that audio file is required."""

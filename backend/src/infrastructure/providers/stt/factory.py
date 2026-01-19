@@ -7,12 +7,15 @@ Creates STT provider instances based on configuration and credentials.
 from typing import Any
 
 from src.application.interfaces.stt_provider import ISTTProvider
-from src.infrastructure.providers.stt.assemblyai_stt import AssemblyAISTTProvider
+
+# from src.infrastructure.providers.stt.assemblyai_stt import AssemblyAISTTProvider
 from src.infrastructure.providers.stt.azure_stt import AzureSTTProvider
-from src.infrastructure.providers.stt.deepgram_stt import DeepgramSTTProvider
-from src.infrastructure.providers.stt.elevenlabs_stt import ElevenLabsSTTProvider
+
+# from src.infrastructure.providers.stt.deepgram_stt import DeepgramSTTProvider
+# from src.infrastructure.providers.stt.elevenlabs_stt import ElevenLabsSTTProvider
 from src.infrastructure.providers.stt.gcp_stt import GCPSTTProvider
-from src.infrastructure.providers.stt.speechmatics_stt import SpeechmaticsSTTProvider
+
+# from src.infrastructure.providers.stt.speechmatics_stt import SpeechmaticsSTTProvider
 from src.infrastructure.providers.stt.whisper_stt import WhisperSTTProvider
 
 
@@ -115,14 +118,15 @@ class STTProviderFactory:
             return cls._create_gcp(credentials)
         elif provider_name == "whisper":
             return cls._create_whisper(credentials)
-        elif provider_name == "deepgram":
-            return cls._create_deepgram(credentials)
-        elif provider_name == "assemblyai":
-            return cls._create_assemblyai(credentials)
-        elif provider_name == "elevenlabs":
-            return cls._create_elevenlabs(credentials)
-        elif provider_name == "speechmatics":
-            return cls._create_speechmatics(credentials)
+        # TODO: Re-enable after fixing Deepgram SDK compatibility
+        # elif provider_name == "deepgram":
+        #     return cls._create_deepgram(credentials)
+        # elif provider_name == "assemblyai":
+        #     return cls._create_assemblyai(credentials)
+        # elif provider_name == "elevenlabs":
+        #     return cls._create_elevenlabs(credentials)
+        # elif provider_name == "speechmatics":
+        #     return cls._create_speechmatics(credentials)
         else:
             raise ValueError(f"Unknown STT provider: {provider_name}")
 
@@ -148,33 +152,34 @@ class STTProviderFactory:
             raise ValueError("Whisper STT requires 'api_key'")
         return WhisperSTTProvider(api_key=api_key)
 
-    @classmethod
-    def _create_deepgram(cls, credentials: dict[str, Any]) -> DeepgramSTTProvider:
-        api_key = credentials.get("api_key")
-        if not api_key:
-            raise ValueError("Deepgram STT requires 'api_key'")
-        return DeepgramSTTProvider(api_key=api_key)
-
-    @classmethod
-    def _create_assemblyai(cls, credentials: dict[str, Any]) -> AssemblyAISTTProvider:
-        api_key = credentials.get("api_key")
-        if not api_key:
-            raise ValueError("AssemblyAI STT requires 'api_key'")
-        return AssemblyAISTTProvider(api_key=api_key)
-
-    @classmethod
-    def _create_elevenlabs(cls, credentials: dict[str, Any]) -> ElevenLabsSTTProvider:
-        api_key = credentials.get("api_key")
-        if not api_key:
-            raise ValueError("ElevenLabs STT requires 'api_key'")
-        return ElevenLabsSTTProvider(api_key=api_key)
-
-    @classmethod
-    def _create_speechmatics(cls, credentials: dict[str, Any]) -> SpeechmaticsSTTProvider:
-        api_key = credentials.get("api_key")
-        if not api_key:
-            raise ValueError("Speechmatics STT requires 'api_key'")
-        return SpeechmaticsSTTProvider(api_key=api_key)
+    # TODO: Re-enable after fixing provider SDK compatibility
+    # @classmethod
+    # def _create_deepgram(cls, credentials: dict[str, Any]) -> DeepgramSTTProvider:
+    #     api_key = credentials.get("api_key")
+    #     if not api_key:
+    #         raise ValueError("Deepgram STT requires 'api_key'")
+    #     return DeepgramSTTProvider(api_key=api_key)
+    #
+    # @classmethod
+    # def _create_assemblyai(cls, credentials: dict[str, Any]) -> AssemblyAISTTProvider:
+    #     api_key = credentials.get("api_key")
+    #     if not api_key:
+    #         raise ValueError("AssemblyAI STT requires 'api_key'")
+    #     return AssemblyAISTTProvider(api_key=api_key)
+    #
+    # @classmethod
+    # def _create_elevenlabs(cls, credentials: dict[str, Any]) -> ElevenLabsSTTProvider:
+    #     api_key = credentials.get("api_key")
+    #     if not api_key:
+    #         raise ValueError("ElevenLabs STT requires 'api_key'")
+    #     return ElevenLabsSTTProvider(api_key=api_key)
+    #
+    # @classmethod
+    # def _create_speechmatics(cls, credentials: dict[str, Any]) -> SpeechmaticsSTTProvider:
+    #     api_key = credentials.get("api_key")
+    #     if not api_key:
+    #         raise ValueError("Speechmatics STT requires 'api_key'")
+    #     return SpeechmaticsSTTProvider(api_key=api_key)
 
     @classmethod
     def get_provider_info(cls, provider_name: str) -> dict[str, Any]:

@@ -2,11 +2,7 @@
 
 import asyncio
 
-from deepgram import (  # type: ignore[import-not-found]
-    DeepgramClient,
-    FileSource,
-    PrerecordedOptions,
-)
+from deepgram import DeepgramClient  # type: ignore[import-not-found]
 
 from src.domain.entities.stt import STTRequest, WordTiming
 from src.infrastructure.providers.stt.base import BaseSTTProvider
@@ -22,7 +18,7 @@ class DeepgramSTTProvider(BaseSTTProvider):
             api_key: Deepgram API key
         """
         super().__init__("deepgram")
-        self._client = DeepgramClient(api_key)
+        self._client = DeepgramClient(api_key=api_key)
 
     @property
     def display_name(self) -> str:
@@ -47,28 +43,21 @@ class DeepgramSTTProvider(BaseSTTProvider):
         if not request.audio:
             raise ValueError("Audio data required")
 
-        options = PrerecordedOptions(
-            model="nova-2",
-            smart_format=True,
-            language=self._map_language(request.language),
-            diarize=True,
-            punctuate=True,
-            utterances=True,
-        )
-
-        source: FileSource = {
-            "buffer": request.audio.data,
-            "mimetype": f"audio/{request.audio.format}",
-        }
-
         try:
             # Execute in thread pool to avoid blocking event loop
+            # SDK v5.x uses direct parameter passing instead of PrerecordedOptions
             response = await asyncio.to_thread(
-                self._client.listen.rest.v("1").transcribe_file, source, options
+                self._client.listen.v1.media.transcribe_file,
+                request=request.audio.data,
+                model="nova-2",
+                smart_format=True,
+                language=self._map_language(request.language),
+                diarize=True,
+                punctuate=True,
+                utterances=True,
             )
 
             # Parse response
-            # Note: Deepgram response structure might vary slightly by version, assuming v3 SDK
             if not response.results or not response.results.channels:
                 return "", [], 0.0
 

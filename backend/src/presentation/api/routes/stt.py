@@ -110,7 +110,9 @@ async def transcribe_audio(
     language: str = Form(default="zh-TW", description="Language code"),
     child_mode: bool = Form(default=False, description="Enable child speech mode"),
     ground_truth: str | None = Form(default=None, description="Ground truth text"),
-    _save_to_history: bool = Form(default=True, description="Save to history"),  # noqa: ARG001
+    save_to_history: bool = Form(  # noqa: ARG001
+        default=True, description="Save to history"
+    ),  # Reserved for future use
     stt_service: STTService = Depends(get_stt_service),
     storage_service: IStorageService = Depends(get_storage_service),
     transcription_repo: ITranscriptionRepository = Depends(get_transcription_repository),

@@ -144,19 +144,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] Unit test for WER calculation in backend/tests/unit/test_wer_calculator.py
-- [ ] T046 [P] [US3] Unit test for CER calculation in backend/tests/unit/test_wer_calculator.py
-- [ ] T047 [P] [US3] Contract test for POST /stt/analysis/wer endpoint in backend/tests/contract/test_stt_wer_contract.py
+- [X] T045 [P] [US3] Unit test for WER calculation in backend/tests/unit/test_wer_calculator.py
+- [X] T046 [P] [US3] Unit test for CER calculation in backend/tests/unit/test_wer_calculator.py
+- [X] T047 [P] [US3] Contract test for POST /stt/analysis/wer endpoint in backend/tests/contract/test_stt_wer_contract.py
 
 ### Implementation for User Story 3
 
-- [ ] T048 [US3] Extend WERCalculator with CER support in backend/src/domain/services/wer_calculator.py
-- [ ] T049 [US3] Add language-based WER/CER auto-selection in backend/src/domain/services/wer_calculator.py
-- [ ] T050 [US3] Implement alignment visualization logic in backend/src/domain/services/wer_calculator.py
-- [ ] T051 [US3] Implement POST /stt/analysis/wer endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T052 [US3] Create WERDisplay component in frontend/src/components/stt/WERDisplay.tsx
-- [ ] T053 [US3] Create GroundTruthInput component in frontend/src/components/stt/GroundTruthInput.tsx
-- [ ] T054 [US3] Integrate WER display into STTTest page in frontend/src/routes/STTTest.tsx
+- [X] T048 [US3] Extend WERCalculator with CER support in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T049 [US3] Add language-based WER/CER auto-selection in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T050 [US3] Implement alignment visualization logic in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T051 [US3] Implement POST /stt/analysis/wer endpoint in backend/src/presentation/api/stt_routes.py *(already complete)*
+- [x] T052 [US3] Create WERDisplay component in frontend/src/components/stt/WERDisplay.tsx
+- [x] T053 [US3] Create GroundTruthInput component in frontend/src/components/stt/GroundTruthInput.tsx
+- [x] T054 [US3] Integrate WER display into STTTest page in frontend/src/routes/stt/STTPage.tsx
 
 **Checkpoint**: User Story 3 complete - users can calculate and view accuracy metrics
 

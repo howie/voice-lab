@@ -202,10 +202,10 @@
 - [x] T065 Implement GET /stt/history endpoint with pagination in backend/src/presentation/api/stt_routes.py *(already implemented)*
 - [x] T066 Implement GET /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
 - [x] T067 Implement DELETE /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
-- [ ] T068 [P] Create ProviderComparison component in frontend/src/components/stt/ProviderComparison.tsx
-- [ ] T069 [P] Create TranscriptionHistory component in frontend/src/components/stt/TranscriptionHistory.tsx
-- [ ] T070 Create STTHistory page in frontend/src/routes/STTHistory.tsx
-- [ ] T071 Add history route to frontend router
+- [x] T068 [P] Create ProviderComparison component in frontend/src/components/stt/ProviderComparison.tsx
+- [x] T069 [P] Create TranscriptionHistory component in frontend/src/components/stt/TranscriptionHistory.tsx
+- [x] T070 Create STTHistory page in frontend/src/routes/stt/STTHistoryPage.tsx
+- [x] T071 Add history route to frontend router
 
 **Checkpoint**: Comparison and history features complete
 

@@ -7,22 +7,20 @@ Tests the complete flow from receiving recorded audio blob to transcription.
 """
 
 import io
-from unittest.mock import AsyncMock, MagicMock
+import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.application.use_cases.transcribe_audio import (
-    TranscribeAudioOutput,
-    TranscribeAudioUseCase,
-)
+from src.application.interfaces.storage_service import StoredFile
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
-from src.infrastructure.persistence.database import get_db_session
 from src.main import app
 from src.presentation.api.dependencies import (
-    get_stt_providers,
-    get_transcribe_audio_use_case,
+    get_stt_service,
+    get_storage_service,
+    get_transcription_repository,
 )
 
 
@@ -58,52 +56,41 @@ def mock_stt_result(mock_audio_data: AudioData) -> STTResult:
     )
 
 
-@pytest.fixture
-def mock_transcribe_output(mock_stt_result: STTResult) -> TranscribeAudioOutput:
-    """Create a mock transcribe use case output."""
-    return TranscribeAudioOutput(
-        result=mock_stt_result,
-        wer=None,
-        cer=None,
-        record_id="test-record-456",
-    )
-
-
 class TestSTTRecordingIntegration:
     """Integration tests for recording → transcription flow."""
 
-    @pytest.fixture(autouse=True)
-    def setup_dependencies(self):
-        """Override database dependencies."""
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-        mock_session.flush = AsyncMock()
-
-        async def get_mock_session():
-            yield mock_session
-
-        app.dependency_overrides[get_db_session] = get_mock_session
-        yield
-        app.dependency_overrides.clear()
-
     @pytest.mark.asyncio
-    async def test_webm_recording_transcription(
-        self, mock_audio_data: AudioData, mock_transcribe_output: TranscribeAudioOutput
-    ):
+    async def test_webm_recording_transcription(self, mock_stt_result: STTResult):
         """Test transcription of WebM recorded audio (Chrome/Firefox)."""
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = mock_transcribe_output.result
+        # Mock storage service
+        mock_storage = AsyncMock()
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
+        )
 
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
+
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            # Simulate WebM audio blob from browser recording
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100  # WebM header signature
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
@@ -120,27 +107,42 @@ class TestSTTRecordingIntegration:
             assert result["provider"] == "azure"
             assert result["language"] == "zh-TW"
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
-    async def test_mp4_recording_transcription(
-        self, mock_audio_data: AudioData, mock_transcribe_output: TranscribeAudioOutput
-    ):
+    async def test_mp4_recording_transcription(self, mock_stt_result: STTResult):
         """Test transcription of MP4 recorded audio (Safari fallback)."""
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = mock_transcribe_output.result
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mp4_audio = b"\x00\x00\x00\x20ftyp" + b"\x00" * 100
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.mp4",
+            url="http://storage/test.mp4",
+            size_bytes=len(mp4_audio),
+            content_type="audio/mp4",
+        )
 
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
+
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            # Simulate MP4/M4A audio blob from Safari recording
-            mp4_audio = b"\x00\x00\x00\x20ftyp" + b"\x00" * 100  # MP4 header signature
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.mp4", io.BytesIO(mp4_audio), "audio/mp4")}
@@ -155,26 +157,43 @@ class TestSTTRecordingIntegration:
 
             assert result["transcript"] == "這是一段測試錄音"
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
-    async def test_recording_with_child_mode(
-        self, mock_audio_data: AudioData, mock_transcribe_output: TranscribeAudioOutput
-    ):
+    async def test_recording_with_child_mode(self, mock_stt_result: STTResult):
         """Test recording transcription with child mode enabled."""
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = mock_transcribe_output.result
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
 
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
+        )
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
+
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
+
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
@@ -187,38 +206,48 @@ class TestSTTRecordingIntegration:
 
             assert response.status_code == 200
 
-            # Verify child_mode was passed to use case
-            call_args = mock_provider.transcribe.call_args[0][0]
-            assert call_args.child_mode is True
+            # Verify child_mode was passed to STT service
+            call_kwargs = mock_stt_service.transcribe_audio.call_args[1]
+            assert call_kwargs["child_mode"] is True
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
-    async def test_recording_with_ground_truth(
-        self, mock_audio_data: AudioData, mock_stt_result: STTResult
-    ):
+    async def test_recording_with_ground_truth(self, mock_stt_result: STTResult):
         """Test recording transcription with ground truth for WER calculation."""
-        # Create output with CER (since it's Chinese)
-        output_with_cer = TranscribeAudioOutput(
-            result=mock_stt_result,
-            wer=0.15,
-            cer=0.08,
-            record_id="test-record-789",
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
         )
 
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = output_with_cer.result
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
+        mock_repo.save_ground_truth.return_value = None
 
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
@@ -235,13 +264,19 @@ class TestSTTRecordingIntegration:
             # Chinese uses CER
             if result.get("wer_analysis"):
                 assert result["wer_analysis"]["error_type"] == "CER"
+
+            # Verify ground truth was saved
+            mock_repo.save_ground_truth.assert_called_once()
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
     async def test_recording_with_multiple_providers(self, mock_audio_data: AudioData):
         """Test recording transcription with different providers."""
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+
         # Setup Azure result
         azure_request = STTRequest(
             provider="azure",
@@ -268,24 +303,37 @@ class TestSTTRecordingIntegration:
             latency_ms=180,
         )
 
-        mock_azure = AsyncMock()
-        mock_azure.transcribe.return_value = azure_result
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
+        )
 
-        mock_gcp = AsyncMock()
-        mock_gcp.transcribe.return_value = gcp_result
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
 
-        mock_providers = {"azure": mock_azure, "gcp": mock_gcp}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock STT service - will return different results based on provider
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 # Test Azure
+                mock_stt_service.transcribe_audio.return_value = (
+                    azure_result,
+                    test_record_id,
+                    test_result_id,
+                )
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
                 data = {"provider": "azure", "language": "zh-TW"}
                 response = await ac.post("/api/v1/stt/transcribe", files=files, data=data)
@@ -294,6 +342,11 @@ class TestSTTRecordingIntegration:
                 assert response.json()["transcript"] == "Azure 辨識結果"
 
                 # Test GCP
+                mock_stt_service.transcribe_audio.return_value = (
+                    gcp_result,
+                    test_record_id,
+                    test_result_id,
+                )
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
                 data = {"provider": "gcp", "language": "zh-TW"}
                 response = await ac.post("/api/v1/stt/transcribe", files=files, data=data)
@@ -301,26 +354,43 @@ class TestSTTRecordingIntegration:
                 assert response.status_code == 200
                 assert response.json()["transcript"] == "GCP 辨識結果"
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
-    async def test_recording_word_timings_preserved(
-        self, mock_audio_data: AudioData, mock_transcribe_output: TranscribeAudioOutput
-    ):
+    async def test_recording_word_timings_preserved(self, mock_stt_result: STTResult):
         """Test that word timings are preserved in transcription response."""
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = mock_transcribe_output.result
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
 
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(stt_providers=mock_providers)
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
+        )
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
+
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
+
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
@@ -339,35 +409,43 @@ class TestSTTRecordingIntegration:
             assert result["words"][0]["start_ms"] == 0
             assert result["words"][0]["end_ms"] == 300
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)
 
     @pytest.mark.asyncio
-    async def test_recording_saves_to_history(
-        self, mock_audio_data: AudioData, mock_transcribe_output: TranscribeAudioOutput
-    ):
+    async def test_recording_saves_to_history(self, mock_stt_result: STTResult):
         """Test that recording transcription can be saved to history."""
-        mock_provider = AsyncMock()
-        mock_provider.transcribe.return_value = mock_transcribe_output.result
+        webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
 
-        # Create mock repository to enable saving to history
-        mock_repo = AsyncMock()
-        mock_record = MagicMock()
-        mock_record.id = "test-record-456"
-        mock_repo.save.return_value = mock_record
-
-        mock_providers = {"azure": mock_provider}
-        use_case = TranscribeAudioUseCase(
-            stt_providers=mock_providers,
-            test_record_repo=mock_repo,
+        # Mock storage service
+        mock_storage = AsyncMock()
+        mock_storage.upload.return_value = StoredFile(
+            key="stt/uploads/test-user/test.webm",
+            url="http://storage/test.webm",
+            size_bytes=len(webm_audio),
+            content_type="audio/webm",
         )
 
-        app.dependency_overrides[get_stt_providers] = lambda: mock_providers
-        app.dependency_overrides[get_transcribe_audio_use_case] = lambda: use_case
+        # Mock transcription repository
+        mock_repo = AsyncMock()
+        mock_repo.save_audio_file.return_value = None
+
+        # Mock STT service
+        mock_stt_service = AsyncMock()
+        test_record_id = uuid.uuid4()
+        test_result_id = uuid.uuid4()
+        mock_stt_service.transcribe_audio.return_value = (
+            mock_stt_result,
+            test_record_id,
+            test_result_id,
+        )
+
+        app.dependency_overrides[get_storage_service] = lambda: mock_storage
+        app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
+        app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
 
         try:
-            webm_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 files = {"audio": ("recording.webm", io.BytesIO(webm_audio), "audio/webm")}
@@ -381,12 +459,13 @@ class TestSTTRecordingIntegration:
             assert response.status_code == 200
             result = response.json()
 
-            # Should have ID when saved to history
+            # Should have ID (result_id is returned as id)
             assert "id" in result
-            assert result["id"] == "test-record-456"
+            assert result["id"] == str(test_result_id)
 
-            # Verify repo was called
-            mock_repo.save.assert_called_once()
+            # Verify audio file and transcription were saved
+            mock_repo.save_audio_file.assert_called_once()
         finally:
-            app.dependency_overrides.pop(get_stt_providers, None)
-            app.dependency_overrides.pop(get_transcribe_audio_use_case, None)
+            app.dependency_overrides.pop(get_storage_service, None)
+            app.dependency_overrides.pop(get_transcription_repository, None)
+            app.dependency_overrides.pop(get_stt_service, None)

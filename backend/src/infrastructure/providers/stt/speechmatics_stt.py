@@ -3,8 +3,8 @@
 import asyncio
 import io
 
-from speechmatics.batch_client import BatchClient  # type: ignore[import-not-found]
-from speechmatics.models import ConnectionSettings  # type: ignore[import-not-found]
+from speechmatics.batch_client import BatchClient  # type: ignore[import-not-found,import-untyped]
+from speechmatics.models import ConnectionSettings  # type: ignore[import-not-found,import-untyped]
 
 from src.domain.entities.stt import STTRequest, WordTiming
 from src.infrastructure.providers.stt.base import BaseSTTProvider

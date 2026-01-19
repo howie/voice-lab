@@ -23,6 +23,14 @@ class AzureSTTProvider(BaseSTTProvider):
         self._subscription_key = subscription_key
         self._region = region
 
+    @property
+    def display_name(self) -> str:
+        return "Azure Cognitive Services STT"
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"]
+
     def _create_speech_config(self, language: str) -> speechsdk.SpeechConfig:
         """Create speech config for recognition."""
         config = speechsdk.SpeechConfig(
@@ -34,6 +42,10 @@ class AzureSTTProvider(BaseSTTProvider):
         config.enable_dictation()
 
         return config
+
+    @property
+    def supports_child_mode(self) -> bool:
+        return True
 
     async def _do_transcribe(
         self, request: STTRequest
@@ -58,7 +70,7 @@ class AzureSTTProvider(BaseSTTProvider):
 
             try:
                 audio_config = speechsdk.AudioConfig(filename=temp_path)
-                result = await self._recognize(config, audio_config)
+                result = await self._recognize(config, audio_config, request.child_mode)
             finally:
                 os.unlink(temp_path)
         else:
@@ -68,13 +80,43 @@ class AzureSTTProvider(BaseSTTProvider):
         return result
 
     async def _recognize(
-        self, speech_config: speechsdk.SpeechConfig, audio_config: speechsdk.AudioConfig
+        self,
+        speech_config: speechsdk.SpeechConfig,
+        audio_config: speechsdk.AudioConfig,
+        child_mode: bool = False,
     ) -> tuple[str, list[WordTiming] | None, float | None]:
         """Perform recognition."""
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=speech_config,
             audio_config=audio_config,
         )
+
+        if child_mode:
+            # Add phrase hints for child speech optimization
+            grammar = speechsdk.PhraseListGrammar.from_recognizer(recognizer)
+            phrases = [
+                "媽媽",
+                "爸爸",
+                "老師",
+                "小朋友",
+                "學校",
+                "吃飯",
+                "睡覺",
+                "玩遊戲",
+                "開心",
+                "難過",
+                "生氣",
+                "mommy",
+                "daddy",
+                "teacher",
+                "school",
+                "play",
+                "game",
+                "happy",
+                "sad",
+            ]
+            for phrase in phrases:
+                grammar.addPhrase(phrase)
 
         # Collect results
         transcript_parts = []

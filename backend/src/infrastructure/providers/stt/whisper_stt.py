@@ -22,6 +22,18 @@ class WhisperSTTProvider(BaseSTTProvider):
         self._api_key = api_key
         self._model = model
 
+    @property
+    def display_name(self) -> str:
+        return "OpenAI Whisper"
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR", "es-ES", "fr-FR", "de-DE"]
+
+    @property
+    def supports_child_mode(self) -> bool:
+        return False
+
     async def _do_transcribe(
         self, request: STTRequest
     ) -> tuple[str, list[WordTiming] | None, float | None]:

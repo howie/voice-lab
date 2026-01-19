@@ -5,11 +5,16 @@ following Clean Architecture principles.
 """
 
 import os
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.interfaces.llm_provider import ILLMProvider
 from src.application.interfaces.storage_service import IStorageService
 from src.application.interfaces.stt_provider import ISTTProvider
 from src.application.interfaces.tts_provider import ITTSProvider
+from src.application.services.stt_service import STTService
 from src.application.use_cases.compare_providers import CompareProvidersUseCase
 
 # Use Cases
@@ -18,13 +23,24 @@ from src.application.use_cases.synthesize_speech import (
 )
 from src.application.use_cases.transcribe_audio import TranscribeAudioUseCase
 from src.application.use_cases.voice_interaction import VoiceInteractionUseCase
+from src.domain.repositories.provider_credential_repository import (
+    IProviderCredentialRepository,
+)
 from src.domain.repositories.test_record_repository import ITestRecordRepository
+from src.domain.repositories.transcription_repository import ITranscriptionRepository
 from src.domain.repositories.voice_repository import IVoiceRepository
 
 # Infrastructure
 from src.infrastructure.persistence import (
     InMemoryTestRecordRepository,
     InMemoryVoiceRepository,
+)
+from src.infrastructure.persistence.credential_repository import (
+    SQLAlchemyProviderCredentialRepository,
+)
+from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.persistence.transcription_repository_impl import (
+    TranscriptionRepositoryImpl,
 )
 from src.infrastructure.storage import LocalStorageService
 
@@ -294,6 +310,35 @@ def get_test_record_repository() -> ITestRecordRepository:
 def get_voice_repository() -> IVoiceRepository:
     """FastAPI dependency for voice repository."""
     return get_container().get_voice_repository()
+
+
+def get_provider_credential_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IProviderCredentialRepository:
+    """FastAPI dependency for provider credential repository."""
+    return SQLAlchemyProviderCredentialRepository(session)
+
+
+def get_transcription_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ITranscriptionRepository:
+    """FastAPI dependency for transcription repository."""
+    return TranscriptionRepositoryImpl(session)
+
+
+def get_stt_service(
+    transcription_repo: Annotated[ITranscriptionRepository, Depends(get_transcription_repository)],
+    credential_repo: Annotated[
+        IProviderCredentialRepository, Depends(get_provider_credential_repository)
+    ],
+    storage_service: Annotated[IStorageService, Depends(get_storage_service)],
+) -> STTService:
+    """FastAPI dependency for STT service."""
+    return STTService(
+        transcription_repo=transcription_repo,
+        credential_repo=credential_repo,
+        storage_service=storage_service,
+    )
 
 
 def get_synthesize_speech_use_case() -> SynthesizeSpeechUseCase:

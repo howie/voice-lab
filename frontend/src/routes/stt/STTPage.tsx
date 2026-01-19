@@ -14,6 +14,9 @@ import { AudioUploader } from '@/components/stt/AudioUploader'
 import { AudioRecorder } from '@/components/stt/AudioRecorder'
 import { ProviderSelector } from '@/components/stt/ProviderSelector'
 import { TranscriptDisplay } from '@/components/stt/TranscriptDisplay'
+import { WERDisplay } from '@/components/stt/WERDisplay'
+import { GroundTruthInput } from '@/components/stt/GroundTruthInput'
+import { ChildModeToggle } from '@/components/stt/ChildModeToggle'
 import { SUPPORTED_LANGUAGES } from '@/types/stt'
 
 type InputMode = 'upload' | 'record'
@@ -205,34 +208,23 @@ export function STTPage() {
 
               {/* Child Mode Toggle */}
               {currentProvider?.supports_child_mode && (
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="childMode"
-                    checked={childMode}
-                    onChange={(e) => setChildMode(e.target.checked)}
-                    disabled={isTranscribing}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <label htmlFor="childMode" className="text-sm">
-                    兒童語音模式最佳化
-                  </label>
-                </div>
+                <ChildModeToggle
+                  checked={childMode}
+                  onChange={setChildMode}
+                  disabled={isTranscribing}
+                  providerName={currentProvider.display_name}
+                />
               )}
 
               {/* Ground Truth Input */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  正確答案（用於計算 WER/CER）
-                </label>
-                <textarea
-                  value={groundTruth}
-                  onChange={(e) => setGroundTruth(e.target.value)}
-                  placeholder="輸入正確的文字內容，將自動計算錯誤率..."
-                  disabled={isTranscribing}
-                  className="h-24 w-full rounded-lg border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                />
-              </div>
+              <GroundTruthInput
+                value={groundTruth}
+                onChange={setGroundTruth}
+                onCalculate={transcriptionResult ? handleCalculateWER : undefined}
+                isCalculating={isCalculatingWER}
+                disabled={isTranscribing}
+                language={language}
+              />
             </div>
 
             {/* Transcribe Button */}
@@ -287,72 +279,7 @@ export function STTPage() {
           {transcriptionResult && (
             <div className="rounded-xl border bg-card p-6">
               <h2 className="mb-4 text-lg font-semibold">準確度分析</h2>
-
-              {werAnalysis ? (
-                <div className="space-y-4">
-                  {/* Error Rate Display */}
-                  <div className="flex items-center justify-between rounded-lg bg-muted p-4">
-                    <span className="text-sm font-medium">
-                      {werAnalysis.error_type === 'CER' ? '字元錯誤率 (CER)' : '字錯誤率 (WER)'}
-                    </span>
-                    <span
-                      className={`text-2xl font-bold ${
-                        werAnalysis.error_rate < 0.1
-                          ? 'text-green-600 dark:text-green-400'
-                          : werAnalysis.error_rate < 0.3
-                            ? 'text-yellow-600 dark:text-yellow-400'
-                            : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {(werAnalysis.error_rate * 100).toFixed(1)}%
-                    </span>
-                  </div>
-
-                  {/* Error Breakdown */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="rounded-lg bg-red-50 dark:bg-red-950 p-3 text-center">
-                      <div className="text-lg font-semibold text-red-600 dark:text-red-400">
-                        {werAnalysis.substitutions}
-                      </div>
-                      <div className="text-xs text-gray-500">替換</div>
-                    </div>
-                    <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950 p-3 text-center">
-                      <div className="text-lg font-semibold text-yellow-600 dark:text-yellow-400">
-                        {werAnalysis.insertions}
-                      </div>
-                      <div className="text-xs text-gray-500">插入</div>
-                    </div>
-                    <div className="rounded-lg bg-orange-50 dark:bg-orange-950 p-3 text-center">
-                      <div className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                        {werAnalysis.deletions}
-                      </div>
-                      <div className="text-xs text-gray-500">刪除</div>
-                    </div>
-                  </div>
-
-                  <div className="text-sm text-gray-500">
-                    參考文字總數: {werAnalysis.total_reference}{' '}
-                    {werAnalysis.error_type === 'CER' ? '字元' : '字'}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500">
-                    {groundTruth
-                      ? '點擊按鈕計算錯誤率'
-                      : '請在上方輸入正確答案以計算錯誤率'}
-                  </p>
-                  {groundTruth && (
-                    <button
-                      onClick={handleCalculateWER}
-                      disabled={isCalculatingWER || !groundTruth}
-                      className="w-full rounded-lg border border-primary py-2 text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isCalculatingWER ? '計算中...' : '計算錯誤率'}
-                    </button>
-                  )}
-                </div>
-              )}
+              <WERDisplay werAnalysis={werAnalysis} isCalculating={isCalculatingWER} />
             </div>
           )}
         </div>

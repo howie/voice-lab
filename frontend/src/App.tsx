@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Dashboard } from '@/routes/Dashboard'
 import { TTSPage } from '@/routes/tts/TTSPage'
 import { STTPage } from '@/routes/stt/STTPage'
+import { STTHistoryPage } from '@/routes/stt/STTHistoryPage'
 import { InteractionPage } from '@/routes/interaction/InteractionPage'
 import { HistoryPage } from '@/routes/history/HistoryPage'
 import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
@@ -39,6 +40,7 @@ function AppContent() {
         <Route index element={<Dashboard />} />
         <Route path="tts" element={<TTSPage />} />
         <Route path="stt" element={<STTPage />} />
+        <Route path="stt/history" element={<STTHistoryPage />} />
         <Route path="interaction" element={<InteractionPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />

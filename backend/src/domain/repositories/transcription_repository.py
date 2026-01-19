@@ -66,7 +66,7 @@ class ITranscriptionRepository(ABC):
         result: STTResult,
         audio_file_id: UUID,
         user_id: UUID,
-    ) -> UUID:
+    ) -> tuple[UUID, UUID]:
         """Save a transcription result.
 
         Args:
@@ -75,7 +75,7 @@ class ITranscriptionRepository(ABC):
             user_id: User who performed the transcription
 
         Returns:
-            Generated transcription record ID
+            Tuple of (transcription record ID, result ID)
         """
         pass
 

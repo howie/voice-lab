@@ -250,6 +250,22 @@ wheels = [
 ]
 
 [[package]]
+name = "assemblyai"
+version = "0.48.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings", marker = "python_full_version >= '3.14'" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/19/57ee0680d8afaa1d354833a35b8ff4ab4cd946734fa3876bedae8cc6ab08/assemblyai-0.48.4.tar.gz", hash = "sha256:a7ec007b6d3079d38a4a5c39ea7c733067785e1a30151a6f01aef7728c1bb659", size = 56367, upload-time = "2025-12-17T22:37:42.135Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/e3/a21e7fe81e056930ca0b6fd9ddfd1713322560762f8662605e493619da49/assemblyai-0.48.4-py3-none-any.whl", hash = "sha256:cf56b71f205e341b650cb2668e382181c01082b95873bea4dc7450fe1647083d", size = 52376, upload-time = "2025-12-17T22:37:40.97Z" },
+]
+
+[[package]]
 name = "async-timeout"
 version = "5.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -762,6 +778,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/99/55/181022996c4063fc0e7666a47049a1ca705abb9c8a13830f074edb347495/cryptography-46.0.3-pp311-pypy311_pp73-manylinux_2_34_aarch64.whl", hash = "sha256:9394673a9f4de09e28b5356e7fff97d778f8abad85c9d5ac4a4b7e25a0de7717", size = 4242957, upload-time = "2025-10-15T23:18:22.18Z" },
     { url = "https://files.pythonhosted.org/packages/ba/af/72cd6ef29f9c5f731251acadaeb821559fe25f10852f44a63374c9ca08c1/cryptography-46.0.3-pp311-pypy311_pp73-manylinux_2_34_x86_64.whl", hash = "sha256:94cd0549accc38d1494e1f8de71eca837d0509d0d44bf11d158524b0e12cebf9", size = 4409447, upload-time = "2025-10-15T23:18:24.209Z" },
     { url = "https://files.pythonhosted.org/packages/0d/c3/e90f4a4feae6410f914f8ebac129b9ae7a8c92eb60a638012dde42030a9d/cryptography-46.0.3-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:6b5063083824e5509fdba180721d55909ffacccc8adbec85268b48439423d78c", size = 3438528, upload-time = "2025-10-15T23:18:26.227Z" },
+]
+
+[[package]]
+name = "deepgram-sdk"
+version = "5.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b8/76/ba0f925f955e171ed789c7f3626251c78786cce09ddc122ac92fe1cc508d/deepgram_sdk-5.3.1.tar.gz", hash = "sha256:87336787c3072d324a0fa412364668adec73175a9f6f0fdd4f91983f734c2842", size = 171393, upload-time = "2026-01-08T14:08:28.617Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/97/af202d6e77403e675d0e48d2a9ccba78437d1537858c9d1667af6d823116/deepgram_sdk-5.3.1-py3-none-any.whl", hash = "sha256:13e9d77552130da51d54c229900b393f96942333ea8e74be0364f8aa8e6afbc5", size = 505950, upload-time = "2026-01-08T14:08:26.574Z" },
 ]
 
 [[package]]
@@ -2715,6 +2747,19 @@ wheels = [
 ]
 
 [[package]]
+name = "speechmatics-batch"
+version = "0.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "aiohttp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bc/c7/1b1dbc75513914d065bc82de3bcfd68fd6822d8ac954516a7db9b59b7f03/speechmatics_batch-0.4.4.tar.gz", hash = "sha256:39de43b6dc9c4f8ef1c8b027b1b0cc6623aa79716e557b20a779b21df4979146", size = 22144, upload-time = "2025-11-13T19:19:58.138Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/bb/f8a4abf6091d84dd2d82e8e0c79df2f5e8b9969aefef5de6ec8067b66e6e/speechmatics_batch-0.4.4-py3-none-any.whl", hash = "sha256:ce8ac731852414b52d59ca651d3ea85deee02b1d24822a7ce300b2f5357e8b83", size = 22793, upload-time = "2025-11-13T19:19:57.162Z" },
+]
+
+[[package]]
 name = "sqlalchemy"
 version = "2.0.45"
 source = { registry = "https://pypi.org/simple" }
@@ -3031,9 +3076,11 @@ dependencies = [
     { name = "aiofiles" },
     { name = "alembic" },
     { name = "anthropic" },
+    { name = "assemblyai" },
     { name = "asyncpg" },
     { name = "azure-cognitiveservices-speech" },
     { name = "cachetools" },
+    { name = "deepgram-sdk" },
     { name = "elevenlabs" },
     { name = "fastapi" },
     { name = "google-auth" },
@@ -3050,6 +3097,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "redis" },
+    { name = "speechmatics-batch" },
     { name = "sqlalchemy" },
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
@@ -3076,9 +3124,11 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "alembic", specifier = ">=1.13.0" },
     { name = "anthropic", specifier = ">=0.18.0" },
+    { name = "assemblyai", specifier = ">=0.48.4" },
     { name = "asyncpg", specifier = ">=0.29.0" },
     { name = "azure-cognitiveservices-speech", specifier = ">=1.35.0" },
     { name = "cachetools", specifier = ">=5.3.0" },
+    { name = "deepgram-sdk", specifier = ">=5.3.1" },
     { name = "elevenlabs", specifier = ">=1.0.0" },
     { name = "fastapi", specifier = ">=0.109.0" },
     { name = "google-auth", specifier = ">=2.27.0" },
@@ -3101,6 +3151,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.6" },
     { name = "redis", specifier = ">=5.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "speechmatics-batch", specifier = ">=0.4.4" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "structlog", specifier = ">=24.1.0" },
     { name = "types-aiofiles", marker = "extra == 'dev'" },

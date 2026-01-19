@@ -44,7 +44,7 @@
 - [x] T006 [P] Create AudioFile entity in backend/src/domain/entities/audio_file.py
 - [x] T007 [P] Create WERAnalysis entity in backend/src/domain/entities/wer_analysis.py
 - [x] T008 [P] Create GroundTruth entity in backend/src/domain/entities/ground_truth.py
-- [ ] T009 Create Alembic migration for STT tables (audio_files, transcription_requests, transcription_results, wer_analyses, ground_truths)
+- [x] T009 Create Alembic migration for STT tables (audio_files, transcription_requests, transcription_results, wer_analyses, ground_truths)
 
 ### STT Provider Abstraction Layer
 
@@ -53,16 +53,16 @@
 - [x] T012 [P] Implement AzureSTTProvider in backend/src/infrastructure/providers/stt/azure_stt.py *(already exists)*
 - [x] T013 [P] Implement GCPSTTProvider in backend/src/infrastructure/providers/stt/gcp_stt.py *(already exists)*
 - [x] T014 [P] Implement WhisperSTTProvider in backend/src/infrastructure/providers/stt/whisper_stt.py *(already exists)*
-- [ ] T014a [P] Implement DeepgramSTTProvider in backend/src/infrastructure/providers/stt/deepgram_stt.py
-- [ ] T014b [P] Implement AssemblyAISTTProvider in backend/src/infrastructure/providers/stt/assemblyai_stt.py
-- [ ] T014c [P] Implement ElevenLabsSTTProvider in backend/src/infrastructure/providers/stt/elevenlabs_stt.py
-- [ ] T014d [P] Implement SpeechmaticsSTTProvider in backend/src/infrastructure/providers/stt/speechmatics_stt.py
+- [x] T014a [P] Implement DeepgramSTTProvider in backend/src/infrastructure/providers/stt/deepgram_stt.py
+- [x] T014b [P] Implement AssemblyAISTTProvider in backend/src/infrastructure/providers/stt/assemblyai_stt.py
+- [x] T014c [P] Implement ElevenLabsSTTProvider in backend/src/infrastructure/providers/stt/elevenlabs_stt.py
+- [x] T014d [P] Implement SpeechmaticsSTTProvider in backend/src/infrastructure/providers/stt/speechmatics_stt.py
 - [x] T015 Create STTProviderFactory in backend/src/infrastructure/providers/stt/factory.py
 
 ### Repository Layer
 
 - [x] T016 Create TranscriptionRepository interface in backend/src/domain/repositories/transcription_repository.py
-- [ ] T017 Implement TranscriptionRepositoryImpl in backend/src/infrastructure/persistence/transcription_repository_impl.py
+- [x] T017 Implement TranscriptionRepositoryImpl in backend/src/infrastructure/persistence/transcription_repository_impl.py
 
 ### Service Layer
 
@@ -144,19 +144,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] Unit test for WER calculation in backend/tests/unit/test_wer_calculator.py
-- [ ] T046 [P] [US3] Unit test for CER calculation in backend/tests/unit/test_wer_calculator.py
-- [ ] T047 [P] [US3] Contract test for POST /stt/analysis/wer endpoint in backend/tests/contract/test_stt_wer_contract.py
+- [X] T045 [P] [US3] Unit test for WER calculation in backend/tests/unit/test_wer_calculator.py
+- [X] T046 [P] [US3] Unit test for CER calculation in backend/tests/unit/test_wer_calculator.py
+- [X] T047 [P] [US3] Contract test for POST /stt/analysis/wer endpoint in backend/tests/contract/test_stt_wer_contract.py
 
 ### Implementation for User Story 3
 
-- [ ] T048 [US3] Extend WERCalculator with CER support in backend/src/domain/services/wer_calculator.py
-- [ ] T049 [US3] Add language-based WER/CER auto-selection in backend/src/domain/services/wer_calculator.py
-- [ ] T050 [US3] Implement alignment visualization logic in backend/src/domain/services/wer_calculator.py
-- [ ] T051 [US3] Implement POST /stt/analysis/wer endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T052 [US3] Create WERDisplay component in frontend/src/components/stt/WERDisplay.tsx
-- [ ] T053 [US3] Create GroundTruthInput component in frontend/src/components/stt/GroundTruthInput.tsx
-- [ ] T054 [US3] Integrate WER display into STTTest page in frontend/src/routes/STTTest.tsx
+- [X] T048 [US3] Extend WERCalculator with CER support in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T049 [US3] Add language-based WER/CER auto-selection in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T050 [US3] Implement alignment visualization logic in backend/src/domain/services/wer_calculator.py *(already complete)*
+- [X] T051 [US3] Implement POST /stt/analysis/wer endpoint in backend/src/presentation/api/stt_routes.py *(already complete)*
+- [x] T052 [US3] Create WERDisplay component in frontend/src/components/stt/WERDisplay.tsx
+- [x] T053 [US3] Create GroundTruthInput component in frontend/src/components/stt/GroundTruthInput.tsx
+- [x] T054 [US3] Integrate WER display into STTTest page in frontend/src/routes/stt/STTPage.tsx
 
 **Checkpoint**: User Story 3 complete - users can calculate and view accuracy metrics
 
@@ -170,15 +170,15 @@
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Unit test for child mode parameter handling in backend/tests/unit/test_stt_provider_child_mode.py
+- [x] T055 [P] [US4] Unit test for child mode parameter handling in backend/tests/unit/test_stt_provider_child_mode.py
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Add child_mode parameter to Azure provider (phrase hints) in backend/src/infrastructure/providers/stt/azure_stt.py
-- [ ] T057 [US4] Add child_mode parameter to GCP provider (model selection) in backend/src/infrastructure/providers/stt/gcp_stt.py
-- [ ] T058 [US4] Add ChildModeToggle component in frontend/src/components/stt/ChildModeToggle.tsx
-- [ ] T059 [US4] Show child mode availability per provider in ProviderSelector component
-- [ ] T060 [US4] Integrate child mode toggle into STTTest page
+- [x] T056 [US4] Add child_mode parameter to Azure provider (phrase hints) in backend/src/infrastructure/providers/stt/azure_stt.py *(already implemented)*
+- [x] T057 [US4] Add child_mode parameter to GCP provider (model selection) in backend/src/infrastructure/providers/stt/gcp_stt.py *(already implemented)*
+- [x] T058 [US4] Add ChildModeToggle component in frontend/src/components/stt/ChildModeToggle.tsx
+- [x] T059 [US4] Show child mode availability per provider in ProviderSelector component *(already implemented)*
+- [x] T060 [US4] Integrate child mode toggle into STTTest page
 
 **Checkpoint**: User Story 4 complete - users can test child voice optimization
 
@@ -192,20 +192,20 @@
 
 ### Tests for Phase 7
 
-- [ ] T061 [P] Contract test for POST /stt/compare endpoint in backend/tests/contract/test_stt_compare_contract.py
-- [ ] T062 [P] Contract test for GET /stt/history endpoint in backend/tests/contract/test_stt_history_contract.py
-- [ ] T063 [P] Contract test for DELETE /stt/history/{id} endpoint in backend/tests/contract/test_stt_history_contract.py
+- [x] T061 [P] Contract test for POST /stt/compare endpoint in backend/tests/contract/test_stt_compare_contract.py
+- [x] T062 [P] Contract test for GET /stt/history endpoint in backend/tests/contract/test_stt_history_contract.py
+- [x] T063 [P] Contract test for DELETE /stt/history/{id} endpoint in backend/tests/contract/test_stt_history_contract.py
 
 ### Implementation for Phase 7
 
-- [ ] T064 Implement POST /stt/compare endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T065 Implement GET /stt/history endpoint with pagination in backend/src/presentation/api/stt_routes.py
-- [ ] T066 Implement GET /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T067 Implement DELETE /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py
-- [ ] T068 [P] Create ProviderComparison component in frontend/src/components/stt/ProviderComparison.tsx
-- [ ] T069 [P] Create TranscriptionHistory component in frontend/src/components/stt/TranscriptionHistory.tsx
-- [ ] T070 Create STTHistory page in frontend/src/routes/STTHistory.tsx
-- [ ] T071 Add history route to frontend router
+- [x] T064 Implement POST /stt/compare endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T065 Implement GET /stt/history endpoint with pagination in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T066 Implement GET /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T067 Implement DELETE /stt/history/{id} endpoint in backend/src/presentation/api/stt_routes.py *(already implemented)*
+- [x] T068 [P] Create ProviderComparison component in frontend/src/components/stt/ProviderComparison.tsx
+- [x] T069 [P] Create TranscriptionHistory component in frontend/src/components/stt/TranscriptionHistory.tsx
+- [x] T070 Create STTHistory page in frontend/src/routes/stt/STTHistoryPage.tsx
+- [x] T071 Add history route to frontend router
 
 **Checkpoint**: Comparison and history features complete
 

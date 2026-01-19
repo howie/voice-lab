@@ -319,7 +319,9 @@ class TestHistoryDetailEndpoint:
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get("/api/v1/stt/history/00000000-0000-0000-0000-000000000000")
+                response = await client.get(
+                    "/api/v1/stt/history/00000000-0000-0000-0000-000000000000"
+                )
 
             # Should return 404 for non-existent ID
             assert response.status_code == 404
@@ -372,9 +374,7 @@ class TestHistoryDetailEndpoint:
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(
-                    f"/api/v1/stt/history/{mock_detail['id']}"
-                )
+                response = await client.get(f"/api/v1/stt/history/{mock_detail['id']}")
 
             assert response.status_code == 200
             data = response.json()
@@ -422,7 +422,9 @@ class TestHistoryDeleteEndpoint:
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.delete("/api/v1/stt/history/00000000-0000-0000-0000-000000000000")
+                response = await client.delete(
+                    "/api/v1/stt/history/00000000-0000-0000-0000-000000000000"
+                )
 
             # Should return 404 for non-existent ID
             assert response.status_code == 404

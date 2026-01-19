@@ -18,8 +18,8 @@ from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.main import app
 from src.presentation.api.dependencies import (
-    get_stt_service,
     get_storage_service,
+    get_stt_service,
     get_transcription_repository,
 )
 

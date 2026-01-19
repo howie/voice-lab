@@ -8,7 +8,6 @@ Tests the transcription endpoint request/response contract.
 
 import io
 import uuid
-from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,8 +19,8 @@ from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.infrastructure.persistence.database import get_db_session
 from src.main import app
 from src.presentation.api.dependencies import (
-    get_stt_service,
     get_storage_service,
+    get_stt_service,
     get_transcription_repository,
 )
 
@@ -520,9 +519,9 @@ class TestTranscribeEndpoint:
                 uuid.uuid4(),
             )
 
-            app.dependency_overrides[get_storage_service] = lambda: mock_storage
-            app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
-            app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
+            app.dependency_overrides[get_storage_service] = lambda storage=mock_storage: storage
+            app.dependency_overrides[get_transcription_repository] = lambda repo=mock_repo: repo
+            app.dependency_overrides[get_stt_service] = lambda service=mock_stt_service: service
 
             try:
                 transport = ASGITransport(app=app)

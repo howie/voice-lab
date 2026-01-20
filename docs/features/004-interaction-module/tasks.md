@@ -106,14 +106,14 @@
 
 ### Frontend Implementation for US1
 
-- [ ] T035 [P] [US1] Create AudioVisualizer component in frontend/src/components/interaction/AudioVisualizer.tsx
-- [ ] T036 [P] [US1] Create basic ModeSelector component with realtime provider selection (OpenAI/Gemini) in frontend/src/components/interaction/ModeSelector.tsx
-- [ ] T037 [US1] Create InteractionPanel main component in frontend/src/components/interaction/InteractionPanel.tsx
-- [ ] T038 [US1] Implement microphone permission request and error handling in InteractionPanel
-- [ ] T039 [US1] Implement audio playback for AI responses in InteractionPanel
-- [ ] T040 [US1] Create InteractionPage route in frontend/src/routes/interaction/InteractionPage.tsx
-- [ ] T041 [US1] Add interaction route to main router configuration
-- [ ] T042 [US1] Add status indicators (listening, processing, speaking) to InteractionPanel
+- [x] T035 [P] [US1] Create AudioVisualizer component in frontend/src/components/interaction/AudioVisualizer.tsx
+- [x] T036 [P] [US1] Create basic ModeSelector component with realtime provider selection (OpenAI/Gemini) in frontend/src/components/interaction/ModeSelector.tsx
+- [x] T037 [US1] Create InteractionPanel main component in frontend/src/components/interaction/InteractionPanel.tsx
+- [x] T038 [US1] Implement microphone permission request and error handling in InteractionPanel
+- [x] T039 [US1] Implement audio playback for AI responses in InteractionPanel
+- [x] T040 [US1] Create InteractionPage route in frontend/src/routes/interaction/InteractionPage.tsx
+- [x] T041 [US1] Add interaction route to main router configuration
+- [x] T042 [US1] Add status indicators (listening, processing, speaking) to InteractionPanel
 
 **Checkpoint**: User Story 1 complete - basic voice conversation functional with Realtime API
 

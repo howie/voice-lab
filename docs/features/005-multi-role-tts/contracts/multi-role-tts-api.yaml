@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Multi-Role TTS API
+  description: API for multi-role dialogue text-to-speech synthesis
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: Voice Lab API
+
+paths:
+  /tts/multi-role/capabilities:
+    get:
+      summary: Get provider multi-role capabilities
+      description: Returns multi-role TTS capabilities for all or a specific provider
+      operationId: getMultiRoleCapabilities
+      tags:
+        - Multi-Role TTS
+      parameters:
+        - name: provider
+          in: query
+          description: Optional provider filter
+          required: false
+          schema:
+            type: string
+            enum: [elevenlabs, azure, gcp, openai, cartesia, deepgram]
+      responses:
+        '200':
+          description: Provider capabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilitiesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /tts/multi-role/parse:
+    post:
+      summary: Parse dialogue text
+      description: Parse dialogue text and extract speakers and turns
+      operationId: parseDialogue
+      tags:
+        - Multi-Role TTS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParseRequest'
+      responses:
+        '200':
+          description: Parsed dialogue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tts/multi-role/synthesize:
+    post:
+      summary: Synthesize multi-role dialogue
+      description: Generate audio from multi-role dialogue with assigned voices
+      operationId: synthesizeMultiRole
+      tags:
+        - Multi-Role TTS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeRequest'
+      responses:
+        '200':
+          description: Synthesis result with base64 audio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SynthesizeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ProviderUnavailable'
+
+  /tts/multi-role/synthesize/binary:
+    post:
+      summary: Synthesize multi-role dialogue (binary response)
+      description: Generate audio from multi-role dialogue, returns binary audio stream
+      operationId: synthesizeMultiRoleBinary
+      tags:
+        - Multi-Role TTS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeRequest'
+      responses:
+        '200':
+          description: Audio binary stream
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ProviderUnavailable'
+
+components:
+  schemas:
+    DialogueTurn:
+      type: object
+      required:
+        - speaker
+        - text
+        - index
+      properties:
+        speaker:
+          type: string
+          description: Speaker identifier
+          example: "A"
+          maxLength: 50
+        text:
+          type: string
+          description: Text content of this turn
+          example: "你好，歡迎來到我們的節目！"
+        index:
+          type: integer
+          description: Position in dialogue sequence
+          minimum: 0
+          example: 0
+
+    VoiceAssignment:
+      type: object
+      required:
+        - speaker
+        - voice_id
+      properties:
+        speaker:
+          type: string
+          description: Speaker identifier matching DialogueTurn.speaker
+          example: "A"
+        voice_id:
+          type: string
+          description: Provider-specific voice ID
+          example: "zh-TW-HsiaoChenNeural"
+        voice_name:
+          type: string
+          description: Human-readable voice name
+          example: "曉臻"
+
+    MultiRoleSupportType:
+      type: string
+      enum: [native, segmented, unsupported]
+      description: Type of multi-role support
+
+    ProviderCapability:
+      type: object
+      required:
+        - provider_name
+        - support_type
+        - max_speakers
+        - character_limit
+      properties:
+        provider_name:
+          type: string
+          description: Provider identifier
+          example: "azure"
+        support_type:
+          $ref: '#/components/schemas/MultiRoleSupportType'
+        max_speakers:
+          type: integer
+          description: Maximum number of speakers supported
+          example: 6
+        character_limit:
+          type: integer
+          description: Maximum total characters
+          example: 5000
+        advanced_features:
+          type: array
+          items:
+            type: string
+          description: List of advanced features
+          example: ["express-as styles"]
+        notes:
+          type: string
+          description: Additional notes
+          nullable: true
+
+    CapabilitiesResponse:
+      type: object
+      required:
+        - capabilities
+      properties:
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderCapability'
+
+    ParseRequest:
+      type: object
+      required:
+        - dialogue_text
+      properties:
+        dialogue_text:
+          type: string
+          description: Raw dialogue text to parse
+          example: "A: 你好\nB: 嗨\nA: 今天天氣很好"
+          maxLength: 10000
+
+    ParseResponse:
+      type: object
+      required:
+        - turns
+        - speakers
+        - total_characters
+        - is_valid
+      properties:
+        turns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DialogueTurn'
+        speakers:
+          type: array
+          items:
+            type: string
+          description: Unique speaker identifiers extracted
+          example: ["A", "B"]
+        total_characters:
+          type: integer
+          description: Total character count of dialogue text
+          example: 25
+        is_valid:
+          type: boolean
+          description: Whether the dialogue was successfully parsed
+        error:
+          type: string
+          description: Error message if parsing failed
+          nullable: true
+
+    SynthesizeRequest:
+      type: object
+      required:
+        - provider
+        - dialogue_text
+        - voice_assignments
+      properties:
+        provider:
+          type: string
+          description: TTS provider to use
+          enum: [elevenlabs, azure, gcp, openai, cartesia, deepgram]
+          example: "azure"
+        dialogue_text:
+          type: string
+          description: Raw dialogue text
+          example: "A: 你好\nB: 嗨"
+          maxLength: 10000
+        voice_assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoiceAssignment'
+          minItems: 1
+          maxItems: 6
+        language:
+          type: string
+          description: Language code
+          default: "zh-TW"
+          example: "zh-TW"
+        output_format:
+          type: string
+          description: Output audio format
+          enum: [mp3, wav, opus]
+          default: "mp3"
+        gap_ms:
+          type: integer
+          description: Gap between turns in milliseconds (for segmented mode)
+          minimum: 0
+          maximum: 2000
+          default: 300
+        crossfade_ms:
+          type: integer
+          description: Crossfade duration in milliseconds (for segmented mode)
+          minimum: 0
+          maximum: 500
+          default: 50
+
+    TurnTiming:
+      type: object
+      required:
+        - turn_index
+        - start_ms
+        - end_ms
+      properties:
+        turn_index:
+          type: integer
+          description: Index of the turn
+          example: 0
+        start_ms:
+          type: integer
+          description: Start time in milliseconds
+          example: 0
+        end_ms:
+          type: integer
+          description: End time in milliseconds
+          example: 1500
+
+    SynthesizeResponse:
+      type: object
+      required:
+        - audio_content
+        - content_type
+        - duration_ms
+        - latency_ms
+        - provider
+        - synthesis_mode
+      properties:
+        audio_content:
+          type: string
+          format: byte
+          description: Base64 encoded audio content
+        content_type:
+          type: string
+          description: MIME type
+          example: "audio/mpeg"
+        duration_ms:
+          type: integer
+          description: Total audio duration in milliseconds
+          example: 5000
+        latency_ms:
+          type: integer
+          description: Total processing latency in milliseconds
+          example: 2500
+        provider:
+          type: string
+          description: Provider used
+          example: "azure"
+        synthesis_mode:
+          $ref: '#/components/schemas/MultiRoleSupportType'
+        turn_timings:
+          type: array
+          items:
+            $ref: '#/components/schemas/TurnTiming'
+          nullable: true
+        storage_path:
+          type: string
+          description: Path where audio was stored
+          nullable: true
+          example: "storage/azure/abc123.mp3"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Error message
+              example: "Invalid dialogue format"
+            details:
+              type: object
+              description: Additional error details
+              nullable: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ProviderUnavailable:
+      description: TTS provider unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Multi-Role TTS
+    description: Multi-role dialogue text-to-speech operations

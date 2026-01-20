@@ -38,6 +38,10 @@ from src.application.use_cases.revalidate_credential import (
     RevalidateCredentialOutput,
     RevalidateCredentialUseCase,
 )
+from src.application.use_cases.synthesize_multi_role import (
+    SynthesizeMultiRoleInput,
+    SynthesizeMultiRoleUseCase,
+)
 from src.application.use_cases.synthesize_speech import (
     SynthesizeSpeech,
     SynthesizeSpeechFactory,
@@ -101,4 +105,7 @@ __all__ = [
     "RevalidateCredentialInput",
     "RevalidateCredentialOutput",
     "RevalidateCredentialError",
+    # Multi-role TTS use case
+    "SynthesizeMultiRoleUseCase",
+    "SynthesizeMultiRoleInput",
 ]

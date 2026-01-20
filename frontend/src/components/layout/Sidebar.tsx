@@ -6,13 +6,15 @@ import {
   MessagesSquare,
   History,
   Settings,
-  Key
+  Key,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'TTS 測試', href: '/tts', icon: MessageSquare },
+  { name: '多角色 TTS', href: '/multi-role-tts', icon: Users },
   { name: 'STT 測試', href: '/stt', icon: Mic },
   { name: '互動測試', href: '/interaction', icon: MessagesSquare },
   { name: '歷史紀錄', href: '/history', icon: History },

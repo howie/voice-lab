@@ -67,6 +67,26 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
+    # OAuth Domain Restriction
+    # Comma-separated list of allowed email domains for Google OAuth login
+    # e.g., "heyuai.com.tw,example.com"
+    # Empty string or "*" means allow all domains
+    allowed_domains: list[str] = []
+
+    # Google OAuth
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+
+    @field_validator("allowed_domains", mode="before")
+    @classmethod
+    def parse_allowed_domains(cls, v):
+        """Parse allowed domains from string or list."""
+        if isinstance(v, str):
+            if not v or v == "*":
+                return []
+            return [domain.strip().lower() for domain in v.split(",") if domain.strip()]
+        return [d.lower() for d in v] if v else []
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):

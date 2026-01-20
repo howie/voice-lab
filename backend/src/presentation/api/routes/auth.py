@@ -9,6 +9,12 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from src.infrastructure.auth.domain_validator import (
+    DomainValidationError,
+    get_allowed_domains,
+    is_domain_restriction_enabled,
+    validate_email_domain,
+)
 from src.infrastructure.auth.jwt import create_access_token
 from src.presentation.api.middleware.auth import (
     GOOGLE_CLIENT_ID,
@@ -134,6 +140,17 @@ async def google_auth_callback(
 
         user_info = userinfo_response.json()
 
+    # Validate email domain
+    email = user_info.get("email", "")
+    try:
+        validate_email_domain(email)
+    except DomainValidationError:
+        # Redirect to frontend with error
+        redirect_url = state or FRONTEND_URL
+        separator = "&" if "?" in redirect_url else "?"
+        error_msg = f"domain_not_allowed:{email.split('@')[1] if '@' in email else 'unknown'}"
+        return RedirectResponse(url=f"{redirect_url}{separator}error={error_msg}")
+
     # Create or update user in database (simplified - should use repository)
     user_id = str(uuid.uuid4())  # In production, lookup or create user in DB
 
@@ -175,3 +192,23 @@ async def logout(_current_user: CurrentUserDep, response: Response) -> None:
     # Clear any cookies if used
     response.delete_cookie("access_token")
     return None
+
+
+class DomainRestrictionInfo(BaseModel):
+    """Domain restriction configuration info."""
+
+    enabled: bool
+    allowed_domains: list[str]
+
+
+@router.get("/domain-restriction", response_model=DomainRestrictionInfo)
+async def get_domain_restriction_info() -> DomainRestrictionInfo:
+    """Get domain restriction configuration.
+
+    Returns information about which email domains are allowed for login.
+    This is a public endpoint for frontend to show appropriate UI.
+    """
+    return DomainRestrictionInfo(
+        enabled=is_domain_restriction_enabled(),
+        allowed_domains=get_allowed_domains(),
+    )

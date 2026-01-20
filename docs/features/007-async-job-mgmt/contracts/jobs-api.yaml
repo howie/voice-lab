@@ -1,0 +1,369 @@
+openapi: 3.0.3
+info:
+  title: Async Job Management API
+  description: |
+    背景 TTS 合成工作管理 API。
+    支援工作提交、狀態追蹤、結果下載等功能。
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Jobs
+    description: 工作管理
+
+paths:
+  /jobs:
+    post:
+      summary: 提交 TTS 合成工作
+      description: |
+        建立一個新的背景 TTS 合成工作。
+        工作會在背景執行，使用者可稍後查詢狀態或下載結果。
+      tags: [Jobs]
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '201':
+          description: 工作已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: 請求格式錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 已達並發上限（每用戶最多 3 個進行中工作）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: 列出所有工作
+      description: |
+        取得使用者的所有工作列表。
+        支援依狀態篩選和分頁。
+      tags: [Jobs]
+      operationId: listJobs
+      parameters:
+        - name: status
+          in: query
+          description: 依狀態篩選
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+        - name: limit
+          in: query
+          description: 每頁筆數（預設 20，最大 100）
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: 跳過筆數
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: 工作列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
+
+  /jobs/{jobId}:
+    get:
+      summary: 取得工作詳情
+      description: 取得單一工作的詳細狀態和結果。
+      tags: [Jobs]
+      operationId: getJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 工作詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetailResponse'
+        '404':
+          description: 工作不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: 取消工作
+      description: |
+        取消狀態為 pending 的工作。
+        已在處理中的工作無法取消。
+      tags: [Jobs]
+      operationId: cancelJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 工作已取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '404':
+          description: 工作不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 無法取消（工作已在處理中或已完成）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/{jobId}/download:
+    get:
+      summary: 下載音檔
+      description: |
+        下載已完成工作的音檔。
+        僅限狀態為 completed 的工作。
+      tags: [Jobs]
+      operationId: downloadJobAudio
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 音檔內容
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: 工作不存在或尚未完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      description: 工作 ID
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    JobStatus:
+      type: string
+      enum: [pending, processing, completed, failed, cancelled]
+      description: |
+        工作狀態:
+        - pending: 等待中
+        - processing: 處理中
+        - completed: 已完成
+        - failed: 失敗
+        - cancelled: 已取消
+
+    JobType:
+      type: string
+      enum: [multi_role_tts]
+      description: 工作類型
+
+    DialogueTurn:
+      type: object
+      required: [speaker, text, index]
+      properties:
+        speaker:
+          type: string
+          maxLength: 50
+          description: 說話者識別碼
+          example: "A"
+        text:
+          type: string
+          minLength: 1
+          description: 對話內容
+          example: "你好，很高興認識你！"
+        index:
+          type: integer
+          minimum: 0
+          description: 對話順序（0-based）
+
+    VoiceAssignment:
+      type: object
+      required: [speaker, voice_id]
+      properties:
+        speaker:
+          type: string
+          description: 說話者識別碼，須與 DialogueTurn.speaker 對應
+          example: "A"
+        voice_id:
+          type: string
+          description: Provider 指定的語音 ID
+          example: "zh-TW-HsiaoYuNeural"
+        voice_name:
+          type: string
+          description: 語音名稱（顯示用）
+          example: "曉雨"
+
+    CreateJobRequest:
+      type: object
+      required: [provider, turns, voice_assignments]
+      properties:
+        provider:
+          type: string
+          description: TTS Provider 名稱
+          example: "azure"
+        turns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DialogueTurn'
+          minItems: 1
+          description: 對話輪次列表
+        voice_assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoiceAssignment'
+          minItems: 1
+          description: 語音分配列表
+        language:
+          type: string
+          default: "zh-TW"
+          description: 語言代碼
+        output_format:
+          type: string
+          default: "mp3"
+          enum: [mp3, wav]
+          description: 輸出格式
+        gap_ms:
+          type: integer
+          default: 300
+          minimum: 0
+          maximum: 2000
+          description: 對話間隔（毫秒）
+        crossfade_ms:
+          type: integer
+          default: 50
+          minimum: 0
+          maximum: 500
+          description: 交叉淡入淡出時間（毫秒）
+
+    JobResponse:
+      type: object
+      required: [id, status, job_type, provider, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 工作 ID
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        job_type:
+          $ref: '#/components/schemas/JobType'
+        provider:
+          type: string
+          description: TTS Provider
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 開始執行時間
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 完成時間
+
+    JobDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/JobResponse'
+        - type: object
+          properties:
+            input_params:
+              type: object
+              description: 原始輸入參數
+            result_metadata:
+              type: object
+              nullable: true
+              description: |
+                執行結果元資料（僅 completed 狀態）
+              properties:
+                duration_ms:
+                  type: integer
+                  description: 音檔時長（毫秒）
+                latency_ms:
+                  type: integer
+                  description: 處理延遲（毫秒）
+                synthesis_mode:
+                  type: string
+                  enum: [native, segmented]
+                  description: 合成模式
+            audio_file_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: 音檔 ID（僅 completed 狀態）
+            error_message:
+              type: string
+              nullable: true
+              description: 錯誤訊息（僅 failed 狀態）
+            retry_count:
+              type: integer
+              description: 重試次數
+
+    JobListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobResponse'
+        total:
+          type: integer
+          description: 總筆數
+        limit:
+          type: integer
+          description: 每頁筆數
+        offset:
+          type: integer
+          description: 目前偏移量
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: 錯誤代碼
+          example: "JOB_LIMIT_EXCEEDED"
+        message:
+          type: string
+          description: 錯誤訊息
+          example: "已達並發上限，請等待現有工作完成"
+        details:
+          type: object
+          description: 額外錯誤詳情

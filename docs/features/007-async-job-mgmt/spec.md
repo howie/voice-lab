@@ -1,159 +1,202 @@
-# Feature Spec: Async Job Management
+# Feature Specification: Async Job Management
 
-**Status**: Draft
-**Priority**: P2
+**Feature Branch**: `007-async-job-mgmt`
 **Created**: 2026-01-20
+**Status**: Draft
+**Input**: User description: "Async job management for background TTS synthesis with status tracking and history"
+
+---
+
+## Clarifications
+
+### Session 2026-01-20
+
+- Q: 工作逾時上限應設定多久？ → A: 10 分鐘（參考 Azure 同步上限，涵蓋各家 Provider timeout）
+- Q: 系統重啟時「處理中」工作如何處理？ → A: 標記為失敗，顯示「系統中斷」原因，使用者可手動重新提交
+- Q: 超過並發工作上限（3 個）時如何處理？ → A: 拒絕提交，顯示錯誤訊息告知已達上限
+- Q: TTS Provider 呼叫失敗時是否重試？ → A: 自動重試最多 3 次（間隔遞增），仍失敗則標記失敗
 
 ---
 
 ## Problem Statement
 
-目前 Multi-Role TTS 合成是同步請求-回應模式：
-- 使用者按下「產生語音」後必須等待完成
-- 如果離開頁面，請求會被取消，工作會丟失
-- 沒有 Job 狀態追蹤，無法查詢進度或歷史
+目前 Multi-Role TTS 合成採用同步請求-回應模式，存在以下問題：
 
-### 現有問題
-
-1. **使用者體驗差**：長時間合成（多角色、長對話）需要等待
-2. **工作易丟失**：網路斷線或頁面離開導致工作丟失
+1. **使用者體驗差**：長時間合成（多角色、長對話）需要持續等待
+2. **工作易丟失**：使用者離開頁面或網路斷線會導致工作丟失
 3. **無法追蹤**：沒有歷史記錄，無法重新下載之前的結果
-4. **資源浪費**：TTS Provider 可能已完成但結果無法取得
+4. **資源浪費**：TTS Provider 可能已完成但使用者無法取得結果
 
 ---
 
-## Goals
+## User Scenarios & Testing
 
-1. 支援 TTS 合成工作在背景執行
-2. 使用者可離開頁面，稍後回來查看結果
-3. 提供 Job 狀態追蹤（pending/processing/completed/failed）
-4. 保留歷史記錄供下載和重播
+### User Story 1 - 背景合成工作提交 (Priority: P1)
 
----
+使用者可以啟動 TTS 合成工作後離開頁面，系統會在背景繼續執行工作，完成後使用者可以回來查看結果。
 
-## User Stories
+**Why this priority**: 這是核心功能，解決目前最大的痛點—使用者必須等待合成完成才能離開。
 
-### US1: 背景合成 (P1)
-**As a** 使用者
-**I want to** 啟動 TTS 合成後可以離開頁面
-**So that** 我不需要等待長時間的合成完成
+**Independent Test**: 可以透過提交一個合成工作、離開頁面、稍後返回查看結果來完整測試。
 
-**Acceptance Criteria:**
-- [ ] 點擊「產生語音」後顯示 Job ID
-- [ ] 可以離開頁面，Job 繼續在背景執行
-- [ ] 完成後可透過通知或列表查看結果
+**Acceptance Scenarios**:
 
-### US2: 工作狀態追蹤 (P1)
-**As a** 使用者
-**I want to** 查看我的 TTS 工作狀態
-**So that** 我知道合成進度和預計完成時間
-
-**Acceptance Criteria:**
-- [ ] 顯示 Job 列表（最近 N 筆）
-- [ ] 每個 Job 顯示狀態：pending / processing / completed / failed
-- [ ] 顯示建立時間、完成時間、耗時
-- [ ] Failed 的 Job 顯示錯誤原因
-
-### US3: 歷史記錄與下載 (P2)
-**As a** 使用者
-**I want to** 查看和下載之前完成的 TTS 結果
-**So that** 我不需要重新合成相同的內容
-
-**Acceptance Criteria:**
-- [ ] 列出最近 30 天的完成記錄
-- [ ] 可重新播放和下載音檔
-- [ ] 顯示原始參數（provider、對話內容、語音設定）
+1. **Given** 使用者已設定好多角色對話內容和語音參數, **When** 使用者點擊「產生語音」, **Then** 系統顯示工作已提交的確認訊息，並提供工作識別碼
+2. **Given** 工作已提交並在背景執行中, **When** 使用者離開頁面或關閉瀏覽器, **Then** 工作繼續在背景執行直到完成
+3. **Given** 工作已完成, **When** 使用者返回系統, **Then** 使用者可以找到並存取完成的工作結果
 
 ---
 
-## Technical Design (Draft)
+### User Story 2 - 工作狀態追蹤 (Priority: P1)
 
-### Database Schema
+使用者可以查看所有提交的 TTS 工作及其當前狀態，了解合成進度。
 
-```sql
-CREATE TABLE tts_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),
+**Why this priority**: 與 US1 同等重要，使用者需要知道工作的執行狀態才能有效使用背景合成功能。
 
-    -- Job metadata
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending/processing/completed/failed
-    job_type VARCHAR(50) NOT NULL,  -- 'multi_role_tts', 'single_tts'
+**Independent Test**: 可以透過查看工作列表頁面，確認狀態顯示正確來測試。
 
-    -- Input
-    provider VARCHAR(50) NOT NULL,
-    input_json JSONB NOT NULL,  -- Stores turns, voice_assignments, etc.
+**Acceptance Scenarios**:
 
-    -- Output
-    audio_file_id UUID REFERENCES audio_files(id),
-    result_json JSONB,  -- duration_ms, latency_ms, turn_timings, etc.
-    error_message TEXT,
-
-    -- Timestamps
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    started_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-
-    -- Indexes
-    INDEX idx_tts_jobs_user_status (user_id, status),
-    INDEX idx_tts_jobs_created (created_at DESC)
-);
-```
-
-### Architecture Options
-
-#### Option A: Celery + Redis
-- **Pros**: 成熟穩定、支援重試、監控工具完善
-- **Cons**: 需要額外的 Redis 和 Celery worker 部署
-
-#### Option B: PostgreSQL-based Queue (pg-boss / SKIP LOCKED)
-- **Pros**: 不需額外服務、與現有 DB 整合
-- **Cons**: 效能較低、功能較少
-
-#### Option C: FastAPI BackgroundTasks + DB Polling
-- **Pros**: 最簡單、不需額外服務
-- **Cons**: 不支援持久化、重啟會丟失工作
-
-**建議**: Option A (Celery + Redis) for production readiness
-
-### API Endpoints (Draft)
-
-```
-POST   /api/v1/jobs/tts/multi-role     # Create async job
-GET    /api/v1/jobs/{job_id}           # Get job status
-GET    /api/v1/jobs                    # List user's jobs
-DELETE /api/v1/jobs/{job_id}           # Cancel job (if pending)
-GET    /api/v1/jobs/{job_id}/download  # Download completed audio
-```
-
-### Frontend Changes
-
-1. **Job 提交後**：顯示 Job ID，提供「查看進度」連結
-2. **新增 Jobs 頁面**：列出所有工作及狀態
-3. **通知機制**：WebSocket 或 Polling 更新狀態
-4. **結果頁面**：播放、下載、查看參數
+1. **Given** 使用者有已提交的工作, **When** 使用者查看工作列表, **Then** 顯示所有工作及其狀態（等待中、處理中、已完成、失敗）
+2. **Given** 工作正在處理中, **When** 使用者查看該工作詳情, **Then** 顯示工作建立時間和當前狀態
+3. **Given** 工作執行失敗, **When** 使用者查看該工作, **Then** 顯示失敗原因說明
+4. **Given** 工作已完成, **When** 使用者查看該工作, **Then** 顯示完成時間和總耗時
 
 ---
 
-## Out of Scope
+### User Story 3 - 歷史記錄與結果下載 (Priority: P2)
 
-- Job 優先級排序
-- 批次提交多個 Jobs
-- Job 重試策略配置（使用預設）
-- 多租戶隔離（目前單一用戶環境）
+使用者可以查看和下載之前完成的 TTS 合成結果，避免重複合成相同內容。
+
+**Why this priority**: 這是增值功能，提升使用者體驗但不是核心流程必需。
+
+**Independent Test**: 可以透過找到歷史完成的工作並下載音檔來測試。
+
+**Acceptance Scenarios**:
+
+1. **Given** 使用者有已完成的工作, **When** 使用者查看歷史記錄, **Then** 顯示過去 30 天內完成的工作列表
+2. **Given** 使用者選擇一個已完成的工作, **When** 使用者點擊下載, **Then** 系統提供音檔下載
+3. **Given** 使用者選擇一個已完成的工作, **When** 使用者點擊播放, **Then** 可以在頁面上直接播放音檔
+4. **Given** 使用者查看已完成的工作詳情, **When** 頁面載入, **Then** 顯示原始合成參數（Provider、對話內容、語音設定）
 
 ---
 
-## Open Questions
+### User Story 4 - 工作取消 (Priority: P3)
 
-1. Job 保留多久？（建議：30 天）
-2. 音檔儲存位置？（建議：S3 or local storage）
-3. 同時執行的 Job 上限？（建議：每用戶 3 個）
-4. 是否需要 WebSocket 即時通知？（建議：先用 polling）
+使用者可以取消尚未開始處理的工作。
+
+**Why this priority**: 這是輔助功能，提供使用者更多控制權但非必要。
+
+**Independent Test**: 可以透過提交工作後立即取消來測試。
+
+**Acceptance Scenarios**:
+
+1. **Given** 工作狀態為「等待中」, **When** 使用者點擊取消, **Then** 工作被取消且狀態更新
+2. **Given** 工作狀態為「處理中」, **When** 使用者嘗試取消, **Then** 系統通知使用者無法取消正在處理的工作
 
 ---
 
-## References
+### Edge Cases
 
-- [Celery Documentation](https://docs.celeryq.dev/)
-- [FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/)
-- Current implementation: `docs/features/005-multi-role-tts/`
+- 當系統重啟時，所有「處理中」的工作標記為失敗，顯示「系統中斷」原因，使用者可手動重新提交
+- 當使用者已有 3 個進行中工作時提交新工作，系統拒絕並顯示「已達並發上限，請等待現有工作完成」
+- 當音檔儲存空間不足時，系統如何通知使用者？
+- 當工作超過 10 分鐘未完成時，系統自動標記為失敗並記錄逾時原因
+
+---
+
+## Requirements
+
+### Functional Requirements
+
+**工作提交與執行**
+- **FR-001**: 系統必須接受使用者提交的 TTS 合成請求並返回工作識別碼
+- **FR-002**: 系統必須在背景執行 TTS 合成工作，不依賴使用者的瀏覽器連線
+- **FR-003**: 系統必須在工作完成或失敗時保存結果
+- **FR-004**: 系統必須在 TTS Provider 呼叫失敗時自動重試最多 3 次（間隔遞增），仍失敗則標記工作失敗
+
+**狀態管理**
+- **FR-005**: 系統必須維護工作狀態，包括：等待中、處理中、已完成、失敗
+- **FR-006**: 系統必須記錄工作的建立時間、開始時間、完成時間
+- **FR-007**: 系統必須在工作失敗時記錄錯誤原因
+
+**工作查詢**
+- **FR-008**: 使用者必須能夠查看自己所有工作的列表
+- **FR-009**: 使用者必須能夠查看單一工作的詳細狀態
+- **FR-010**: 系統必須支援依狀態篩選工作列表
+
+**結果存取**
+- **FR-011**: 使用者必須能夠下載已完成工作的音檔
+- **FR-012**: 使用者必須能夠線上播放已完成工作的音檔
+- **FR-013**: 系統必須保留工作的原始輸入參數供查閱
+
+**工作管理**
+- **FR-014**: 使用者必須能夠取消狀態為「等待中」的工作
+- **FR-015**: 系統必須限制每個使用者同時進行的工作數量（上限 3 個），超過時拒絕提交並顯示錯誤訊息
+
+**逾時處理**
+- **FR-016**: 系統必須在工作執行超過 10 分鐘時自動標記為失敗
+- **FR-017**: 系統必須在逾時失敗時記錄「執行逾時」作為錯誤原因
+
+**系統中斷處理**
+- **FR-018**: 系統重啟後必須將所有「處理中」的工作標記為失敗
+- **FR-019**: 系統必須在中斷失敗時記錄「系統中斷」作為錯誤原因
+
+**資料保留**
+- **FR-020**: 系統必須保留已完成工作的記錄至少 30 天
+- **FR-021**: 系統必須在保留期限到期後自動清理過期的工作記錄和音檔
+
+### Key Entities
+
+- **Job（工作）**: 代表一個 TTS 合成請求，包含狀態、輸入參數、輸出結果、時間戳記等資訊
+- **Audio File（音檔）**: 工作完成後產生的合成語音檔案，與工作一對一關聯
+- **User（使用者）**: 提交工作的使用者，與工作為一對多關係
+
+---
+
+## Success Criteria
+
+### Measurable Outcomes
+
+- **SC-001**: 使用者可以在提交工作後 3 秒內離開頁面，工作仍繼續執行
+- **SC-002**: 90% 的使用者能在 10 秒內找到自己的工作狀態
+- **SC-003**: 使用者可以在工作完成後 30 天內下載音檔
+- **SC-004**: 系統支援每個使用者同時執行最多 3 個背景工作
+- **SC-005**: 工作狀態更新延遲不超過 30 秒（使用者查詢時可看到最新狀態）
+- **SC-006**: 99% 的成功提交的工作能正確完成或明確顯示失敗原因
+
+---
+
+## Scope Boundaries
+
+### In Scope
+
+- TTS 合成工作的背景執行
+- 工作狀態追蹤與顯示
+- 完成工作的音檔下載與播放
+- 工作取消（僅限等待中狀態）
+- 30 天歷史記錄保留
+
+### Out of Scope
+
+- 工作優先級排序
+- 批次提交多個工作
+- 工作重試策略的使用者自訂
+- 多租戶隔離（目前為單一用戶環境）
+- 即時推播通知（使用者主動查詢狀態）
+- 工作排程（指定時間執行）
+
+---
+
+## Assumptions
+
+- 現有的 Multi-Role TTS 功能已穩定運作
+- 使用者數量和工作量在可預見的未來不會大幅增加
+- 音檔儲存空間充足
+- 網路連線通常穩定，但需處理偶發的連線中斷
+
+---
+
+## Dependencies
+
+- 005-multi-role-tts: 本功能基於現有的多角色 TTS 合成功能

@@ -81,7 +81,7 @@ class TTSProviderFactory:
         provider_name = provider_name.lower()
 
         if provider_name == "elevenlabs":
-            from src.infrastructure.providers.tts.elevenlabs import (
+            from src.infrastructure.providers.tts.elevenlabs_tts import (
                 ElevenLabsTTSProvider,
             )
 

@@ -10,6 +10,7 @@ from src.presentation.api.routes import (
     history,
     interaction,
     interaction_ws,
+    multi_role_tts,
     providers,
     stt,
     tts,
@@ -25,6 +26,7 @@ api_router.include_router(auth.router)  # Auth routes have their own prefix
 api_router.include_router(providers.router)  # Providers routes have their own prefix
 api_router.include_router(voices.router)  # Voices routes have their own prefix
 api_router.include_router(tts.router)
+api_router.include_router(multi_role_tts.router)  # Multi-role TTS has its own prefix
 api_router.include_router(stt.router, prefix="/stt", tags=["STT"])
 api_router.include_router(interaction.router, prefix="/interaction", tags=["Interaction"])
 api_router.include_router(

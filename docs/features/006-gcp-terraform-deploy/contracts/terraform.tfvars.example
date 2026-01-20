@@ -1,0 +1,123 @@
+# =============================================================================
+# Voice Lab GCP Terraform Variables Example
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to version control!
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required: Project Configuration
+# -----------------------------------------------------------------------------
+
+# Your GCP Project ID
+project_id = "your-gcp-project-id"
+
+# GCP region (default: asia-east1 for Taiwan)
+region = "asia-east1"
+
+# Environment: test, staging, or prod
+environment = "test"
+
+# -----------------------------------------------------------------------------
+# Required: Authentication
+# -----------------------------------------------------------------------------
+
+# Google OAuth 2.0 credentials (create at https://console.cloud.google.com/apis/credentials)
+oauth_client_id     = "your-client-id.apps.googleusercontent.com"
+oauth_client_secret = "your-client-secret"
+
+# Allowed email domains for login (comma-separated list in tfvars format)
+allowed_domains = ["heyuai.com.tw"]
+
+# -----------------------------------------------------------------------------
+# Optional: Custom Domain (Cloudflare)
+# -----------------------------------------------------------------------------
+
+# Your custom domain (e.g., "voice-lab.heyuai.com.tw")
+# Leave empty to use Cloud Run default URLs
+custom_domain = "voice-lab.heyuai.com.tw"
+
+# Subdomain for API (default: "api")
+api_subdomain = "api"
+
+# Cloudflare credentials (required if using custom_domain)
+# Get from https://dash.cloudflare.com/profile/api-tokens
+cloudflare_api_token = ""
+cloudflare_zone_id   = ""
+
+# -----------------------------------------------------------------------------
+# Optional: External Service API Keys
+# -----------------------------------------------------------------------------
+
+# OpenAI API Key (for GPT features)
+openai_api_key = ""
+
+# Azure Speech Services (optional)
+azure_speech_key    = ""
+azure_speech_region = "eastasia"
+
+# Google TTS Service Account JSON (base64 encoded, optional)
+# To encode: base64 -i service-account.json | tr -d '\n'
+google_tts_credentials = ""
+
+# ElevenLabs API Key (optional)
+elevenlabs_api_key = ""
+
+# -----------------------------------------------------------------------------
+# Optional: Cloud SQL Configuration
+# -----------------------------------------------------------------------------
+
+# Database tier (db-f1-micro is cheapest at ~$10/month)
+db_tier = "db-f1-micro"
+
+# Database disk size in GB
+db_disk_size = 10
+
+# Enable deletion protection (recommended for prod)
+db_deletion_protection = false
+
+# -----------------------------------------------------------------------------
+# Optional: Cloud Run Configuration
+# -----------------------------------------------------------------------------
+
+# Backend service resources
+backend_cpu           = "1"
+backend_memory        = "512Mi"
+backend_min_instances = 0  # 0 = pay-per-request (cheapest)
+backend_max_instances = 10
+
+# Frontend service resources
+frontend_cpu           = "1"
+frontend_memory        = "256Mi"
+frontend_min_instances = 0
+frontend_max_instances = 5
+
+# -----------------------------------------------------------------------------
+# Optional: Custom Container Images
+# -----------------------------------------------------------------------------
+
+# Leave empty to use default build images
+# backend_image  = "asia-east1-docker.pkg.dev/your-project/voice-lab/backend:v1.0.0"
+# frontend_image = "asia-east1-docker.pkg.dev/your-project/voice-lab/frontend:v1.0.0"
+
+# -----------------------------------------------------------------------------
+# Optional: Networking
+# -----------------------------------------------------------------------------
+
+# VPC Serverless Connector CIDR (must be /28)
+vpc_connector_cidr = "10.8.0.0/28"
+
+# Connector throughput (Mbps)
+vpc_connector_min_throughput = 200
+vpc_connector_max_throughput = 1000
+
+# -----------------------------------------------------------------------------
+# Optional: Labels
+# -----------------------------------------------------------------------------
+
+labels = {
+  managed-by  = "terraform"
+  project     = "voice-lab"
+  environment = "test"
+  team        = "dev"
+}

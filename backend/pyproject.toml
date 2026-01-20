@@ -62,7 +62,7 @@ dependencies = [
     "greenlet>=3.3.0",
     "deepgram-sdk>=5.3.1",
     "assemblyai>=0.48.4",
-    "speechmatics-batch>=0.4.4",
+    "speechmatics-python>=5.0.0",  # Legacy SDK, provides speechmatics.batch_client
 ]
 
 [project.optional-dependencies]

@@ -74,6 +74,42 @@ Python 3.11+: Follow standard conventions
 - Saves time (no back-and-forth fixes)
 - Professional development standards
 
+### Adding Dependencies or Enabling Providers (CRITICAL)
+
+**⚠️ 本地能跑 ≠ CI 能跑**
+
+When adding new dependencies or enabling existing providers:
+
+1. **Check existing dependencies FIRST**:
+   ```bash
+   grep -i <package-name> backend/pyproject.toml
+   ```
+
+2. **Update `pyproject.toml`, NOT local pip install**:
+   - Local `pip install` is temporary and won't reflect in CI
+   - Always add dependencies to `pyproject.toml`
+
+3. **Verify import paths match package**:
+   - Different packages may have different import structures
+   - e.g., `speechmatics-python` vs `speechmatics-batch` have different APIs
+
+4. **Use project install to test**:
+   ```bash
+   cd backend && uv sync  # or pip install -e .
+   ```
+
+5. **Wait for CI to pass** before considering work complete
+
+**Checklist for enabling a provider**:
+```
+- [ ] Check pyproject.toml for existing related dependencies
+- [ ] Update pyproject.toml if new dependency needed
+- [ ] Run `uv sync` to install via project config (not pip install)
+- [ ] Verify import paths match the installed package
+- [ ] Run `make check` and `make test` locally
+- [ ] Push and verify CI passes
+```
+
 ### Code Format Requirements
 
 **Python**:

@@ -177,9 +177,7 @@ class TestGeminiLiveConfig:
     def test_session_config_format(self) -> None:
         """Verify session configuration format for Gemini."""
         generation_config = {
-            "speech_config": {
-                "voice_config": {"prebuilt_voice_config": {"voice_name": "Puck"}}
-            },
+            "speech_config": {"voice_config": {"prebuilt_voice_config": {"voice_name": "Puck"}}},
             "system_instruction": "You are a helpful assistant.",
             "response_modalities": ["AUDIO"],
         }
@@ -442,7 +440,9 @@ class TestAudioProcessing:
         bytes_per_sample = 2  # 16-bit
         channels = 1
 
-        expected_chunk_size = (sample_rate * chunk_duration_ms // 1000) * bytes_per_sample * channels
+        expected_chunk_size = (
+            (sample_rate * chunk_duration_ms // 1000) * bytes_per_sample * channels
+        )
         assert expected_chunk_size == 3200  # 100ms of 16kHz mono PCM16
 
     def test_base64_encoding(self, mock_audio_data: bytes) -> None:

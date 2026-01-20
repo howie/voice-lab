@@ -138,9 +138,7 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Add system instruction if provided
         if system_prompt:
-            setup_message["setup"]["system_instruction"] = {
-                "parts": [{"text": system_prompt}]
-            }
+            setup_message["setup"]["system_instruction"] = {"parts": [{"text": system_prompt}]}
 
         await self._send_message(setup_message)
 
@@ -179,9 +177,7 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Send realtime input
         message = {
-            "realtime_input": {
-                "media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]
-            }
+            "realtime_input": {"media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]}
         }
         await self._send_message(message)
 

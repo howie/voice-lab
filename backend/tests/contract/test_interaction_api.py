@@ -82,9 +82,7 @@ class TestSessionListEndpoint:
         app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
-    async def test_list_sessions_response_format(
-        self, mock_session: InteractionSession
-    ) -> None:
+    async def test_list_sessions_response_format(self, mock_session: InteractionSession) -> None:
         """Verify session list response format."""
         # The actual endpoint would return data from repository
         # This test verifies the expected response structure
@@ -99,7 +97,9 @@ class TestSessionListEndpoint:
                     "system_prompt": mock_session.system_prompt,
                     "status": mock_session.status.value,
                     "started_at": mock_session.started_at.isoformat(),
-                    "ended_at": mock_session.ended_at.isoformat() if mock_session.ended_at else None,
+                    "ended_at": mock_session.ended_at.isoformat()
+                    if mock_session.ended_at
+                    else None,
                     "created_at": mock_session.created_at.isoformat(),
                     "updated_at": mock_session.updated_at.isoformat(),
                 }
@@ -133,8 +133,16 @@ class TestSessionListEndpoint:
         }
 
         required_fields = [
-            "id", "user_id", "mode", "provider_config", "system_prompt",
-            "status", "started_at", "ended_at", "created_at", "updated_at"
+            "id",
+            "user_id",
+            "mode",
+            "provider_config",
+            "system_prompt",
+            "status",
+            "started_at",
+            "ended_at",
+            "created_at",
+            "updated_at",
         ]
         for field in required_fields:
             assert field in session_dict, f"Missing required field: {field}"
@@ -182,9 +190,16 @@ class TestTurnListEndpoint:
         }
 
         required_fields = [
-            "id", "session_id", "turn_number", "user_audio_path",
-            "user_transcript", "ai_response_text", "ai_audio_path",
-            "interrupted", "started_at", "ended_at"
+            "id",
+            "session_id",
+            "turn_number",
+            "user_audio_path",
+            "user_transcript",
+            "ai_response_text",
+            "ai_audio_path",
+            "interrupted",
+            "started_at",
+            "ended_at",
         ]
         for field in required_fields:
             assert field in turn_dict, f"Missing required field: {field}"
@@ -201,8 +216,14 @@ class TestLatencyStatsEndpoint:
     def test_latency_stats_response_format(self, mock_latency_stats: dict) -> None:
         """Verify latency stats response format."""
         required_fields = [
-            "total_turns", "avg_total_ms", "min_total_ms", "max_total_ms",
-            "p95_total_ms", "avg_stt_ms", "avg_llm_ttft_ms", "avg_tts_ttfb_ms"
+            "total_turns",
+            "avg_total_ms",
+            "min_total_ms",
+            "max_total_ms",
+            "p95_total_ms",
+            "avg_stt_ms",
+            "avg_llm_ttft_ms",
+            "avg_tts_ttfb_ms",
         ]
         for field in required_fields:
             assert field in mock_latency_stats, f"Missing required field: {field}"

@@ -54,8 +54,12 @@ def upgrade() -> None:
         sa.Column(
             "status",
             postgresql.ENUM(
-                "active", "completed", "disconnected", "error",
-                name="session_status", create_type=False
+                "active",
+                "completed",
+                "disconnected",
+                "error",
+                name="session_status",
+                create_type=False,
             ),
             nullable=False,
             server_default="active",
@@ -71,9 +75,7 @@ def upgrade() -> None:
     )
     op.create_index("idx_session_user_id", "interaction_sessions", ["user_id"])
     op.create_index("idx_session_status", "interaction_sessions", ["status"])
-    op.create_index(
-        "idx_session_started_at", "interaction_sessions", [sa.text("started_at DESC")]
-    )
+    op.create_index("idx_session_started_at", "interaction_sessions", [sa.text("started_at DESC")])
 
     # T003: Create conversation_turns table
     op.create_table(
@@ -97,15 +99,11 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(
-            ["session_id"], ["interaction_sessions.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["session_id"], ["interaction_sessions.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("session_id", "turn_number", name="uq_turn_session_number"),
     )
     op.create_index("idx_turn_session_id", "conversation_turns", ["session_id"])
-    op.create_index(
-        "idx_turn_session_number", "conversation_turns", ["session_id", "turn_number"]
-    )
+    op.create_index("idx_turn_session_number", "conversation_turns", ["session_id", "turn_number"])
 
     # T004: Create latency_metrics table
     op.create_table(
@@ -126,9 +124,7 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(
-            ["turn_id"], ["conversation_turns.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["turn_id"], ["conversation_turns.id"], ondelete="CASCADE"),
     )
     op.create_index("idx_latency_turn_id", "latency_metrics", ["turn_id"])
 

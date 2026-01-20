@@ -148,3 +148,6 @@ temp/
 
 # Claude Code
 .claude/settings.local.json
+
+# Interaction module audio storage
+storage/interactions/

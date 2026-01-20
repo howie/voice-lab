@@ -1,124 +1,54 @@
+/**
+ * InteractionPage Route
+ * Feature: 004-interaction-module
+ * T040: Main page for real-time voice interaction testing.
+ *
+ * Provides a dedicated page for testing voice interaction with configurable
+ * modes (V2V Direct and Cascade) and providers.
+ */
+
+import { InteractionPanel } from '@/components/interaction/InteractionPanel'
+import { useAuthStore } from '@/stores/authStore'
+
 export function InteractionPage() {
+  const user = useAuthStore((state) => state.user)
+
+  // Use a default userId if not authenticated (for testing)
+  const userId = user?.id || 'anonymous-user'
+
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold">互動測試</h1>
+        <h1 className="text-2xl font-bold">即時語音互動</h1>
         <p className="mt-1 text-muted-foreground">
-          測試即時語音對話的延遲、理解正確率和語音自然度
+          測試即時語音對話 - 支援 V2V 直連模式和串接模式
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Config Panel */}
-        <div className="rounded-xl border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Provider 設定</h2>
+      {/* Main Interaction Area */}
+      <div className="mx-auto max-w-3xl">
+        <InteractionPanel userId={userId} className="w-full" />
+      </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                STT Provider
-              </label>
-              <select className="w-full rounded-lg border bg-background p-2 text-sm">
-                <option value="gcp">Google Cloud</option>
-                <option value="azure">Azure</option>
-                <option value="voai">VoAI</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                LLM Provider
-              </label>
-              <select className="w-full rounded-lg border bg-background p-2 text-sm">
-                <option value="anthropic">Claude (Anthropic)</option>
-                <option value="openai">GPT-4 (OpenAI)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                TTS Provider
-              </label>
-              <select className="w-full rounded-lg border bg-background p-2 text-sm">
-                <option value="azure">Azure</option>
-                <option value="gcp">Google Cloud</option>
-                <option value="elevenlabs">ElevenLabs</option>
-                <option value="voai">VoAI</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">語音角色</label>
-              <select className="w-full rounded-lg border bg-background p-2 text-sm">
-                <option>zh-TW-HsiaoChenNeural</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                System Prompt
-              </label>
-              <textarea
-                placeholder="設定 AI 的角色和行為..."
-                className="h-24 w-full rounded-lg border bg-background p-3 text-sm"
-              />
-            </div>
-
-            <button className="w-full rounded-lg bg-primary py-2 text-primary-foreground">
-              開始對話
-            </button>
-          </div>
-        </div>
-
-        {/* Chat Panel */}
-        <div className="rounded-xl border bg-card p-6 lg:col-span-2">
-          <h2 className="mb-4 text-lg font-semibold">對話視窗</h2>
-
-          <div className="flex h-96 flex-col rounded-lg border bg-background">
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">
-                  點擊「開始對話」後，可以開始語音互動
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t p-4">
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  disabled
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                >
-                  🎤
-                </button>
-                <span className="text-sm text-muted-foreground">
-                  按住說話
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Metrics */}
-          <div className="mt-4 grid grid-cols-4 gap-4">
-            <div className="rounded-lg bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">STT 延遲</p>
-              <p className="text-lg font-semibold">- ms</p>
-            </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">LLM 延遲</p>
-              <p className="text-lg font-semibold">- ms</p>
-            </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">TTS 延遲</p>
-              <p className="text-lg font-semibold">- ms</p>
-            </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">總延遲</p>
-              <p className="text-lg font-semibold">- ms</p>
-            </div>
-          </div>
+      {/* Feature Description */}
+      <div className="mx-auto max-w-3xl rounded-lg border bg-muted/30 p-4">
+        <h3 className="mb-2 font-medium">功能說明</h3>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            <strong>即時模式 (V2V)：</strong>
+            使用 OpenAI Realtime API 或 Gemini Live API 進行端對端語音對話，
+            延遲最低但依賴特定提供者。
+          </p>
+          <p>
+            <strong>串接模式：</strong>
+            使用 STT → LLM → TTS 管線處理，可自由組合不同提供者，
+            靈活性高但延遲較長。
+          </p>
         </div>
       </div>
     </div>
   )
 }
+
+export default InteractionPage

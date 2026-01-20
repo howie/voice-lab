@@ -8,6 +8,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-16
 - Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+ (002-provider-mgmt-interface)
 - PostgreSQL with TDE (Transparent Data Encryption) (002-provider-mgmt-interface)
 - PostgreSQL (transcription history), Local filesystem (uploaded audio) (003-stt-testing-module)
+- PostgreSQL 16 (對話歷史), Local filesystem (音訊檔案), Redis 7 (快取) (004-interaction-module)
 
 - Python 3.11+ + FastAPI 0.109+, azure-cognitiveservices-speech, google-cloud-texttospeech, elevenlabs, httpx (001-pipecat-tts-server)
 
@@ -27,9 +28,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
+- 004-interaction-module: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
 - 003-stt-testing-module: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
 - 002-provider-mgmt-interface: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+
-- 001-pipecat-tts-server: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

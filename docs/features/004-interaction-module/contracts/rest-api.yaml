@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: Voice Interaction REST API
+  description: REST API for Voice Interaction Testing Module
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Sessions
+    description: Interaction session management
+  - name: Templates
+    description: System prompt templates
+  - name: History
+    description: Conversation history
+
+paths:
+  /interaction/sessions:
+    get:
+      tags: [Sessions]
+      summary: List interaction sessions
+      description: Get paginated list of user's interaction sessions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [realtime, cascade]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, completed, disconnected, error]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+
+  /interaction/sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: Get session details
+      description: Get detailed information about a specific session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetail'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Sessions]
+      summary: Delete session
+      description: Delete a session and its associated audio files
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Successfully deleted
+        '404':
+          description: Session not found
+
+  /interaction/sessions/{session_id}/turns:
+    get:
+      tags: [History]
+      summary: Get conversation turns
+      description: Get all turns in a session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConversationTurn'
+
+  /interaction/sessions/{session_id}/turns/{turn_id}/audio:
+    get:
+      tags: [History]
+      summary: Get turn audio
+      description: Get audio files for a specific turn
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: turn_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [user, ai]
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/webm:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Audio not found
+
+  /interaction/sessions/{session_id}/latency-stats:
+    get:
+      tags: [Sessions]
+      summary: Get latency statistics
+      description: Get aggregated latency statistics for a session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatencyStats'
+
+  /interaction/templates:
+    get:
+      tags: [Templates]
+      summary: List system prompt templates
+      description: Get all available system prompt templates
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemPromptTemplate'
+
+  /interaction/templates/{template_id}:
+    get:
+      tags: [Templates]
+      summary: Get template details
+      parameters:
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPromptTemplate'
+        '404':
+          description: Template not found
+
+  /interaction/providers:
+    get:
+      tags: [Sessions]
+      summary: Get available providers
+      description: Get list of available providers for each component
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvidersResponse'
+
+components:
+  schemas:
+    SessionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+
+    SessionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [realtime, cascade]
+        status:
+          type: string
+          enum: [active, completed, disconnected, error]
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        total_turns:
+          type: integer
+        avg_latency_ms:
+          type: number
+          nullable: true
+
+    SessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/SessionSummary'
+        - type: object
+          properties:
+            provider_config:
+              type: object
+            system_prompt:
+              type: string
+            turns:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConversationTurn'
+
+    ConversationTurn:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        turn_number:
+          type: integer
+        user_transcript:
+          type: string
+          nullable: true
+        ai_response_text:
+          type: string
+          nullable: true
+        interrupted:
+          type: boolean
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        latency:
+          $ref: '#/components/schemas/LatencyMetrics'
+        has_user_audio:
+          type: boolean
+        has_ai_audio:
+          type: boolean
+
+    LatencyMetrics:
+      type: object
+      properties:
+        total_ms:
+          type: integer
+        stt_ms:
+          type: integer
+          nullable: true
+        llm_ttft_ms:
+          type: integer
+          nullable: true
+        tts_ttfb_ms:
+          type: integer
+          nullable: true
+        realtime_ms:
+          type: integer
+          nullable: true
+
+    LatencyStats:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        total_turns:
+          type: integer
+        avg_total_ms:
+          type: number
+        min_total_ms:
+          type: integer
+        max_total_ms:
+          type: integer
+        p95_total_ms:
+          type: integer
+        avg_stt_ms:
+          type: number
+          nullable: true
+        avg_llm_ttft_ms:
+          type: number
+          nullable: true
+        avg_tts_ttfb_ms:
+          type: number
+          nullable: true
+
+    SystemPromptTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        prompt_content:
+          type: string
+        category:
+          type: string
+        is_default:
+          type: boolean
+
+    ProvidersResponse:
+      type: object
+      properties:
+        realtime:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderInfo'
+        stt:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderInfo'
+        llm:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderInfo'
+        tts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderInfo'
+
+    ProviderInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        voices:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+          nullable: true
+        available:
+          type: boolean
+          description: Whether user has credentials configured
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

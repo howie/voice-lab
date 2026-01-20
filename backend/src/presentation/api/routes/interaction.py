@@ -1,18 +1,34 @@
-"""Interaction API Routes."""
+"""Interaction API Routes.
+
+T020: REST endpoints for interaction session management.
+"""
 
 import base64
+from datetime import datetime
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.use_cases.voice_interaction import (
     VoiceInteractionInput,
     VoiceInteractionUseCase,
 )
+from src.domain.entities import InteractionMode, SessionStatus
 from src.domain.entities.audio import AudioData, AudioFormat
+from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.persistence.interaction_repository_impl import (
+    SQLAlchemyInteractionRepository,
+)
+from src.infrastructure.storage.audio_storage import AudioStorageService
 from src.presentation.api.dependencies import get_voice_interaction_use_case
 from src.presentation.schemas.interaction import (
     ConversationMessage,
     InteractionResponse,
+    LatencyStatsResponse,
+    SessionListResponse,
+    SessionResponse,
+    TurnResponse,
 )
 
 router = APIRouter()
@@ -94,3 +110,155 @@ async def voice_interaction(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Interaction failed: {str(e)}") from e
+
+
+# =============================================================================
+# Session Management Endpoints (Phase 4 - Interaction Module)
+# =============================================================================
+
+
+def _session_to_response(session) -> SessionResponse:
+    """Convert domain entity to response schema."""
+    return SessionResponse(
+        id=session.id,
+        user_id=session.user_id,
+        mode=session.mode.value,
+        provider_config=session.provider_config,
+        system_prompt=session.system_prompt,
+        status=session.status.value,
+        started_at=session.started_at,
+        ended_at=session.ended_at,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+    )
+
+
+def _turn_to_response(turn) -> TurnResponse:
+    """Convert domain entity to response schema."""
+    return TurnResponse(
+        id=turn.id,
+        session_id=turn.session_id,
+        turn_number=turn.turn_number,
+        user_audio_path=turn.user_audio_path,
+        user_transcript=turn.user_transcript,
+        ai_response_text=turn.ai_response_text,
+        ai_audio_path=turn.ai_audio_path,
+        interrupted=turn.interrupted,
+        started_at=turn.started_at,
+        ended_at=turn.ended_at,
+    )
+
+
+@router.get("/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    user_id: UUID = Query(..., description="User ID to filter sessions"),
+    mode: str | None = Query(None, description="Filter by mode: 'realtime' or 'cascade'"),
+    status: str | None = Query(None, description="Filter by status"),
+    start_date: datetime | None = Query(None, description="Filter sessions started after"),
+    end_date: datetime | None = Query(None, description="Filter sessions started before"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Page size"),
+    db: AsyncSession = Depends(get_db_session),
+) -> SessionListResponse:
+    """List interaction sessions for a user with optional filters."""
+    repository = SQLAlchemyInteractionRepository(db)
+
+    mode_enum = InteractionMode(mode) if mode else None
+    status_enum = SessionStatus(status) if status else None
+
+    sessions, total = await repository.list_sessions(
+        user_id=user_id,
+        mode=mode_enum,
+        status=status_enum,
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+        page_size=page_size,
+    )
+
+    return SessionListResponse(
+        sessions=[_session_to_response(s) for s in sessions],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/sessions/{session_id}", response_model=SessionResponse)
+async def get_session(
+    session_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> SessionResponse:
+    """Get details of a specific interaction session."""
+    repository = SQLAlchemyInteractionRepository(db)
+    session = await repository.get_session(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return _session_to_response(session)
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Delete an interaction session and its associated audio files."""
+    repository = SQLAlchemyInteractionRepository(db)
+    audio_storage = AudioStorageService()
+
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Delete audio files
+    await audio_storage.delete_session_audio(session_id)
+
+    # Delete from database
+    await repository.delete_session(session_id)
+    await db.commit()
+
+    return {"status": "deleted", "session_id": str(session_id)}
+
+
+@router.get("/sessions/{session_id}/turns", response_model=list[TurnResponse])
+async def list_session_turns(
+    session_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> list[TurnResponse]:
+    """List all conversation turns for a session."""
+    repository = SQLAlchemyInteractionRepository(db)
+
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    turns = await repository.list_turns(session_id)
+    return [_turn_to_response(t) for t in turns]
+
+
+@router.get("/sessions/{session_id}/latency", response_model=LatencyStatsResponse)
+async def get_session_latency_stats(
+    session_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> LatencyStatsResponse:
+    """Get latency statistics for a session."""
+    repository = SQLAlchemyInteractionRepository(db)
+
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    stats = await repository.get_session_latency_stats(session_id)
+
+    return LatencyStatsResponse(
+        total_turns=stats["total_turns"],
+        avg_total_ms=stats["avg_total_ms"],
+        min_total_ms=stats["min_total_ms"],
+        max_total_ms=stats["max_total_ms"],
+        p95_total_ms=stats["p95_total_ms"],
+        avg_stt_ms=stats["avg_stt_ms"],
+        avg_llm_ttft_ms=stats["avg_llm_ttft_ms"],
+        avg_tts_ttfb_ms=stats["avg_tts_ttfb_ms"],
+    )

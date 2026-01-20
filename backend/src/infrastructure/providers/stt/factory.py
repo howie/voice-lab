@@ -14,8 +14,7 @@ from src.infrastructure.providers.stt.azure_stt import AzureSTTProvider
 # from src.infrastructure.providers.stt.deepgram_stt import DeepgramSTTProvider
 # from src.infrastructure.providers.stt.elevenlabs_stt import ElevenLabsSTTProvider
 from src.infrastructure.providers.stt.gcp_stt import GCPSTTProvider
-
-# from src.infrastructure.providers.stt.speechmatics_stt import SpeechmaticsSTTProvider
+from src.infrastructure.providers.stt.speechmatics_stt import SpeechmaticsSTTProvider
 from src.infrastructure.providers.stt.whisper_stt import WhisperSTTProvider
 
 
@@ -88,11 +87,12 @@ class STTProviderFactory:
             "name": "speechmatics",
             "display_name": "Speechmatics",
             "supports_streaming": True,
-            "supports_child_mode": False,
+            "supports_child_mode": True,  # 兒童語音辨識業界最佳 (91.8% 準確度)
             "max_duration_sec": 7200,
             "max_file_size_mb": 2000,
             "supported_formats": ["mp3", "wav", "ogg", "flac"],
             "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR"],
+            "child_mode_note": "使用 enhanced operating_point + additional_vocab 優化",
         },
     }
 
@@ -118,15 +118,15 @@ class STTProviderFactory:
             return cls._create_gcp(credentials)
         elif provider_name == "whisper":
             return cls._create_whisper(credentials)
-        # TODO: Re-enable after fixing Deepgram SDK compatibility
+        elif provider_name == "speechmatics":
+            return cls._create_speechmatics(credentials)
+        # TODO: Re-enable after fixing SDK compatibility
         # elif provider_name == "deepgram":
         #     return cls._create_deepgram(credentials)
         # elif provider_name == "assemblyai":
         #     return cls._create_assemblyai(credentials)
         # elif provider_name == "elevenlabs":
         #     return cls._create_elevenlabs(credentials)
-        # elif provider_name == "speechmatics":
-        #     return cls._create_speechmatics(credentials)
         else:
             raise ValueError(f"Unknown STT provider: {provider_name}")
 
@@ -152,6 +152,17 @@ class STTProviderFactory:
             raise ValueError("Whisper STT requires 'api_key'")
         return WhisperSTTProvider(api_key=api_key)
 
+    @classmethod
+    def _create_speechmatics(cls, credentials: dict[str, Any]) -> SpeechmaticsSTTProvider:
+        """Create Speechmatics STT provider.
+
+        Speechmatics 是兒童語音辨識的業界領導者 (91.8% 準確度)。
+        """
+        api_key = credentials.get("api_key")
+        if not api_key:
+            raise ValueError("Speechmatics STT requires 'api_key'")
+        return SpeechmaticsSTTProvider(api_key=api_key)
+
     # TODO: Re-enable after fixing provider SDK compatibility
     # @classmethod
     # def _create_deepgram(cls, credentials: dict[str, Any]) -> DeepgramSTTProvider:
@@ -173,13 +184,6 @@ class STTProviderFactory:
     #     if not api_key:
     #         raise ValueError("ElevenLabs STT requires 'api_key'")
     #     return ElevenLabsSTTProvider(api_key=api_key)
-    #
-    # @classmethod
-    # def _create_speechmatics(cls, credentials: dict[str, Any]) -> SpeechmaticsSTTProvider:
-    #     api_key = credentials.get("api_key")
-    #     if not api_key:
-    #         raise ValueError("Speechmatics STT requires 'api_key'")
-    #     return SpeechmaticsSTTProvider(api_key=api_key)
 
     @classmethod
     def get_provider_info(cls, provider_name: str) -> dict[str, Any]:

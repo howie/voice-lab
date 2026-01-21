@@ -139,4 +139,46 @@ from typing import Sequence, Union
 from src.domain.models import *
 ```
 
+### 004-Interaction-Module Specifics
+
+**WebSocket Connection**:
+```bash
+# Connect to WebSocket for voice interaction
+ws://localhost:8000/api/v1/interaction/ws
+```
+
+**WebSocket Message Types**:
+- `configure`: Set interaction mode (realtime/cascade), voice settings
+- `start_listening`: Begin voice capture
+- `stop_listening`: Stop voice capture
+- `audio_chunk`: Send audio data (base64 encoded)
+- `interrupt`: Barge-in/stop AI response
+
+**API Endpoints**:
+```bash
+# List interaction sessions
+GET /api/v1/interaction/sessions
+
+# Get session details
+GET /api/v1/interaction/sessions/{session_id}
+
+# Get session turns
+GET /api/v1/interaction/sessions/{session_id}/turns
+
+# Get latency stats
+GET /api/v1/interaction/sessions/{session_id}/latency
+
+# Get turn audio
+GET /api/v1/interaction/sessions/{session_id}/turns/{turn_id}/audio
+```
+
+**Testing Interaction Module**:
+```bash
+# Run interaction-specific tests
+pytest backend/tests -k interaction
+
+# Run with coverage
+pytest backend/tests --cov=backend/src/domain/services/interaction
+```
+
 <!-- MANUAL ADDITIONS END -->

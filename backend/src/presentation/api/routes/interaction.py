@@ -284,7 +284,9 @@ async def get_turn_audio(
         raise HTTPException(status_code=400, detail="audio_type must be 'user' or 'ai'")
 
     if not audio_path:
-        raise HTTPException(status_code=404, detail=f"No {audio_type} audio available for this turn")
+        raise HTTPException(
+            status_code=404, detail=f"No {audio_type} audio available for this turn"
+        )
 
     # Get the full file path
     full_path = await audio_storage.get_audio_path(audio_path)
@@ -410,3 +412,23 @@ async def list_providers() -> dict:
         "llm_providers": provider_info["llm"],
         "tts_providers": provider_info["tts"],
     }
+
+
+# =============================================================================
+# Metrics Endpoint (T104-T105 - Observability)
+# =============================================================================
+
+
+@router.get("/metrics")
+async def get_metrics() -> dict:
+    """Get interaction module metrics.
+
+    T104 [Phase 9]: API call counter metrics per provider.
+    T105 [Phase 9]: Error rate tracking.
+
+    Returns provider call counts, error rates, and latency statistics.
+    """
+    from src.infrastructure.logging import get_interaction_metrics
+
+    metrics = get_interaction_metrics()
+    return metrics.get_all_metrics()

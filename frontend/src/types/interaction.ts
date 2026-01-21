@@ -112,6 +112,8 @@ export interface TurnLatencyData {
   llm_ttft_ms: number | null
   tts_ttfb_ms: number | null
   realtime_ms: number | null
+  // T088: Interrupt latency (time AI was speaking before interrupted)
+  interrupt_ms: number | null
 }
 
 export interface LatencyStats {
@@ -298,6 +300,9 @@ export interface InteractionOptions {
   enableVAD: boolean
   vadSensitivity: number // 0-1
 
+  // US5: Barge-in (interrupt) settings
+  bargeInEnabled: boolean
+
   // Display settings
   showLatencyMetrics: boolean
   showTranscripts: boolean
@@ -318,6 +323,8 @@ export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,
+  // US5: Barge-in enabled by default
+  bargeInEnabled: true,
   showLatencyMetrics: true,
   showTranscripts: true,
 }

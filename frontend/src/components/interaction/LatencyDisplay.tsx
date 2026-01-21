@@ -148,6 +148,19 @@ export function LatencyDisplay({
               <span className="font-medium">{formatMs(turnLatency.realtime_ms)}</span>
             </div>
           )}
+
+          {/* T088: Interrupt Latency Display */}
+          {turnLatency.interrupt_ms !== null && turnLatency.interrupt_ms > 0 && (
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs dark:bg-orange-950/30">
+              <span className="h-2 w-2 rounded-full bg-orange-500" />
+              <span className="text-orange-700 dark:text-orange-400">
+                打斷時間: {formatMs(turnLatency.interrupt_ms)}
+              </span>
+              <span className="text-orange-600/70 dark:text-orange-500/70">
+                (AI 回應已被打斷)
+              </span>
+            </div>
+          )}
         </div>
       )}
 

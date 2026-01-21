@@ -252,19 +252,19 @@
 
 ### Backend Implementation for US5
 
-- [ ] T079 [US5] Handle interrupted event from OpenAI Realtime API in realtime_mode.py
-- [ ] T080 [US5] Implement barge-in detection in Cascade mode (new speech during TTS playback)
-- [ ] T081 [US5] Add interrupt client message handler in interaction_handler.py
-- [ ] T082 [US5] Send interrupted server message when barge-in detected
-- [ ] T083 [US5] Record interrupted flag and timing in ConversationTurn
-- [ ] T084 [US5] Add barge_in_enabled configuration to start_session
+- [x] T079 [US5] Handle interrupted event from OpenAI Realtime API in realtime_mode.py (handle response.cancelled status)
+- [x] T080 [US5] Implement barge-in detection in Cascade mode (new speech during TTS playback) (already implemented with _interrupted flag)
+- [x] T081 [US5] Add interrupt client message handler in interaction_handler.py (already existed)
+- [x] T082 [US5] Send interrupted server message when barge-in detected (already existed)
+- [x] T083 [US5] Record interrupted flag and timing in ConversationTurn (already existed)
+- [x] T084 [US5] Add barge_in_enabled configuration to start_session
 
 ### Frontend Implementation for US5
 
-- [ ] T085 [US5] Handle interrupted WebSocket message - stop audio playback immediately
-- [ ] T086 [US5] Add barge-in toggle switch to InteractionPanel settings
-- [ ] T087 [US5] Display barge-in indicator when interruption occurs
-- [ ] T088 [US5] Show interrupt latency in LatencyDisplay
+- [x] T085 [US5] Handle interrupted WebSocket message - stop audio playback immediately
+- [x] T086 [US5] Add barge-in toggle switch to InteractionPanel settings
+- [x] T087 [US5] Display barge-in indicator when interruption occurs
+- [x] T088 [US5] Show interrupt latency in LatencyDisplay
 
 **Checkpoint**: User Story 5 complete - barge-in functional
 

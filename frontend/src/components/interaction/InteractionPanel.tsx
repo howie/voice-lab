@@ -139,6 +139,9 @@ function float32ToPCM16(input: Float32Array): ArrayBuffer {
 export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionPanelProps) {
   const [permissionError, setPermissionError] = useState<string | null>(null)
 
+  // T087: Track when an interruption just occurred for the indicator
+  const [wasInterrupted, setWasInterrupted] = useState(false)
+
   // Ref to track if we're in the connecting phase
   const isConnectingRef = useRef(false)
 
@@ -179,6 +182,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setUserRole,
     setAiRole,
     setScenarioContext,
+    // US5: Barge-in configuration
+    setBargeInEnabled,
   } = useInteractionStore()
 
   // Determine WebSocket URL
@@ -301,7 +306,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         }
 
         case 'interrupted':
+          // T085: Stop audio playback immediately on interrupt
+          stopAudio()
           setInteractionState('listening')
+          // T087: Show interrupt indicator briefly
+          setWasInterrupted(true)
+          setTimeout(() => setWasInterrupted(false), 2000)
           break
 
         case 'error':
@@ -325,6 +335,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       setCurrentTurnLatency,
       setError,
       queueAudioChunk,
+      stopAudio,
       userId,
       options.mode,
       options.providerConfig,
@@ -397,12 +408,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   useEffect(() => {
     if (wsStatus === 'connected' && isConnectingRef.current) {
       // T078: Send config message with role/scenario to start session
+      // T084: Include barge_in_enabled configuration
       sendMessage('config', {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
         user_role: options.userRole,
         ai_role: options.aiRole,
         scenario_context: options.scenarioContext,
+        barge_in_enabled: options.bargeInEnabled,
       })
     }
   }, [wsStatus, sendMessage, options])
@@ -527,26 +540,47 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       <div className="rounded-lg border bg-card p-4">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-foreground">音訊輸入</span>
-          {isRecording && (
-            <span className="flex items-center gap-1 text-xs text-green-600">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-              收音中
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {/* T087: Interrupt indicator */}
+            {wasInterrupted && (
+              <span className="flex items-center gap-1 text-xs text-orange-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+                已打斷
+              </span>
+            )}
+            {isRecording && (
+              <span className="flex items-center gap-1 text-xs text-green-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                收音中
+              </span>
+            )}
+          </div>
         </div>
         <AudioVisualizer level={inputVolume} isActive={isRecording} mode="bars" height={60} showLevel />
 
-        {/* Interrupt Button - only shown when AI is speaking */}
-        {interactionState === 'speaking' && (
-          <div className="mt-4 flex justify-center">
+        {/* T086: Barge-in toggle and interrupt button */}
+        <div className="mt-4 flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={options.bargeInEnabled}
+              onChange={(e) => setBargeInEnabled(e.target.checked)}
+              disabled={isConnected}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <span className="text-sm text-muted-foreground">允許打斷 AI 回應</span>
+          </label>
+
+          {/* Interrupt Button - only shown when AI is speaking and barge-in enabled */}
+          {interactionState === 'speaking' && options.bargeInEnabled && (
             <button
               onClick={handleInterrupt}
               className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
             >
               打斷回應
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* T065-T067: Latency Display */}

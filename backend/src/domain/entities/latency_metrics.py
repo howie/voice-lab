@@ -19,6 +19,8 @@ class LatencyMetrics:
     llm_ttft_ms: int | None = None  # Cascade mode: LLM time to first token
     tts_ttfb_ms: int | None = None  # Cascade mode: TTS time to first byte
     realtime_latency_ms: int | None = None  # Realtime mode only
+    # T088: Track how long AI was speaking before being interrupted
+    interrupt_latency_ms: int | None = None  # Time from response start to interrupt
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     @classmethod

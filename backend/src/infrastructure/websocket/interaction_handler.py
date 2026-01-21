@@ -64,6 +64,9 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._user_role: str = "使用者"
         self._ai_role: str = "AI 助理"
 
+        # US5: Barge-in configuration
+        self._barge_in_enabled: bool = True
+
         self._event_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
 
@@ -144,9 +147,13 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         ai_role = data.get("ai_role", "AI 助理")
         scenario_context = data.get("scenario_context", "")
 
+        # T084 [US5]: Extract barge-in configuration
+        barge_in_enabled = data.get("barge_in_enabled", True)
+
         # Store for use in transcript messages
         self._user_role = user_role
         self._ai_role = ai_role
+        self._barge_in_enabled = barge_in_enabled
 
         # T073a: Generate system prompt from role/scenario if not provided
         effective_system_prompt = system_prompt
@@ -241,7 +248,14 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             await self._mode_service.end_turn()
 
     async def _handle_interrupt(self, _message: WebSocketMessage) -> None:
-        """Handle barge-in/interrupt request."""
+        """Handle barge-in/interrupt request.
+
+        T084: Only process interrupt if barge_in_enabled is True.
+        """
+        if not self._barge_in_enabled:
+            self._logger.debug("Interrupt ignored: barge_in_enabled is False")
+            return
+
         if self._mode_service.is_connected():
             if self._current_turn:
                 self._latency_tracker.mark_interrupted(self._current_turn.id)
@@ -401,6 +415,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                 metrics = await self._end_current_turn()
 
             # T061: Include latency data in response_ended message
+            # T088: Include interrupt latency if turn was interrupted
             response_data = {**data}
             if metrics:
                 response_data["latency"] = {
@@ -409,6 +424,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                     "llm_ttft_ms": metrics.llm_ttft_ms,
                     "tts_ttfb_ms": metrics.tts_ttfb_ms,
                     "realtime_ms": metrics.realtime_latency_ms,
+                    "interrupt_ms": metrics.interrupt_latency_ms,
                 }
 
             await self.send_message(

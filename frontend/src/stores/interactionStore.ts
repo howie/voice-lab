@@ -94,6 +94,8 @@ interface InteractionStoreState {
   setUserRole: (role: string) => void
   setAiRole: (role: string) => void
   setScenarioContext: (context: string) => void
+  // US5: Barge-in configuration
+  setBargeInEnabled: (enabled: boolean) => void
 
   // Actions - Error
   setError: (error: string | null) => void
@@ -122,6 +124,8 @@ const defaultOptions: InteractionOptions = {
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,
+  // US5: Barge-in enabled by default
+  bargeInEnabled: true,
   showLatencyMetrics: true,
   showTranscripts: true,
 }
@@ -257,6 +261,12 @@ export const useInteractionStore = create<InteractionStoreState>()(
       setScenarioContext: (context) =>
         set((state) => ({
           options: { ...state.options, scenarioContext: context },
+        })),
+
+      // US5: Barge-in configuration action
+      setBargeInEnabled: (enabled) =>
+        set((state) => ({
+          options: { ...state.options, bargeInEnabled: enabled },
         })),
 
       // Error actions

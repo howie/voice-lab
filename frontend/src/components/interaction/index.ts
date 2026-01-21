@@ -8,3 +8,4 @@
 export { AudioVisualizer } from './AudioVisualizer'
 export { ModeSelector } from './ModeSelector'
 export { InteractionPanel } from './InteractionPanel'
+export { TranscriptDisplay } from './TranscriptDisplay'

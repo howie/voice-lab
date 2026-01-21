@@ -121,10 +121,10 @@
 
 ### UX Improvements for US1 (New)
 
-- [ ] T042a [US1] Refactor InteractionPanel: 一鍵開始對話（移除獨立麥克風按鈕，連線後自動收音）
-- [ ] T042b [US1] Create TranscriptDisplay component for real-time conversation history in frontend/src/components/interaction/TranscriptDisplay.tsx
-- [ ] T042c [US1] Update interactionStore to maintain turnHistory array for multi-turn display
-- [ ] T042d [US1] Integrate TranscriptDisplay into InteractionPanel, showing all turns with role labels
+- [x] T042a [US1] Refactor InteractionPanel: 一鍵開始對話（移除獨立麥克風按鈕，連線後自動收音）
+- [x] T042b [US1] Create TranscriptDisplay component for real-time conversation history in frontend/src/components/interaction/TranscriptDisplay.tsx
+- [x] T042c [US1] Update interactionStore to maintain turnHistory array for multi-turn display
+- [x] T042d [US1] Integrate TranscriptDisplay into InteractionPanel, showing all turns with role labels
 
 **Checkpoint**: User Story 1 complete - basic voice conversation functional with one-click start and transcript history
 

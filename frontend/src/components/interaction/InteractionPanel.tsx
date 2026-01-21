@@ -10,6 +10,7 @@ import { useEffect, useCallback, useState, useRef } from 'react'
 
 import { AudioVisualizer } from './AudioVisualizer'
 import { ModeSelector } from './ModeSelector'
+import { TranscriptDisplay } from './TranscriptDisplay'
 
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -92,13 +93,18 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Ref to track if we're in the connecting phase
   const isConnectingRef = useRef(false)
 
+  // Ref for turn counter
+  const turnCounterRef = useRef(0)
+
   // Store state
   const {
     connectionStatus,
     interactionState,
     options,
+    turnHistory,
     userTranscript,
     aiResponseText,
+    isTranscriptFinal,
     isRecording,
     inputVolume,
     currentLatency,
@@ -106,6 +112,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setConnectionStatus,
     setInteractionState,
     setSession,
+    addTurnToHistory,
     setUserTranscript,
     appendAIResponse,
     clearTranscripts,
@@ -197,12 +204,38 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           }
           break
 
-        case 'response_ended':
+        case 'response_ended': {
+          // Save current turn to history before clearing
+          const currentUserTranscript = useInteractionStore.getState().userTranscript
+          const currentAIResponse = useInteractionStore.getState().aiResponseText
+          const currentSession = useInteractionStore.getState().session
+
+          if ((currentUserTranscript || currentAIResponse) && currentSession) {
+            turnCounterRef.current += 1
+            const now = new Date().toISOString()
+            addTurnToHistory({
+              id: `${currentSession.id}-turn-${turnCounterRef.current}`,
+              session_id: currentSession.id,
+              turn_number: turnCounterRef.current,
+              user_audio_path: null,
+              user_transcript: currentUserTranscript || null,
+              ai_response_text: currentAIResponse || null,
+              ai_audio_path: null,
+              interrupted: false,
+              started_at: now,
+              ended_at: now,
+            })
+          }
+
+          // Clear current transcripts for next turn
+          clearTranscripts()
           setInteractionState('listening')
+
           if (data.latency_ms) {
             setCurrentLatency(data.latency_ms as number)
           }
           break
+        }
 
         case 'interrupted':
           setInteractionState('listening')
@@ -224,6 +257,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       clearTranscripts,
       setUserTranscript,
       appendAIResponse,
+      addTurnToHistory,
       setCurrentLatency,
       setError,
       queueAudioChunk,
@@ -306,6 +340,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     }
   }, [wsStatus, sendMessage, options])
 
+  // Auto-start recording when session is ready (一鍵開始對話)
+  useEffect(() => {
+    if (wsStatus === 'connected' && interactionState === 'listening' && !isRecording) {
+      // Session is ready, auto-start recording
+      startRecording()
+    }
+  }, [wsStatus, interactionState, isRecording, startRecording])
+
   // Handle disconnect
   const handleDisconnect = () => {
     stopRecording()
@@ -316,17 +358,6 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     isConnectingRef.current = false
   }
 
-  // Handle start/stop recording
-  const handleToggleRecording = async () => {
-    if (isRecording) {
-      stopRecording()
-      // Send end turn signal
-      sendMessage('end_turn', {})
-    } else {
-      await startRecording()
-    }
-  }
-
   // Handle interrupt
   const handleInterrupt = () => {
     sendMessage('interrupt', {})
@@ -334,7 +365,6 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   }
 
   const isConnected = connectionStatus === 'connected'
-  const canRecord = isConnected && interactionState === 'listening'
   const displayError = error || wsError || micError || permissionError
 
   return (
@@ -385,42 +415,18 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
 
       {/* Audio Visualizer */}
       <div className="rounded-lg border bg-card p-4">
-        <div className="mb-2 text-sm font-medium text-foreground">音訊輸入</div>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">音訊輸入</span>
+          {isRecording && (
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+              收音中
+            </span>
+          )}
+        </div>
         <AudioVisualizer level={inputVolume} isActive={isRecording} mode="bars" height={60} showLevel />
 
-        {/* Recording Button */}
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={handleToggleRecording}
-            disabled={!canRecord && !isRecording}
-            className={`
-              flex h-16 w-16 items-center justify-center rounded-full transition-all
-              ${
-                isRecording
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-              }
-              disabled:cursor-not-allowed disabled:opacity-50
-            `}
-          >
-            {isRecording ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
-                <path
-                  fillRule="evenodd"
-                  d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
-                <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
-                <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Interrupt Button */}
+        {/* Interrupt Button - only shown when AI is speaking */}
         {interactionState === 'speaking' && (
           <div className="mt-4 flex justify-center">
             <button
@@ -434,33 +440,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       </div>
 
       {/* Transcripts */}
-      <div className="rounded-lg border bg-card p-4">
-        <div className="mb-2 text-sm font-medium text-foreground">對話內容</div>
-        <div className="space-y-3">
-          {/* User transcript */}
-          {userTranscript && (
-            <div className="rounded-lg bg-primary/10 p-3">
-              <div className="mb-1 text-xs font-medium text-primary">您</div>
-              <div className="text-sm text-foreground">{userTranscript}</div>
-            </div>
-          )}
-
-          {/* AI response */}
-          {aiResponseText && (
-            <div className="rounded-lg bg-muted p-3">
-              <div className="mb-1 text-xs font-medium text-muted-foreground">AI</div>
-              <div className="text-sm text-foreground">{aiResponseText}</div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!userTranscript && !aiResponseText && (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              {isConnected ? '開始說話以進行對話' : '點擊「開始對話」按鈕以連接'}
-            </div>
-          )}
-        </div>
-      </div>
+      <TranscriptDisplay
+        turnHistory={turnHistory}
+        currentUserTranscript={userTranscript}
+        currentAIResponse={aiResponseText}
+        isTranscriptFinal={isTranscriptFinal}
+      />
     </div>
   )
 }

@@ -10,6 +10,7 @@ from src.presentation.api.routes import (
     history,
     interaction,
     interaction_ws,
+    jobs,
     multi_role_tts,
     providers,
     stt,
@@ -36,5 +37,6 @@ api_router.include_router(compare.router, prefix="/compare", tags=["Compare"])
 api_router.include_router(history.router, prefix="/history", tags=["History"])
 api_router.include_router(credentials.providers_router)  # Providers (credential management) routes
 api_router.include_router(credentials.router)  # Credentials routes have their own prefix
+api_router.include_router(jobs.router)  # Jobs routes (async job management)
 
 __all__ = ["api_router"]

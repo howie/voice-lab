@@ -23,6 +23,7 @@ from src.application.use_cases.synthesize_speech import (
 )
 from src.application.use_cases.transcribe_audio import TranscribeAudioUseCase
 from src.application.use_cases.voice_interaction import VoiceInteractionUseCase
+from src.domain.repositories.job_repository import IJobRepository
 from src.domain.repositories.provider_credential_repository import (
     IProviderCredentialRepository,
 )
@@ -39,6 +40,7 @@ from src.infrastructure.persistence.credential_repository import (
     SQLAlchemyProviderCredentialRepository,
 )
 from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.persistence.job_repository_impl import JobRepositoryImpl
 from src.infrastructure.persistence.transcription_repository_impl import (
     TranscriptionRepositoryImpl,
 )
@@ -334,6 +336,13 @@ def get_transcription_repository(
 ) -> ITranscriptionRepository:
     """FastAPI dependency for transcription repository."""
     return TranscriptionRepositoryImpl(session)
+
+
+def get_job_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IJobRepository:
+    """FastAPI dependency for job repository."""
+    return JobRepositoryImpl(session)
 
 
 def get_stt_service(

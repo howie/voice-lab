@@ -10,6 +10,7 @@ import { HistoryPage } from '@/routes/history/HistoryPage'
 import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
 import { ProviderSettings } from '@/routes/settings/ProviderSettings'
 import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
+import { JobsPage } from '@/routes/jobs'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -41,6 +42,7 @@ function AppContent() {
         <Route index element={<Dashboard />} />
         <Route path="tts" element={<TTSPage />} />
         <Route path="multi-role-tts" element={<MultiRoleTTSPage />} />
+        <Route path="jobs" element={<JobsPage />} />
         <Route path="stt" element={<STTPage />} />
         <Route path="stt/history" element={<STTHistoryPage />} />
         <Route path="interaction" element={<InteractionPage />} />

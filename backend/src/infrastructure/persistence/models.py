@@ -495,3 +495,40 @@ class SystemPromptTemplateModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+# =============================================================================
+# Async Job Management Models (Feature 007)
+# =============================================================================
+
+
+class JobModel(Base):
+    """SQLAlchemy model for async TTS synthesis jobs."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        Index("idx_jobs_user_status", "user_id", "status"),
+        Index("idx_jobs_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    input_params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    audio_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("audio_files.id", ondelete="SET NULL"), nullable=True
+    )
+    result_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    audio_file: Mapped["AudioFileModel | None"] = relationship("AudioFileModel")

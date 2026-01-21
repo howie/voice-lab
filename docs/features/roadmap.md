@@ -1,7 +1,7 @@
 # Voice Lab Roadmap
 
-**Last Updated**: 2026-01-19
-**Current Status**: Phase 3 Complete (STT Testing Module)
+**Last Updated**: 2026-01-20
+**Current Status**: Phase 3.5 Complete (Infrastructure & Multi-Role TTS)
 
 ---
 
@@ -44,6 +44,38 @@
   - Transcription history with search and filtering.
   - Provider-specific file size/duration limit display.
 
+### 005: Multi-Role TTS
+- **Status**: ✅ COMPLETED (2026-01-20)
+- **Description**: 多角色 TTS 合成功能，支援對話逐字稿轉換為多聲音音訊檔案。
+- **Key Capabilities**:
+  - 對話逐字稿解析（自動識別 A:、B: 等說話者標記）。
+  - 最多支援 6 位說話者。
+  - Provider 原生多角色支援（ElevenLabs Audio Tags）。
+  - 不支援原生多角色的 Provider 使用分段合併方式。
+  - 各 Provider 能力差異比較與功能提示。
+  - 進階音效標籤支援（interrupting、overlapping、laughs 等）。
+
+### 006: GCP Terraform Deploy
+- **Status**: ✅ COMPLETED (2026-01-20)
+- **Description**: 使用 Terraform 將 Voice Lab 部署到 GCP，支援網域限制登入。
+- **Key Capabilities**:
+  - 一鍵 Terraform 部署（`terraform apply`）。
+  - 特定網域登入限制（如 heyuai.com.tw）。
+  - 成本最佳化配置。
+  - Cloud Run 服務部署。
+  - Cloud SQL (PostgreSQL) 與 Redis Memorystore。
+  - Cloud Storage 音訊檔案儲存。
+
+### 007: Async Job Management
+- **Status**: ✅ COMPLETED (2026-01-20)
+- **Description**: 背景工作管理系統，支援 TTS 合成工作在背景執行。
+- **Key Capabilities**:
+  - 背景工作執行（離開頁面不中斷）。
+  - Job 狀態追蹤（pending/processing/completed/failed）。
+  - 歷史記錄查詢（最近 30 天）。
+  - 音檔重播與下載。
+  - 原始參數保留。
+
 ---
 
 ## 📅 Upcoming Roadmap
@@ -75,6 +107,9 @@
 | **M1: TTS MVP** | ✅ | 2026-01-18 | 2026-01-16 |
 | **M2: BYOL Credential Mgmt** | ✅ | 2026-01-20 | 2026-01-18 |
 | **M3: STT Complete** | ✅ | 2026-02-15 | 2026-01-19 |
+| **M3.5: Multi-Role TTS** | ✅ | - | 2026-01-20 |
+| **M3.6: GCP Deployment** | ✅ | - | 2026-01-20 |
+| **M3.7: Async Job Mgmt** | ✅ | - | 2026-01-20 |
 | **M4: Interaction Complete** | ⏳ | 2026-03-15 | - |
 | **M5: Production Ready** | ⏳ | 2026-04-15 | - |
 
@@ -85,3 +120,4 @@
 - **Frontend**: React 18 (Vite, TypeScript, Tailwind CSS, Shadcn/ui)
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
+- **Infrastructure**: Terraform 1.6+ (GCP Cloud Run, Cloud SQL, Memorystore)

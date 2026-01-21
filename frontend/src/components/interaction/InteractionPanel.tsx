@@ -186,10 +186,10 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setBargeInEnabled,
   } = useInteractionStore()
 
-  // Determine WebSocket URL
+  // Determine WebSocket URL (must include user_id query parameter)
   const resolvedWsUrl =
     wsUrl ||
-    `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws/${options.mode}`
+    `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws/${options.mode}?user_id=${userId}`
 
   // Audio playback hook - must be before handleMessage which uses queueAudioChunk
   const { queueAudioChunk, stop: stopAudio } = useAudioPlayback({

@@ -395,7 +395,13 @@ class InteractionSessionModel(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     mode: Mapped[InteractionMode] = mapped_column(
-        Enum(InteractionMode, name="interaction_mode", create_type=False), nullable=False
+        Enum(
+            InteractionMode,
+            name="interaction_mode",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=False,
     )
     provider_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -406,7 +412,12 @@ class InteractionSessionModel(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[SessionStatus] = mapped_column(
-        Enum(SessionStatus, name="session_status", create_type=False),
+        Enum(
+            SessionStatus,
+            name="session_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
         default=SessionStatus.ACTIVE,
     )

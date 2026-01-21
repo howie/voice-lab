@@ -72,7 +72,15 @@ USER voicelab
 # Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    NLTK_DATA=/app/nltk_data
+
+# Pre-download NLTK data (before switching to non-root user)
+USER root
+RUN mkdir -p /app/nltk_data && \
+    /app/.venv/bin/python -c "import nltk; nltk.download('punkt_tab', download_dir='/app/nltk_data')" && \
+    chown -R voicelab:voicelab /app/nltk_data
+USER voicelab
 
 # Expose port
 EXPOSE 8000

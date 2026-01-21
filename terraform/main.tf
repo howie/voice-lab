@@ -185,8 +185,8 @@ resource "cloudflare_record" "frontend" {
   count = var.cloudflare_api_token != "" && var.custom_domain != "" ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = var.custom_domain
-  content = "ghs.googleusercontent.com"
+  name    = var.frontend_subdomain
+  content = "ghs.googlehosted.com"
   type    = "CNAME"
   ttl     = 1     # Auto
   proxied = false # DNS only (required for Cloud Run domain mapping)
@@ -198,8 +198,8 @@ resource "cloudflare_record" "backend" {
   count = var.cloudflare_api_token != "" && var.custom_domain != "" ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = "${var.api_subdomain}.${var.custom_domain}"
-  content = "ghs.googleusercontent.com"
+  name    = "${var.api_subdomain}.${var.frontend_subdomain}"
+  content = "ghs.googlehosted.com"
   type    = "CNAME"
   ttl     = 1     # Auto
   proxied = false # DNS only (required for Cloud Run domain mapping)

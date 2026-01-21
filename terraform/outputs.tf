@@ -103,14 +103,14 @@ output "artifact_registry_url" {
 
 output "cloudflare_cname_target" {
   description = "CNAME target for Cloudflare DNS records"
-  value       = "ghs.googleusercontent.com"
+  value       = "ghs.googlehosted.com"
 }
 
 output "required_dns_records" {
   description = "DNS records to create in Cloudflare"
   value = var.custom_domain != "" ? join("\n", [
-    "Frontend: ${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)",
-    "Backend:  ${var.api_subdomain}.${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)"
+    "Frontend: ${var.custom_domain} -> CNAME -> ghs.googlehosted.com (proxied: false)",
+    "Backend:  ${var.api_subdomain}.${var.custom_domain} -> CNAME -> ghs.googlehosted.com (proxied: false)"
   ]) : "No custom domain configured"
 }
 

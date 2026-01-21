@@ -144,25 +144,25 @@
 
 ### Backend Implementation for US2
 
-- [ ] T043 [P] [US2] Create LLM service base interface in backend/src/domain/services/llm/base.py
-- [ ] T044 [P] [US2] Implement OpenAI GPT-4o provider in backend/src/domain/services/llm/openai_provider.py
-- [ ] T045 [P] [US2] Implement Google Gemini provider in backend/src/domain/services/llm/gemini_provider.py
-- [ ] T046 [US2] Implement Cascade mode service (STT→LLM→TTS) in backend/src/domain/services/interaction/cascade_mode.py
-- [ ] T047 [US2] Integrate existing Phase 3 STT providers in cascade_mode.py
-- [ ] T048 [US2] Integrate existing Phase 1 TTS providers in cascade_mode.py
-- [ ] T049 [US2] Add mode selection logic to StartSession use case
-- [ ] T050 [US2] Implement fallback from Realtime to Cascade mode on connection failure
-- [ ] T051 [US2] Add providers endpoint GET /api/v1/interaction/providers in backend/src/presentation/api/interaction_router.py
+- [x] T043 [P] [US2] Create LLM service base interface in backend/src/application/interfaces/llm_provider.py (existing)
+- [x] T044 [P] [US2] Implement OpenAI GPT-4o provider in backend/src/infrastructure/providers/llm/openai_llm.py (existing)
+- [x] T045 [P] [US2] Implement Google Gemini provider in backend/src/infrastructure/providers/llm/gemini_llm.py (existing)
+- [x] T046 [US2] Implement Cascade mode service (STT→LLM→TTS) in backend/src/domain/services/interaction/cascade_mode.py
+- [x] T047 [US2] Integrate existing Phase 3 STT providers in cascade_mode.py
+- [x] T048 [US2] Integrate existing Phase 1 TTS providers in cascade_mode.py
+- [x] T049 [US2] Add mode selection logic via CascadeModeFactory in backend/src/domain/services/interaction/cascade_mode_factory.py
+- [x] T050 [US2] Implement fallback from Realtime to Cascade mode on connection failure (frontend FallbackPrompt)
+- [x] T051 [US2] Add providers endpoint GET /api/v1/interaction/providers in backend/src/presentation/api/routes/interaction.py
 
 ### Frontend Implementation for US2
 
-- [ ] T052 [US2] Extend ModeSelector with Cascade mode UI in frontend/src/components/interaction/ModeSelector.tsx
-- [ ] T053 [US2] Add STT provider dropdown to ModeSelector
-- [ ] T054 [US2] Add LLM provider dropdown to ModeSelector
-- [ ] T055 [US2] Add TTS provider dropdown to ModeSelector
-- [ ] T056 [US2] Fetch available providers from API and display availability status
-- [ ] T057 [US2] Update interactionStore to handle mode and provider configuration
-- [ ] T058 [US2] Implement fallback prompt UI when Realtime API fails
+- [x] T052 [US2] Extend ModeSelector with Cascade mode UI in frontend/src/components/interaction/ModeSelector.tsx
+- [x] T053 [US2] Add STT provider dropdown to ModeSelector
+- [x] T054 [US2] Add LLM provider dropdown to ModeSelector
+- [x] T055 [US2] Add TTS provider dropdown to ModeSelector
+- [x] T056 [US2] Fetch available providers from API and display availability status
+- [x] T057 [US2] Update interactionStore to handle mode and provider configuration (already supported)
+- [x] T058 [US2] Implement fallback prompt UI when Realtime API fails (FallbackPrompt component)
 
 **Checkpoint**: User Story 2 complete - both modes functional and switchable
 

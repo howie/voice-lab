@@ -11,6 +11,7 @@ import type {
   InteractionMode,
   InteractionSession,
   LatencyStats,
+  ProvidersResponse,
   SessionListParams,
   SessionListResponse,
   SessionStatus,
@@ -120,6 +121,18 @@ export async function getDefaultPromptTemplate(
 ): Promise<SystemPromptTemplate | null> {
   const templates = await listPromptTemplates()
   return templates.find((t) => t.category === category && t.is_default) || null
+}
+
+// =============================================================================
+// Provider Endpoints (T056)
+// =============================================================================
+
+/**
+ * List available providers for cascade mode
+ */
+export async function listProviders(): Promise<ProvidersResponse> {
+  const response = await api.get<ProvidersResponse>('/interaction/providers')
+  return response.data
 }
 
 // =============================================================================

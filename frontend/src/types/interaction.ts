@@ -329,3 +329,21 @@ export interface InteractionEvents {
   onInterrupted: () => void
   onError: (error: ErrorMessageData) => void
 }
+
+// =============================================================================
+// Provider Info Types (T056)
+// =============================================================================
+
+export interface ProviderInfo {
+  name: string
+  display_name: string
+  description?: string
+  default_model?: string
+  available_models?: string[]
+}
+
+export interface ProvidersResponse {
+  stt_providers: ProviderInfo[]
+  llm_providers: ProviderInfo[]
+  tts_providers: ProviderInfo[]
+}

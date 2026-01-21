@@ -322,3 +322,26 @@ async def get_scenario_template(
         raise HTTPException(status_code=404, detail="Template not found")
 
     return _template_to_response(template)
+
+
+# =============================================================================
+# Providers Endpoints (US2 - Mode Selection)
+# =============================================================================
+
+
+@router.get("/providers")
+async def list_providers() -> dict:
+    """List available providers for cascade mode.
+
+    T051 [US2]: GET /api/v1/interaction/providers
+    Returns available STT, LLM, and TTS providers with metadata.
+    """
+    from src.domain.services.interaction.cascade_mode_factory import CascadeModeFactory
+
+    provider_info = CascadeModeFactory.get_provider_info()
+
+    return {
+        "stt_providers": provider_info["stt"],
+        "llm_providers": provider_info["llm"],
+        "tts_providers": provider_info["tts"],
+    }

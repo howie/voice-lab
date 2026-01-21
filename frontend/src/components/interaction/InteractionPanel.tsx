@@ -33,6 +33,51 @@ interface InteractionPanelProps {
 // Combined status for UI display
 type DisplayStatus = 'idle' | 'connecting' | 'ready' | 'listening' | 'processing' | 'speaking' | 'error'
 
+// T058: Fallback prompt component when Realtime API fails
+interface FallbackPromptProps {
+  isRealtimeMode: boolean
+  hasError: boolean
+  onSwitchToCascade: () => void
+}
+
+function FallbackPrompt({ isRealtimeMode, hasError, onSwitchToCascade }: FallbackPromptProps) {
+  if (!isRealtimeMode || !hasError) return null
+
+  return (
+    <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 dark:bg-amber-950/20">
+      <div className="flex items-start gap-3">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+        >
+          <path
+            fillRule="evenodd"
+            d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            Realtime API 連線失敗
+          </h4>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+            即時模式暫時無法使用。建議切換至串接模式 (STT → LLM → TTS)，可提供相似的互動體驗。
+          </p>
+          <button
+            type="button"
+            onClick={onSwitchToCascade}
+            className="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
+          >
+            切換至串接模式
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Status indicator component
 function StatusIndicator({
   connectionStatus,
@@ -449,6 +494,22 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           {displayError}
         </div>
       )}
+
+      {/* T058: Fallback prompt when Realtime fails */}
+      <FallbackPrompt
+        isRealtimeMode={options.mode === 'realtime'}
+        hasError={connectionStatus === 'error' || !!wsError}
+        onSwitchToCascade={() => {
+          setError(null)
+          setMode('cascade')
+          setProviderConfig({
+            stt_provider: 'azure',
+            llm_provider: 'openai',
+            tts_provider: 'azure',
+            tts_voice: 'zh-TW-HsiaoChenNeural',
+          })
+        }}
+      />
 
       {/* Audio Visualizer */}
       <div className="rounded-lg border bg-card p-4">

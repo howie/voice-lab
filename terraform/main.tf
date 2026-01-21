@@ -186,7 +186,7 @@ resource "cloudflare_record" "frontend" {
 
   zone_id = var.cloudflare_zone_id
   name    = var.frontend_subdomain
-  content = "ghs.googleusercontent.com"
+  content = "ghs.googlehosted.com"
   type    = "CNAME"
   ttl     = 1     # Auto
   proxied = false # DNS only (required for Cloud Run domain mapping)
@@ -199,7 +199,7 @@ resource "cloudflare_record" "backend" {
 
   zone_id = var.cloudflare_zone_id
   name    = "${var.api_subdomain}.${var.frontend_subdomain}"
-  content = "ghs.googleusercontent.com"
+  content = "ghs.googlehosted.com"
   type    = "CNAME"
   ttl     = 1     # Auto
   proxied = false # DNS only (required for Cloud Run domain mapping)

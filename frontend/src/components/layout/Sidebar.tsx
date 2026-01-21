@@ -8,6 +8,7 @@ import {
   Settings,
   Key,
   Users,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'TTS 測試', href: '/tts', icon: MessageSquare },
   { name: '多角色 TTS', href: '/multi-role-tts', icon: Users },
+  { name: '背景工作', href: '/jobs', icon: Briefcase },
   { name: 'STT 測試', href: '/stt', icon: Mic },
   { name: '互動測試', href: '/interaction', icon: MessagesSquare },
   { name: '歷史紀錄', href: '/history', icon: History },

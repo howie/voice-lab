@@ -9,14 +9,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.config import get_settings
+from src.infrastructure.persistence.database import AsyncSessionLocal
+from src.infrastructure.workers.job_worker import JobWorker
 from src.presentation.api import api_router
 
 settings = get_settings()
+
+# Global reference to job worker for graceful shutdown
+_job_worker: JobWorker | None = None
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup and shutdown events."""
+    global _job_worker
+
     # Startup
     print(f"Starting {settings.app_name} in {settings.app_env} mode...")
 
@@ -32,10 +39,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     print(f"STT Providers: {list(container.get_stt_providers().keys())}")
     print(f"LLM Providers: {list(container.get_llm_providers().keys())}")
 
+    # Start job worker for background TTS synthesis (Feature 007)
+    _job_worker = JobWorker(session_factory=AsyncSessionLocal, storage_path=storage_path)
+    await _job_worker.start()
+    print("JobWorker started for background TTS synthesis")
+
     yield
 
     # Shutdown
     print(f"Shutting down {settings.app_name}...")
+
+    # Stop job worker gracefully
+    if _job_worker:
+        await _job_worker.stop()
+        print("JobWorker stopped")
 
 
 app = FastAPI(

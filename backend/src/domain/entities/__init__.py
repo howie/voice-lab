@@ -9,6 +9,9 @@ from src.domain.entities.ground_truth import GroundTruth
 from src.domain.entities.interaction import InteractionRequest, InteractionResult
 from src.domain.entities.interaction_enums import InteractionMode, SessionStatus
 from src.domain.entities.interaction_session import InteractionSession
+
+# Async job management entities (Feature 007)
+from src.domain.entities.job import Job, JobStatus, JobType
 from src.domain.entities.latency_metrics import LatencyMetrics
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.domain.entities.system_prompt_template import SystemPromptTemplate
@@ -50,4 +53,8 @@ __all__ = [
     "LatencyMetrics",
     "SessionStatus",
     "SystemPromptTemplate",
+    # Async job management
+    "Job",
+    "JobStatus",
+    "JobType",
 ]

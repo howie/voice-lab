@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { useMultiRoleTTSStore } from '@/stores/multiRoleTTSStore'
 import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
@@ -116,7 +117,11 @@ describe('Provider Switch', () => {
     it('switches provider and updates store state', async () => {
       const user = userEvent.setup()
 
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       // Wait for provider dropdown to render
       await waitFor(() => {
@@ -142,7 +147,11 @@ describe('Provider Switch', () => {
       // Set dialogue text in store
       useMultiRoleTTSStore.setState({ dialogueText: 'A: 你好\nB: 嗨' })
 
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toBeInTheDocument()
@@ -167,7 +176,11 @@ describe('Provider Switch', () => {
         speakers: ['A'],
       })
 
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       await waitFor(() => {
         // Provider dropdown is the first combobox
@@ -200,7 +213,11 @@ describe('Provider Switch', () => {
         audioUrl: 'blob:test-url',
       })
 
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toBeInTheDocument()
@@ -220,7 +237,11 @@ describe('Provider Switch', () => {
 
   describe('provider dropdown renders correctly', () => {
     it('renders dropdown with all 6 provider options', async () => {
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       await waitFor(() => {
         const select = screen.getByRole('combobox')
@@ -239,7 +260,11 @@ describe('Provider Switch', () => {
     it('disables provider dropdown while loading', async () => {
       useMultiRoleTTSStore.setState({ isLoading: true })
 
-      render(<MultiRoleTTSPage />)
+      render(
+        <MemoryRouter>
+          <MultiRoleTTSPage />
+        </MemoryRouter>
+      )
 
       await waitFor(() => {
         const select = screen.getByRole('combobox')
@@ -355,7 +380,11 @@ describe('Voice list reload', () => {
     const user = userEvent.setup()
     const { ttsApi } = await import('@/lib/api')
 
-    render(<MultiRoleTTSPage />)
+    render(
+      <MemoryRouter>
+        <MultiRoleTTSPage />
+      </MemoryRouter>
+    )
 
     await waitFor(() => {
       expect(screen.getByRole('combobox')).toBeInTheDocument()
@@ -383,7 +412,11 @@ describe('Voice list reload', () => {
       speakers: ['A'],
     })
 
-    render(<MultiRoleTTSPage />)
+    render(
+      <MemoryRouter>
+        <MultiRoleTTSPage />
+      </MemoryRouter>
+    )
 
     await waitFor(() => {
       // Provider dropdown is the first combobox
@@ -419,7 +452,11 @@ describe('Voice list reload', () => {
         )
     )
 
-    render(<MultiRoleTTSPage />)
+    render(
+      <MemoryRouter>
+        <MultiRoleTTSPage />
+      </MemoryRouter>
+    )
 
     await waitFor(() => {
       expect(screen.getByRole('combobox')).toBeInTheDocument()

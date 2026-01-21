@@ -3,9 +3,11 @@
  * T034: Main page for multi-role dialogue text-to-speech
  */
 
-import { useEffect } from 'react'
-import { Play, RotateCcw, FileText, Download, AlertTriangle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Play, RotateCcw, FileText, Download, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useMultiRoleTTSStore } from '@/stores/multiRoleTTSStore'
+import { useJobStore } from '@/stores/jobStore'
 import {
   DialogueInput,
   SpeakerVoiceTable,
@@ -26,6 +28,10 @@ const PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
 ]
 
 export function MultiRoleTTSPage() {
+  const navigate = useNavigate()
+  const [jobSubmitSuccess, setJobSubmitSuccess] = useState<string | null>(null)
+  const [jobSubmitError, setJobSubmitError] = useState<string | null>(null)
+
   const {
     dialogueText,
     setDialogueText,
@@ -44,6 +50,10 @@ export function MultiRoleTTSPage() {
     error,
     showProviderSwitchConfirm,
     pendingProvider,
+    language,
+    outputFormat,
+    gapMs,
+    crossfadeMs,
     loadCapabilities,
     loadVoices,
     parseDialogue,
@@ -53,6 +63,38 @@ export function MultiRoleTTSPage() {
     confirmProviderSwitch,
     cancelProviderSwitch,
   } = useMultiRoleTTSStore()
+
+  const { submitJob, isSubmitting } = useJobStore()
+
+  // Handle background job submission
+  const handleSubmitBackgroundJob = async () => {
+    setJobSubmitSuccess(null)
+    setJobSubmitError(null)
+
+    try {
+      const job = await submitJob({
+        provider,
+        turns: parsedTurns.map((turn) => ({
+          speaker: turn.speaker,
+          text: turn.text,
+          index: turn.index,
+        })),
+        voice_assignments: voiceAssignments.map((va) => ({
+          speaker: va.speaker,
+          voice_id: va.voiceId,
+        })),
+        language,
+        output_format: outputFormat as 'mp3' | 'wav',
+        gap_ms: gapMs,
+        crossfade_ms: crossfadeMs,
+      })
+
+      setJobSubmitSuccess(job.id)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '提交背景工作失敗'
+      setJobSubmitError(message)
+    }
+  }
 
   // Load capabilities and voices on mount and provider change
   useEffect(() => {
@@ -190,7 +232,7 @@ export function MultiRoleTTSPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => synthesize()}
-                disabled={isLoading || !canSynthesize}
+                disabled={isLoading || isSubmitting || !canSynthesize}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-3 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? (
@@ -201,20 +243,60 @@ export function MultiRoleTTSPage() {
                 ) : (
                   <>
                     <Play className="h-4 w-4" />
-                    產生語音
+                    即時合成
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleSubmitBackgroundJob}
+                disabled={isLoading || isSubmitting || !canSynthesize}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary py-3 text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Spinner className="h-4 w-4" />
+                    提交中...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    背景合成
                   </>
                 )}
               </button>
 
               <button
                 onClick={reset}
-                disabled={isLoading}
+                disabled={isLoading || isSubmitting}
                 className="flex items-center gap-2 rounded-lg border px-4 py-3 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RotateCcw className="h-4 w-4" />
                 重置
               </button>
             </div>
+
+            {/* Job submission success message */}
+            {jobSubmitSuccess && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                <span>工作已提交！</span>
+                <button
+                  onClick={() => navigate(`/jobs`)}
+                  className="ml-auto text-xs font-medium underline hover:no-underline"
+                >
+                  查看工作列表
+                </button>
+              </div>
+            )}
+
+            {/* Job submission error message */}
+            {jobSubmitError && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>{jobSubmitError}</span>
+              </div>
+            )}
 
             {!canSynthesize && parsedTurns.length === 0 && (
               <p className="mt-3 text-center text-xs text-muted-foreground">

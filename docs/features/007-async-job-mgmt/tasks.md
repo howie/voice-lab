@@ -19,10 +19,10 @@
 
 **Purpose**: Database migration and core entity setup
 
-- [ ] T001 Create Alembic migration for `jobs` table in `backend/alembic/versions/xxx_add_jobs_table.py`
-- [ ] T002 [P] Create JobStatus enum (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED) in `backend/src/domain/entities/job.py`
-- [ ] T003 [P] Create JobType enum in `backend/src/domain/entities/job.py`
-- [ ] T004 Create Job entity with all attributes in `backend/src/domain/entities/job.py`
+- [x] T001 Create Alembic migration for `jobs` table in `backend/alembic/versions/20260120_100000_add_jobs_table.py`
+- [x] T002 [P] Create JobStatus enum (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED) in `backend/src/domain/entities/job.py`
+- [x] T003 [P] Create JobType enum in `backend/src/domain/entities/job.py`
+- [x] T004 Create Job entity with all attributes in `backend/src/domain/entities/job.py`
 
 ---
 
@@ -34,19 +34,19 @@
 
 ### Test Infrastructure
 
-- [ ] T005 [P] Setup pytest and pytest-asyncio configuration in `backend/pyproject.toml`
-- [ ] T006 [P] Create test fixtures for database session in `backend/tests/conftest.py`
-- [ ] T007 [P] Create test fixtures for Job factory in `backend/tests/conftest.py`
+- [x] T005 [P] Setup pytest and pytest-asyncio configuration in `backend/pyproject.toml`
+- [x] T006 [P] Create test fixtures for database session in `backend/tests/conftest.py`
+- [x] T007 [P] Create test fixtures for Job factory in `backend/tests/conftest.py`
 
 ### Core Infrastructure
 
-- [ ] T008 Define JobRepository interface (abstract) in `backend/src/domain/repositories/job_repository.py`
-- [ ] T009 Implement JobRepositoryImpl (PostgreSQL) in `backend/src/infrastructure/persistence/job_repository_impl.py`
-- [ ] T010 [P] Create Pydantic schemas (CreateJobRequest, JobResponse, JobDetailResponse) in `backend/src/presentation/api/schemas/job_schemas.py`
-- [ ] T011 [P] Create error response schemas (ErrorResponse, error codes) in `backend/src/presentation/api/schemas/error_schemas.py`
-- [ ] T012 Register repository in dependency injection container
-- [ ] T013 [P] Create frontend API client skeleton in `frontend/src/services/jobApi.ts`
-- [ ] T014 [P] Create Zustand store skeleton in `frontend/src/stores/jobStore.ts`
+- [x] T008 Define JobRepository interface (abstract) in `backend/src/domain/repositories/job_repository.py`
+- [x] T009 Implement JobRepositoryImpl (PostgreSQL) in `backend/src/infrastructure/persistence/job_repository_impl.py`
+- [x] T010 [P] Create Pydantic schemas (CreateJobRequest, JobResponse, JobDetailResponse) in `backend/src/presentation/api/schemas/job_schemas.py`
+- [x] T011 [P] Create error response schemas (ErrorResponse, error codes) in `backend/src/presentation/api/schemas/error_schemas.py`
+- [x] T012 Register repository in dependency injection container
+- [x] T013 [P] Create frontend API client skeleton in `frontend/src/services/jobApi.ts`
+- [x] T014 [P] Create Zustand store skeleton in `frontend/src/stores/jobStore.ts`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -64,27 +64,27 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T015 [P] [US1] Contract test for POST /jobs endpoint (201 response) in `backend/tests/contract/test_jobs_api.py`
-- [ ] T016 [P] [US1] Contract test for job concurrent limit (429 response) in `backend/tests/contract/test_jobs_api.py`
+- [x] T015 [P] [US1] Contract test for POST /jobs endpoint (201 response) in `backend/tests/contract/test_jobs_api.py`
+- [x] T016 [P] [US1] Contract test for job concurrent limit (429 response) in `backend/tests/contract/test_jobs_api.py`
 - [ ] T017 [US1] Integration test for job submission → background execution → completion flow in `backend/tests/integration/test_job_workflow.py`
 
 ### Backend Implementation
 
-- [ ] T018 [US1] Implement `create_job()` in JobService `backend/src/application/services/job_service.py`
-- [ ] T019 [US1] Implement concurrent job limit check (max 3) in JobService
-- [ ] T020 [US1] Create POST /jobs endpoint in `backend/src/presentation/api/jobs_router.py`
-- [ ] T021 [US1] Implement job worker polling loop in `backend/src/infrastructure/workers/job_worker.py`
-- [ ] T022 [US1] Implement `SELECT ... FOR UPDATE SKIP LOCKED` for job pickup in worker
-- [ ] T023 [US1] Integrate with existing `multi_role_tts_service` for TTS execution
-- [ ] T024 [US1] Implement retry logic (max 3, exponential backoff: 5s, 10s, 20s) in worker
-- [ ] T025 [US1] Implement result storage (audio_file_id, result_metadata) on completion
-- [ ] T026 [US1] Register worker as FastAPI lifespan background task
+- [x] T018 [US1] Implement `create_job()` in JobService `backend/src/application/services/job_service.py`
+- [x] T019 [US1] Implement concurrent job limit check (max 3) in JobService
+- [x] T020 [US1] Create POST /jobs endpoint in `backend/src/presentation/api/routes/jobs.py`
+- [x] T021 [US1] Implement job worker polling loop in `backend/src/infrastructure/workers/job_worker.py`
+- [x] T022 [US1] Implement `SELECT ... FOR UPDATE SKIP LOCKED` for job pickup in worker
+- [x] T023 [US1] Integrate with existing `multi_role_tts_service` for TTS execution
+- [x] T024 [US1] Implement retry logic (max 3, exponential backoff: 5s, 10s, 20s) in worker
+- [x] T025 [US1] Implement result storage (audio_file_id, result_metadata) on completion
+- [x] T026 [US1] Register worker as FastAPI lifespan background task
 
 ### Frontend Implementation
 
-- [ ] T027 [P] [US1] Implement `createJob()` API call in `frontend/src/services/jobApi.ts`
-- [ ] T028 [US1] Add `submitJob` action to Zustand store in `frontend/src/stores/jobStore.ts`
-- [ ] T029 [US1] Create job submission UI integration (connect to existing Multi-Role TTS form)
+- [x] T027 [P] [US1] Implement `createJob()` API call in `frontend/src/services/jobApi.ts`
+- [x] T028 [US1] Add `submitJob` action to Zustand store in `frontend/src/stores/jobStore.ts`
+- [x] T029 [US1] Create job submission UI integration (connect to existing Multi-Role TTS form)
 
 **Checkpoint**: User Story 1 should be fully functional - jobs submitted run in background
 
@@ -102,29 +102,29 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T030 [P] [US2] Contract test for GET /jobs (list with pagination) in `backend/tests/contract/test_jobs_api.py`
-- [ ] T031 [P] [US2] Contract test for GET /jobs/{id} (detail) in `backend/tests/contract/test_jobs_api.py`
+- [x] T030 [P] [US2] Contract test for GET /jobs (list with pagination) in `backend/tests/contract/test_jobs_api.py`
+- [x] T031 [P] [US2] Contract test for GET /jobs/{id} (detail) in `backend/tests/contract/test_jobs_api.py`
 - [ ] T032 [US2] Integration test for timeout monitoring (10 min → failed) in `backend/tests/integration/test_job_timeout.py`
 - [ ] T033 [US2] Integration test for system restart recovery (processing → failed) in `backend/tests/integration/test_job_recovery.py`
 
 ### Backend Implementation
 
-- [ ] T034 [US2] Implement `get_job()` in JobService `backend/src/application/services/job_service.py`
-- [ ] T035 [US2] Implement `list_jobs()` with status filter in JobService
-- [ ] T036 [US2] Create GET /jobs endpoint (list with pagination) in `backend/src/presentation/api/jobs_router.py`
-- [ ] T037 [US2] Create GET /jobs/{id} endpoint (detail) in `backend/src/presentation/api/jobs_router.py`
-- [ ] T038 [US2] Implement timeout monitoring (10 min) background task in worker
-- [ ] T039 [US2] Implement system startup recovery (mark processing→failed) in FastAPI lifespan
+- [x] T034 [US2] Implement `get_job()` in JobService `backend/src/application/services/job_service.py`
+- [x] T035 [US2] Implement `list_jobs()` with status filter in JobService
+- [x] T036 [US2] Create GET /jobs endpoint (list with pagination) in `backend/src/presentation/api/routes/jobs.py`
+- [x] T037 [US2] Create GET /jobs/{id} endpoint (detail) in `backend/src/presentation/api/routes/jobs.py`
+- [x] T038 [US2] Implement timeout monitoring (10 min) background task in worker
+- [x] T039 [US2] Implement system startup recovery (mark processing→failed) in FastAPI lifespan
 
 ### Frontend Implementation
 
-- [ ] T040 [P] [US2] Implement `getJob()` and `listJobs()` API calls in `frontend/src/services/jobApi.ts`
-- [ ] T041 [P] [US2] Create JobStatus badge component in `frontend/src/components/jobs/JobStatus.tsx`
-- [ ] T042 [US2] Create JobList component with status filter in `frontend/src/components/jobs/JobList.tsx`
-- [ ] T043 [US2] Create JobDetail component in `frontend/src/components/jobs/JobDetail.tsx`
-- [ ] T044 [US2] Implement polling (5s interval) with TanStack Query in JobList
-- [ ] T045 [US2] Create JobsPage integrating JobList and JobDetail in `frontend/src/pages/JobsPage.tsx`
-- [ ] T046 [US2] Add jobs state and actions to Zustand store `frontend/src/stores/jobStore.ts`
+- [x] T040 [P] [US2] Implement `getJob()` and `listJobs()` API calls in `frontend/src/services/jobApi.ts`
+- [x] T041 [P] [US2] Create JobStatus badge component in `frontend/src/components/jobs/JobStatus.tsx`
+- [x] T042 [US2] Create JobList component with status filter in `frontend/src/components/jobs/JobList.tsx`
+- [x] T043 [US2] Create JobDetail component in `frontend/src/components/jobs/JobDetail.tsx`
+- [x] T044 [US2] Implement polling (5s interval) with TanStack Query in JobList
+- [x] T045 [US2] Create JobsPage integrating JobList and JobDetail in `frontend/src/routes/jobs/JobsPage.tsx`
+- [x] T046 [US2] Add jobs state and actions to Zustand store `frontend/src/stores/jobStore.ts`
 
 **Checkpoint**: User Stories 1 AND 2 should both work - jobs can be submitted and tracked
 
@@ -142,21 +142,21 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T047 [P] [US3] Contract test for GET /jobs/{id}/download (200 audio stream) in `backend/tests/contract/test_jobs_api.py`
-- [ ] T048 [US3] Contract test for download non-completed job (404 response) in `backend/tests/contract/test_jobs_api.py`
+- [x] T047 [P] [US3] Contract test for GET /jobs/{id}/download (200 audio stream) in `backend/tests/contract/test_jobs_api.py`
+- [x] T048 [US3] Contract test for download non-completed job (404 response) in `backend/tests/contract/test_jobs_api.py`
 
 ### Backend Implementation
 
-- [ ] T049 [US3] Create GET /jobs/{id}/download endpoint in `backend/src/presentation/api/jobs_router.py`
-- [ ] T050 [US3] Implement audio file streaming from storage in download endpoint
-- [ ] T051 [US3] Implement data retention cleanup task (30 days) in worker
+- [x] T049 [US3] Create GET /jobs/{id}/download endpoint in `backend/src/presentation/api/routes/jobs.py`
+- [x] T050 [US3] Implement audio file streaming from storage in download endpoint
+- [x] T051 [US3] Implement data retention cleanup task (30 days) in worker
 
 ### Frontend Implementation
 
-- [ ] T052 [P] [US3] Implement `getDownloadUrl()` in `frontend/src/services/jobApi.ts`
-- [ ] T053 [US3] Add download button to JobDetail component
-- [ ] T054 [US3] Add audio player to JobDetail component for completed jobs
-- [ ] T055 [US3] Display original input parameters in JobDetail (provider, turns, voices)
+- [x] T052 [P] [US3] Implement `getDownloadUrl()` in `frontend/src/services/jobApi.ts`
+- [x] T053 [US3] Add download button to JobDetail component
+- [x] T054 [US3] Add audio player to JobDetail component for completed jobs
+- [x] T055 [US3] Display original input parameters in JobDetail (provider, turns, voices)
 
 **Checkpoint**: All P1 and P2 stories complete - full job lifecycle with download
 
@@ -174,20 +174,20 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T056 [P] [US4] Contract test for DELETE /jobs/{id} (200 cancelled) in `backend/tests/contract/test_jobs_api.py`
-- [ ] T057 [US4] Contract test for cancel non-pending job (409 conflict) in `backend/tests/contract/test_jobs_api.py`
+- [x] T056 [P] [US4] Contract test for DELETE /jobs/{id} (200 cancelled) in `backend/tests/contract/test_jobs_api.py`
+- [x] T057 [US4] Contract test for cancel non-pending job (409 conflict) in `backend/tests/contract/test_jobs_api.py`
 
 ### Backend Implementation
 
-- [ ] T058 [US4] Implement `cancel_job()` in JobService `backend/src/application/services/job_service.py`
-- [ ] T059 [US4] Create DELETE /jobs/{id} endpoint in `backend/src/presentation/api/jobs_router.py`
-- [ ] T060 [US4] Return 409 Conflict if job is not in pending status
+- [x] T058 [US4] Implement `cancel_job()` in JobService `backend/src/application/services/job_service.py`
+- [x] T059 [US4] Create DELETE /jobs/{id} endpoint in `backend/src/presentation/api/routes/jobs.py`
+- [x] T060 [US4] Return 409 Conflict if job is not in pending status
 
 ### Frontend Implementation
 
-- [ ] T061 [P] [US4] Implement `cancelJob()` API call in `frontend/src/services/jobApi.ts`
-- [ ] T062 [US4] Add cancel button to JobList (only for pending jobs)
-- [ ] T063 [US4] Show confirmation dialog before cancellation
+- [x] T061 [P] [US4] Implement `cancelJob()` API call in `frontend/src/services/jobApi.ts`
+- [x] T062 [US4] Add cancel button to JobList (only for pending jobs)
+- [x] T063 [US4] Show confirmation dialog before cancellation
 
 **Checkpoint**: All user stories complete
 
@@ -197,11 +197,11 @@
 
 **Purpose**: Error handling, documentation, and cleanup
 
-- [ ] T064 [P] Add comprehensive error handling to all API endpoints
-- [ ] T065 [P] Add logging for job lifecycle events (submit, start, complete, fail, cancel)
-- [ ] T066 [P] Update quickstart.md with actual usage examples after testing
-- [ ] T067 Run end-to-end validation using quickstart.md flow
-- [ ] T068 Code cleanup and ensure `make check` passes
+- [x] T064 [P] Add comprehensive error handling to all API endpoints
+- [x] T065 [P] Add logging for job lifecycle events (submit, start, complete, fail, cancel)
+- [x] T066 [P] Update quickstart.md with actual usage examples after testing
+- [x] T067 Run end-to-end validation using quickstart.md flow
+- [x] T068 Code cleanup and ensure `make check` passes
 
 ---
 

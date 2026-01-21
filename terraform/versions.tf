@@ -40,6 +40,8 @@ provider "google-beta" {
 }
 
 # Configure Cloudflare provider (only used if cloudflare_api_token is set)
+# When api_token is empty, use a placeholder to pass provider validation
+# (resources are gated by count = 0 when token is empty, so API is never called)
 provider "cloudflare" {
-  api_token = var.cloudflare_api_token
+  api_token = var.cloudflare_api_token != "" ? var.cloudflare_api_token : "placeholder_token_not_used_0000000000000"
 }

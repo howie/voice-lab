@@ -108,10 +108,10 @@ output "cloudflare_cname_target" {
 
 output "required_dns_records" {
   description = "DNS records to create in Cloudflare"
-  value = var.custom_domain != "" ? <<-EOT
-    Frontend: ${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)
-    Backend:  ${var.api_subdomain}.${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)
-  EOT : "No custom domain configured"
+  value = var.custom_domain != "" ? join("\n", [
+    "Frontend: ${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)",
+    "Backend:  ${var.api_subdomain}.${var.custom_domain} -> CNAME -> ghs.googleusercontent.com (proxied: false)"
+  ]) : "No custom domain configured"
 }
 
 # -----------------------------------------------------------------------------

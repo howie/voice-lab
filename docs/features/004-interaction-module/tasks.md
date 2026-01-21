@@ -215,26 +215,26 @@
 
 ### Backend Implementation for US4
 
-- [ ] T068 [US4] Create ScenarioTemplateRepository interface in backend/src/domain/repositories/scenario_template_repository.py
-- [ ] T069 [US4] Implement ScenarioTemplateRepository with SQLAlchemy in backend/src/infrastructure/persistence/scenario_template_repository_impl.py
-- [ ] T070 [US4] Create seed data migration for default scenario templates (客服諮詢, 醫療諮詢, 語言教學, 技術支援, 一般對話)
-- [ ] T071 [US4] Add templates endpoint GET /api/v1/interaction/templates in interaction_router.py
-- [ ] T072 [US4] Add template detail endpoint GET /api/v1/interaction/templates/{id} in interaction_router.py
-- [ ] T073 [US4] Update StartSession use case to accept user_role, ai_role, scenario_context
-- [ ] T073a [US4] Generate system prompt from ai_role + scenario_context and pass to Realtime API / LLM
-- [ ] T073b [US4] Include role names in transcript WebSocket messages
+- [x] T068 [US4] Create ScenarioTemplateRepository interface in backend/src/domain/repositories/scenario_template_repository.py
+- [x] T069 [US4] Implement ScenarioTemplateRepository with SQLAlchemy in backend/src/infrastructure/persistence/scenario_template_repository_impl.py
+- [x] T070 [US4] Create seed data migration for default scenario templates (客服諮詢, 醫療諮詢, 語言教學, 技術支援, 一般對話)
+- [x] T071 [US4] Add templates endpoint GET /api/v1/interaction/templates in interaction_router.py
+- [x] T072 [US4] Add template detail endpoint GET /api/v1/interaction/templates/{id} in interaction_router.py
+- [x] T073 [US4] Update StartSession use case to accept user_role, ai_role, scenario_context
+- [x] T073a [US4] Generate system prompt from ai_role + scenario_context and pass to Realtime API / LLM
+- [x] T073b [US4] Include role names in transcript WebSocket messages
 
 ### Frontend Implementation for US4
 
-- [ ] T074 [P] [US4] Create RoleScenarioEditor component in frontend/src/components/interaction/RoleScenarioEditor.tsx
-- [ ] T074a [US4] Add user_role input field to RoleScenarioEditor
-- [ ] T074b [US4] Add ai_role input field to RoleScenarioEditor
-- [ ] T074c [US4] Add scenario_context textarea to RoleScenarioEditor
-- [ ] T075 [P] [US4] Create ScenarioTemplateSelector component in frontend/src/components/interaction/ScenarioTemplateSelector.tsx
-- [ ] T076 [US4] Integrate ScenarioTemplateSelector with RoleScenarioEditor (one-click fill)
-- [ ] T077 [US4] Update interactionStore to include userRole, aiRole, scenarioContext in options
-- [ ] T078 [US4] Include user_role, ai_role, scenario_context in config WebSocket message
-- [ ] T078a [US4] Update TranscriptDisplay to show role names instead of fixed "您" / "AI"
+- [x] T074 [P] [US4] Create RoleScenarioEditor component in frontend/src/components/interaction/RoleScenarioEditor.tsx
+- [x] T074a [US4] Add user_role input field to RoleScenarioEditor
+- [x] T074b [US4] Add ai_role input field to RoleScenarioEditor
+- [x] T074c [US4] Add scenario_context textarea to RoleScenarioEditor
+- [x] T075 [P] [US4] Create ScenarioTemplateSelector component in frontend/src/components/interaction/ScenarioTemplateSelector.tsx
+- [x] T076 [US4] Integrate ScenarioTemplateSelector with RoleScenarioEditor (one-click fill)
+- [x] T077 [US4] Update interactionStore to include userRole, aiRole, scenarioContext in options
+- [x] T078 [US4] Include user_role, ai_role, scenario_context in config WebSocket message
+- [x] T078a [US4] Update TranscriptDisplay to show role names instead of fixed "您" / "AI"
 
 **Checkpoint**: User Story 4 complete - role and scenario configuration functional
 

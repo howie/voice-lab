@@ -21,10 +21,19 @@ class InteractionSession:
     started_at: datetime
     id: UUID = field(default_factory=uuid4)
     system_prompt: str = ""
+    user_role: str = "使用者"  # US4: User role name for transcript display
+    ai_role: str = "AI 助理"  # US4: AI role name for transcript display
+    scenario_context: str = ""  # US4: Scenario context description
     ended_at: datetime | None = None
     status: SessionStatus = SessionStatus.ACTIVE
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
+
+    def generate_system_prompt(self) -> str:
+        """Generate system prompt from ai_role and scenario_context (T073a)."""
+        if self.scenario_context:
+            return f"你是{self.ai_role}。{self.scenario_context}"
+        return self.system_prompt
 
     def end(self, status: SessionStatus = SessionStatus.COMPLETED) -> None:
         """End the session with given status."""

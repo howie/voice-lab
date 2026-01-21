@@ -20,12 +20,16 @@ from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.interaction_repository_impl import (
     SQLAlchemyInteractionRepository,
 )
+from src.infrastructure.persistence.scenario_template_repository_impl import (
+    SQLAlchemyScenarioTemplateRepository,
+)
 from src.infrastructure.storage.audio_storage import AudioStorageService
 from src.presentation.api.dependencies import get_voice_interaction_use_case
 from src.presentation.schemas.interaction import (
     ConversationMessage,
     InteractionResponse,
     LatencyStatsResponse,
+    ScenarioTemplateResponse,
     SessionListResponse,
     SessionResponse,
     TurnResponse,
@@ -262,3 +266,59 @@ async def get_session_latency_stats(
         avg_llm_ttft_ms=stats["avg_llm_ttft_ms"],
         avg_tts_ttfb_ms=stats["avg_tts_ttfb_ms"],
     )
+
+
+# =============================================================================
+# Scenario Templates Endpoints (US4 - Role/Scenario Configuration)
+# =============================================================================
+
+
+def _template_to_response(template) -> ScenarioTemplateResponse:
+    """Convert domain entity to response schema."""
+    return ScenarioTemplateResponse(
+        id=template.id,
+        name=template.name,
+        description=template.description,
+        user_role=template.user_role,
+        ai_role=template.ai_role,
+        scenario_context=template.scenario_context,
+        category=template.category,
+        is_default=template.is_default,
+    )
+
+
+@router.get("/templates", response_model=list[ScenarioTemplateResponse])
+async def list_scenario_templates(
+    category: str | None = Query(None, description="Filter by category"),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[ScenarioTemplateResponse]:
+    """List scenario templates with optional category filter.
+
+    T071 [US4]: GET /api/v1/interaction/templates
+    """
+    repository = SQLAlchemyScenarioTemplateRepository(db)
+
+    if category:
+        templates = await repository.list_by_category(category)
+    else:
+        templates = await repository.list_all()
+
+    return [_template_to_response(t) for t in templates]
+
+
+@router.get("/templates/{template_id}", response_model=ScenarioTemplateResponse)
+async def get_scenario_template(
+    template_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> ScenarioTemplateResponse:
+    """Get a specific scenario template by ID.
+
+    T072 [US4]: GET /api/v1/interaction/templates/{id}
+    """
+    repository = SQLAlchemyScenarioTemplateRepository(db)
+    template = await repository.get_by_id(template_id)
+
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    return _template_to_response(template)

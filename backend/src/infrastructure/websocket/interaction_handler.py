@@ -7,6 +7,7 @@ import asyncio
 import base64
 import contextlib
 import logging
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import WebSocket
@@ -57,6 +58,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._session: InteractionSession | None = None
         self._current_turn: ConversationTurn | None = None
         self._latency_tracker = LatencyTracker()
+
+        # US4: Role configuration for transcript display
+        self._user_role: str = "使用者"
+        self._ai_role: str = "AI 助理"
 
         self._event_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
@@ -133,14 +138,32 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         config = data.get("config", {})
         system_prompt = data.get("system_prompt", "")
 
+        # T073b [US4]: Extract role and scenario configuration
+        user_role = data.get("user_role", "使用者")
+        ai_role = data.get("ai_role", "AI 助理")
+        scenario_context = data.get("scenario_context", "")
+
+        # Store for use in transcript messages
+        self._user_role = user_role
+        self._ai_role = ai_role
+
+        # T073a: Generate system prompt from role/scenario if not provided
+        effective_system_prompt = system_prompt
+        if not effective_system_prompt and scenario_context:
+            effective_system_prompt = f"你是{ai_role}。{scenario_context}"
+
         try:
-            # Create session
+            # Create session with role/scenario configuration
             mode = InteractionMode(self._mode_service.mode_name)
             self._session = InteractionSession(
                 user_id=self._user_id,
                 mode=mode,
                 provider_config=config,
-                system_prompt=system_prompt,
+                started_at=datetime.now(UTC),
+                system_prompt=effective_system_prompt,
+                user_role=user_role,
+                ai_role=ai_role,
+                scenario_context=scenario_context,
             )
             self._session = await self._repository.create_session(self._session)
 
@@ -151,14 +174,20 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             await self._mode_service.connect(
                 session_id=self._session.id,
                 config=config,
-                system_prompt=system_prompt,
+                system_prompt=effective_system_prompt,
             )
 
+            # T073b: Include role names in connected response for frontend
             await self.send_message(
                 WebSocketMessage(
                     type=MessageType.CONNECTED,
                     session_id=self._session.id,
-                    data={"status": "session_started", "session_id": str(self._session.id)},
+                    data={
+                        "status": "session_started",
+                        "session_id": str(self._session.id),
+                        "user_role": user_role,
+                        "ai_role": ai_role,
+                    },
                 )
             )
             self._logger.info(f"Session {self._session.id} started")
@@ -299,24 +328,28 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                 self._latency_tracker.mark_stt_completed(self._current_turn.id)
                 self._current_turn.set_transcript(data.get("text", ""))
                 await self._repository.update_turn(self._current_turn)
+            # T073b: Include role name in transcript message
+            transcript_data = {**data, "role": self._user_role}
             await self.send_message(
                 WebSocketMessage(
                     type=MessageType.TRANSCRIPT,
                     session_id=self.session_id,
                     turn_id=self._current_turn.id if self._current_turn else None,
-                    data=data,
+                    data=transcript_data,
                 )
             )
 
         elif event_type == "text_delta":
             if self._current_turn and not self._current_turn.ai_response_text:
                 self._latency_tracker.mark_llm_first_token(self._current_turn.id)
+            # T073b: Include role name in text_delta message
+            text_delta_data = {**data, "role": self._ai_role}
             await self.send_message(
                 WebSocketMessage(
                     type=MessageType.TEXT_DELTA,
                     session_id=self.session_id,
                     turn_id=self._current_turn.id if self._current_turn else None,
-                    data=data,
+                    data=text_delta_data,
                 )
             )
 

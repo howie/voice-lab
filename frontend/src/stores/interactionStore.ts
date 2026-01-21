@@ -87,6 +87,10 @@ interface InteractionStoreState {
   setSystemPrompt: (prompt: string) => void
   setOptions: (options: Partial<InteractionOptions>) => void
   setAvailableTemplates: (templates: SystemPromptTemplate[]) => void
+  // US4: Role and scenario configuration
+  setUserRole: (role: string) => void
+  setAiRole: (role: string) => void
+  setScenarioContext: (context: string) => void
 
   // Actions - Error
   setError: (error: string | null) => void
@@ -107,6 +111,11 @@ const defaultOptions: InteractionOptions = {
     voice: 'alloy',
   },
   systemPrompt: '',
+  // US4: Role and scenario defaults
+  userRole: '使用者',
+  aiRole: 'AI 助理',
+  scenarioContext: '',
+  // Audio settings
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,
@@ -227,6 +236,22 @@ export const useInteractionStore = create<InteractionStoreState>()(
         })),
 
       setAvailableTemplates: (templates) => set({ availableTemplates: templates }),
+
+      // US4: Role and scenario configuration actions
+      setUserRole: (role) =>
+        set((state) => ({
+          options: { ...state.options, userRole: role },
+        })),
+
+      setAiRole: (role) =>
+        set((state) => ({
+          options: { ...state.options, aiRole: role },
+        })),
+
+      setScenarioContext: (context) =>
+        set((state) => ({
+          options: { ...state.options, scenarioContext: context },
+        })),
 
       // Error actions
       setError: (error) => set({ error }),

@@ -26,6 +26,9 @@ class StartSessionInput:
     mode: InteractionMode
     provider_config: dict[str, Any]
     system_prompt: str = ""
+    user_role: str = "使用者"  # US4: User role name
+    ai_role: str = "AI 助理"  # US4: AI role name
+    scenario_context: str = ""  # US4: Scenario context
     session_id: UUID | None = None  # Optional: provide your own session ID
 
 
@@ -78,13 +81,21 @@ class StartSessionUseCase:
         # Generate session ID if not provided
         session_id = input_data.session_id or uuid4()
 
+        # T073a: Generate system prompt from ai_role + scenario_context if not provided
+        system_prompt = input_data.system_prompt
+        if not system_prompt and input_data.scenario_context:
+            system_prompt = f"你是{input_data.ai_role}。{input_data.scenario_context}"
+
         # Create session entity
         session = InteractionSession(
             id=session_id,
             user_id=input_data.user_id,
             mode=input_data.mode,
             provider_config=input_data.provider_config,
-            system_prompt=input_data.system_prompt,
+            system_prompt=system_prompt,
+            user_role=input_data.user_role,
+            ai_role=input_data.ai_role,
+            scenario_context=input_data.scenario_context,
             status=SessionStatus.ACTIVE,
             started_at=datetime.now(UTC),
             ended_at=None,

@@ -13,6 +13,7 @@ from src.domain.entities.interaction_session import InteractionSession
 # Async job management entities (Feature 007)
 from src.domain.entities.job import Job, JobStatus, JobType
 from src.domain.entities.latency_metrics import LatencyMetrics
+from src.domain.entities.scenario_template import ScenarioTemplate
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.domain.entities.system_prompt_template import SystemPromptTemplate
 from src.domain.entities.test_record import TestRecord, TestType
@@ -51,6 +52,7 @@ __all__ = [
     "InteractionMode",
     "InteractionSession",
     "LatencyMetrics",
+    "ScenarioTemplate",
     "SessionStatus",
     "SystemPromptTemplate",
     # Async job management

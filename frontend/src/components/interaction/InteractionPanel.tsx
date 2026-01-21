@@ -11,8 +11,11 @@ import { useEffect, useCallback, useState, useRef } from 'react'
 import { AudioVisualizer } from './AudioVisualizer'
 import { ModeSelector } from './ModeSelector'
 import { TranscriptDisplay } from './TranscriptDisplay'
+import { RoleScenarioEditor } from './RoleScenarioEditor'
+import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
 
 import { useInteractionStore } from '@/stores/interactionStore'
+import type { ScenarioTemplate } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { useAudioPlayback } from '@/hooks/useAudioPlayback'
@@ -123,6 +126,10 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setProviderConfig,
     setError,
     resetSession,
+    // US4: Role and scenario configuration
+    setUserRole,
+    setAiRole,
+    setScenarioContext,
   } = useInteractionStore()
 
   // Determine WebSocket URL
@@ -332,10 +339,13 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Handle start session after WebSocket connects
   useEffect(() => {
     if (wsStatus === 'connected' && isConnectingRef.current) {
-      // Send config message to start session
+      // T078: Send config message with role/scenario to start session
       sendMessage('config', {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
+        user_role: options.userRole,
+        ai_role: options.aiRole,
+        scenario_context: options.scenarioContext,
       })
     }
   }, [wsStatus, sendMessage, options])
@@ -364,6 +374,16 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     stopAudio()
   }
 
+  // T076: Handle template selection - fill role/scenario from template
+  const handleTemplateSelect = useCallback(
+    (template: ScenarioTemplate) => {
+      setUserRole(template.user_role)
+      setAiRole(template.ai_role)
+      setScenarioContext(template.scenario_context)
+    },
+    [setUserRole, setAiRole, setScenarioContext]
+  )
+
   const isConnected = connectionStatus === 'connected'
   const displayError = error || wsError || micError || permissionError
 
@@ -375,6 +395,23 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         providerConfig={options.providerConfig}
         onModeChange={setMode}
         onProviderChange={setProviderConfig}
+        disabled={isConnected}
+      />
+
+      {/* US4: Scenario Template Selector */}
+      <ScenarioTemplateSelector
+        onSelect={handleTemplateSelect}
+        disabled={isConnected}
+      />
+
+      {/* US4: Role and Scenario Editor */}
+      <RoleScenarioEditor
+        userRole={options.userRole}
+        aiRole={options.aiRole}
+        scenarioContext={options.scenarioContext}
+        onUserRoleChange={setUserRole}
+        onAiRoleChange={setAiRole}
+        onScenarioContextChange={setScenarioContext}
         disabled={isConnected}
       />
 
@@ -439,12 +476,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         )}
       </div>
 
-      {/* Transcripts */}
+      {/* Transcripts - T078a: Show role names instead of fixed labels */}
       <TranscriptDisplay
         turnHistory={turnHistory}
         currentUserTranscript={userTranscript}
         currentAIResponse={aiResponseText}
         isTranscriptFinal={isTranscriptFinal}
+        userRoleLabel={options.userRole}
+        aiRoleLabel={options.aiRole}
       />
     </div>
   )

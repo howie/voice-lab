@@ -399,6 +399,10 @@ class InteractionSessionModel(Base):
     )
     provider_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # US4: Role and scenario configuration
+    user_role: Mapped[str] = mapped_column(String(100), nullable=False, default="使用者")
+    ai_role: Mapped[str] = mapped_column(String(100), nullable=False, default="AI 助理")
+    scenario_context: Mapped[str] = mapped_column(Text, nullable=False, default="")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[SessionStatus] = mapped_column(
@@ -532,3 +536,29 @@ class JobModel(Base):
     # Relationships
     user: Mapped["User"] = relationship("User")
     audio_file: Mapped["AudioFileModel | None"] = relationship("AudioFileModel")
+
+
+class ScenarioTemplateModel(Base):
+    """SQLAlchemy model for scenario templates (US4).
+
+    Contains role and context configuration for voice interactions.
+    """
+
+    __tablename__ = "scenario_templates"
+    __table_args__ = (
+        Index("idx_scenario_template_category", "category"),
+        Index("idx_scenario_template_is_default", "is_default"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    user_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    ai_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    scenario_context: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

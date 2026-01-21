@@ -146,17 +146,24 @@ export interface ConnectedMessageData {
   mode: InteractionMode
   session_id?: string
   status?: string
+  // US4: Role names from session config
+  user_role?: string
+  ai_role?: string
 }
 
 export interface TranscriptMessageData {
   text: string
   is_final: boolean
   confidence?: number
+  // US4: Role name for display
+  role?: string
 }
 
 export interface TextDeltaMessageData {
   delta: string
   accumulated?: string
+  // US4: Role name for display
+  role?: string
 }
 
 export interface AudioMessageData {
@@ -183,6 +190,20 @@ export interface SystemPromptTemplate {
   prompt_content: string
   category: string
   is_default: boolean
+}
+
+// US4: Scenario Template for role-play configuration
+export interface ScenarioTemplate {
+  id: string
+  name: string
+  description: string
+  user_role: string
+  ai_role: string
+  scenario_context: string
+  category: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
 }
 
 // =============================================================================
@@ -258,6 +279,11 @@ export interface InteractionOptions {
   providerConfig: ProviderConfig
   systemPrompt: string
 
+  // US4: Role and scenario configuration
+  userRole: string
+  aiRole: string
+  scenarioContext: string
+
   // Audio settings
   autoPlayResponse: boolean
   enableVAD: boolean
@@ -275,6 +301,11 @@ export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
     voice: 'alloy',
   },
   systemPrompt: '',
+  // US4 defaults
+  userRole: '使用者',
+  aiRole: 'AI 助理',
+  scenarioContext: '',
+  // Audio settings
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,

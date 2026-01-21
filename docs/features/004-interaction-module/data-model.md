@@ -7,13 +7,15 @@
 
 ```
 ┌─────────────────────────┐       ┌─────────────────────────┐
-│   InteractionSession    │       │  SystemPromptTemplate   │
+│   InteractionSession    │       │    ScenarioTemplate     │
 ├─────────────────────────┤       ├─────────────────────────┤
 │ id: UUID (PK)           │       │ id: UUID (PK)           │
 │ user_id: UUID (FK)      │       │ name: str               │
 │ mode: InteractionMode   │       │ description: str        │
-│ provider_config: JSON   │       │ prompt_content: text    │
-│ system_prompt: text     │       │ category: str           │
+│ provider_config: JSON   │       │ user_role: str          │
+│ user_role: str          │◀──────│ ai_role: str            │
+│ ai_role: str            │       │ scenario_context: text  │
+│ scenario_context: text  │       │ category: str           │
 │ started_at: datetime    │       │ is_default: bool        │
 │ ended_at: datetime?     │       │ created_at: datetime    │
 │ status: SessionStatus   │       │ updated_at: datetime    │
@@ -59,7 +61,7 @@
 
 ### InteractionSession
 
-代表一次完整的語音互動會話。
+代表一次完整的語音互動會話，包含角色設定和情境描述。
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
@@ -67,7 +69,9 @@
 | user_id | UUID | FK → users.id | 使用者識別碼 |
 | mode | Enum | NOT NULL | 互動模式 (realtime/cascade) |
 | provider_config | JSONB | NOT NULL | 提供者配置（見下方結構） |
-| system_prompt | TEXT | DEFAULT '' | 自訂系統提示詞 |
+| user_role | VARCHAR(100) | NOT NULL, DEFAULT '使用者' | 使用者角色名稱（如：顧客、病患、學生） |
+| ai_role | VARCHAR(100) | NOT NULL, DEFAULT 'AI 助理' | AI 角色名稱（如：客服、醫生、老師） |
+| scenario_context | TEXT | DEFAULT '' | 對話情境描述（情境說明和限制條件） |
 | started_at | TIMESTAMP | NOT NULL | 會話開始時間 |
 | ended_at | TIMESTAMP | NULLABLE | 會話結束時間 |
 | status | Enum | NOT NULL, DEFAULT 'active' | 會話狀態 |
@@ -101,6 +105,11 @@
   "voice": "alloy"
 }
 ```
+
+**角色與情境說明**:
+- `user_role`: 在對話記錄中用來標示使用者發言（取代固定的「您」）
+- `ai_role`: 在對話記錄中用來標示 AI 回應（取代固定的「AI」），同時用於生成 system prompt
+- `scenario_context`: 描述對話的情境、目標和限制，會被組合成 system prompt 發送給 LLM
 
 ---
 
@@ -151,17 +160,19 @@
 
 ---
 
-### SystemPromptTemplate
+### ScenarioTemplate
 
-預設的場景模板。
+預設的場景模板，包含角色設定和情境描述。
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | id | UUID | PK | 唯一識別碼 |
 | name | VARCHAR(100) | NOT NULL, UNIQUE | 模板名稱 |
-| description | VARCHAR(500) | NOT NULL | 模板說明 |
-| prompt_content | TEXT | NOT NULL | 提示詞內容 |
-| category | VARCHAR(50) | NOT NULL | 分類（如 customer_service, education） |
+| description | VARCHAR(500) | NOT NULL | 模板說明（給使用者看的描述） |
+| user_role | VARCHAR(100) | NOT NULL | 預設使用者角色名稱 |
+| ai_role | VARCHAR(100) | NOT NULL | 預設 AI 角色名稱 |
+| scenario_context | TEXT | NOT NULL | 預設對話情境描述 |
+| category | VARCHAR(50) | NOT NULL | 分類（如 customer_service, education, medical） |
 | is_default | BOOLEAN | NOT NULL, DEFAULT FALSE | 是否為預設模板 |
 | created_at | TIMESTAMP | NOT NULL, DEFAULT NOW() | 建立時間 |
 | updated_at | TIMESTAMP | NOT NULL, DEFAULT NOW() | 更新時間 |
@@ -266,11 +277,25 @@ storage/
 
 ## Default Data
 
-### 預設系統提示詞模板
+### 預設場景模板
 
-| Name | Category | Description |
-|------|----------|-------------|
-| 客服機器人 | customer_service | 專業友善的客戶服務代表 |
-| 語言教師 | education | 耐心的語言學習助教 |
-| 技術支援 | technical | IT 技術問題解答專家 |
-| 一般助理 | general | 通用對話助理 |
+| Name | Category | User Role | AI Role | Description |
+|------|----------|-----------|---------|-------------|
+| 客服諮詢 | customer_service | 顧客 | 客服專員 | 模擬客戶服務場景，處理產品詢問和問題反映 |
+| 醫療諮詢 | medical | 病患 | 醫療助理 | 模擬醫療諮詢場景，進行症狀詢問和衛教說明 |
+| 語言教學 | education | 學生 | 語言老師 | 模擬語言學習場景，進行對話練習和糾錯指導 |
+| 技術支援 | technical | 用戶 | 技術工程師 | 模擬 IT 支援場景，解答技術問題和故障排除 |
+| 一般對話 | general | 使用者 | AI 助理 | 通用對話場景，無特定角色限制 |
+
+### 場景模板範例
+
+**醫療諮詢模板**:
+```
+user_role: "病患"
+ai_role: "醫療助理"
+scenario_context: |
+  你是一位專業的醫療諮詢助理。請以關懷的態度詢問病患的症狀，
+  提供基本的衛教資訊，但不進行診斷或開立處方。
+  如果症狀嚴重，請建議病患儘速就醫。
+  對話應簡潔清晰，避免使用過於專業的醫學術語。
+```

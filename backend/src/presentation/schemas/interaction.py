@@ -131,3 +131,21 @@ class SystemPromptTemplateListResponse(BaseSchema):
     """List of system prompt templates."""
 
     templates: list[SystemPromptTemplateResponse] = Field(..., description="List of templates")
+
+
+# =============================================================================
+# Scenario Template Schemas (US4 - Role/Scenario Configuration)
+# =============================================================================
+
+
+class ScenarioTemplateResponse(BaseSchema):
+    """Response containing a scenario template."""
+
+    id: UUID = Field(..., description="Template UUID")
+    name: str = Field(..., description="Template name")
+    description: str = Field(..., description="Template description")
+    user_role: str = Field(..., description="User role name")
+    ai_role: str = Field(..., description="AI role name")
+    scenario_context: str = Field(..., description="Scenario context description")
+    category: str = Field(..., description="Template category")
+    is_default: bool = Field(False, description="Whether this is a default template")

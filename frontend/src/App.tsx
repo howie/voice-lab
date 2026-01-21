@@ -6,6 +6,7 @@ import { TTSPage } from '@/routes/tts/TTSPage'
 import { STTPage } from '@/routes/stt/STTPage'
 import { STTHistoryPage } from '@/routes/stt/STTHistoryPage'
 import { InteractionPage } from '@/routes/interaction/InteractionPage'
+import { InteractionHistoryPage } from '@/routes/interaction/InteractionHistoryPage'
 import { HistoryPage } from '@/routes/history/HistoryPage'
 import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
 import { ProviderSettings } from '@/routes/settings/ProviderSettings'
@@ -46,6 +47,7 @@ function AppContent() {
         <Route path="stt" element={<STTPage />} />
         <Route path="stt/history" element={<STTHistoryPage />} />
         <Route path="interaction" element={<InteractionPage />} />
+        <Route path="interaction/history" element={<InteractionHistoryPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
         <Route path="settings/providers" element={<ProviderSettings />} />

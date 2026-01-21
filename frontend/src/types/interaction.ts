@@ -105,6 +105,17 @@ export interface LatencyMetrics {
   created_at: string
 }
 
+// T061: Latency data included in response_ended WebSocket message
+export interface TurnLatencyData {
+  total_ms: number
+  stt_ms: number | null
+  llm_ttft_ms: number | null
+  tts_ttfb_ms: number | null
+  realtime_ms: number | null
+  // T088: Interrupt latency (time AI was speaking before interrupted)
+  interrupt_ms: number | null
+}
+
 export interface LatencyStats {
   total_turns: number
   avg_total_ms: number | null
@@ -146,17 +157,24 @@ export interface ConnectedMessageData {
   mode: InteractionMode
   session_id?: string
   status?: string
+  // US4: Role names from session config
+  user_role?: string
+  ai_role?: string
 }
 
 export interface TranscriptMessageData {
   text: string
   is_final: boolean
   confidence?: number
+  // US4: Role name for display
+  role?: string
 }
 
 export interface TextDeltaMessageData {
   delta: string
   accumulated?: string
+  // US4: Role name for display
+  role?: string
 }
 
 export interface AudioMessageData {
@@ -183,6 +201,20 @@ export interface SystemPromptTemplate {
   prompt_content: string
   category: string
   is_default: boolean
+}
+
+// US4: Scenario Template for role-play configuration
+export interface ScenarioTemplate {
+  id: string
+  name: string
+  description: string
+  user_role: string
+  ai_role: string
+  scenario_context: string
+  category: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
 }
 
 // =============================================================================
@@ -258,10 +290,18 @@ export interface InteractionOptions {
   providerConfig: ProviderConfig
   systemPrompt: string
 
+  // US4: Role and scenario configuration
+  userRole: string
+  aiRole: string
+  scenarioContext: string
+
   // Audio settings
   autoPlayResponse: boolean
   enableVAD: boolean
   vadSensitivity: number // 0-1
+
+  // US5: Barge-in (interrupt) settings
+  bargeInEnabled: boolean
 
   // Display settings
   showLatencyMetrics: boolean
@@ -275,9 +315,16 @@ export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
     voice: 'alloy',
   },
   systemPrompt: '',
+  // US4 defaults
+  userRole: '使用者',
+  aiRole: 'AI 助理',
+  scenarioContext: '',
+  // Audio settings
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,
+  // US5: Barge-in enabled by default
+  bargeInEnabled: true,
   showLatencyMetrics: true,
   showTranscripts: true,
 }
@@ -297,4 +344,22 @@ export interface InteractionEvents {
   onResponseEnded: () => void
   onInterrupted: () => void
   onError: (error: ErrorMessageData) => void
+}
+
+// =============================================================================
+// Provider Info Types (T056)
+// =============================================================================
+
+export interface ProviderInfo {
+  name: string
+  display_name: string
+  description?: string
+  default_model?: string
+  available_models?: string[]
+}
+
+export interface ProvidersResponse {
+  stt_providers: ProviderInfo[]
+  llm_providers: ProviderInfo[]
+  tts_providers: ProviderInfo[]
 }

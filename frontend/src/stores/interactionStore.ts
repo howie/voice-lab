@@ -18,6 +18,7 @@ import type {
   LatencyStats,
   ProviderConfig,
   SystemPromptTemplate,
+  TurnLatencyData,
 } from '@/types/interaction'
 
 // =============================================================================
@@ -47,6 +48,7 @@ interface InteractionStoreState {
 
   // Latency tracking
   currentLatency: number | null
+  currentTurnLatency: TurnLatencyData | null
   sessionStats: LatencyStats | null
 
   // Configuration
@@ -79,6 +81,7 @@ interface InteractionStoreState {
 
   // Actions - Latency
   setCurrentLatency: (latency: number | null) => void
+  setCurrentTurnLatency: (latency: TurnLatencyData | null) => void
   setSessionStats: (stats: LatencyStats | null) => void
 
   // Actions - Configuration
@@ -87,6 +90,12 @@ interface InteractionStoreState {
   setSystemPrompt: (prompt: string) => void
   setOptions: (options: Partial<InteractionOptions>) => void
   setAvailableTemplates: (templates: SystemPromptTemplate[]) => void
+  // US4: Role and scenario configuration
+  setUserRole: (role: string) => void
+  setAiRole: (role: string) => void
+  setScenarioContext: (context: string) => void
+  // US5: Barge-in configuration
+  setBargeInEnabled: (enabled: boolean) => void
 
   // Actions - Error
   setError: (error: string | null) => void
@@ -107,9 +116,16 @@ const defaultOptions: InteractionOptions = {
     voice: 'alloy',
   },
   systemPrompt: '',
+  // US4: Role and scenario defaults
+  userRole: '使用者',
+  aiRole: 'AI 助理',
+  scenarioContext: '',
+  // Audio settings
   autoPlayResponse: true,
   enableVAD: true,
   vadSensitivity: 0.5,
+  // US5: Barge-in enabled by default
+  bargeInEnabled: true,
   showLatencyMetrics: true,
   showTranscripts: true,
 }
@@ -128,6 +144,7 @@ const initialState = {
   aiResponseText: '',
   isTranscriptFinal: false,
   currentLatency: null,
+  currentTurnLatency: null,
   sessionStats: null,
   options: defaultOptions,
   availableTemplates: [],
@@ -191,6 +208,8 @@ export const useInteractionStore = create<InteractionStoreState>()(
       // Latency actions
       setCurrentLatency: (latency) => set({ currentLatency: latency }),
 
+      setCurrentTurnLatency: (latency) => set({ currentTurnLatency: latency }),
+
       setSessionStats: (stats) => set({ sessionStats: stats }),
 
       // Configuration actions
@@ -228,6 +247,28 @@ export const useInteractionStore = create<InteractionStoreState>()(
 
       setAvailableTemplates: (templates) => set({ availableTemplates: templates }),
 
+      // US4: Role and scenario configuration actions
+      setUserRole: (role) =>
+        set((state) => ({
+          options: { ...state.options, userRole: role },
+        })),
+
+      setAiRole: (role) =>
+        set((state) => ({
+          options: { ...state.options, aiRole: role },
+        })),
+
+      setScenarioContext: (context) =>
+        set((state) => ({
+          options: { ...state.options, scenarioContext: context },
+        })),
+
+      // US5: Barge-in configuration action
+      setBargeInEnabled: (enabled) =>
+        set((state) => ({
+          options: { ...state.options, bargeInEnabled: enabled },
+        })),
+
       // Error actions
       setError: (error) => set({ error }),
 
@@ -243,6 +284,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
           aiResponseText: '',
           isTranscriptFinal: false,
           currentLatency: null,
+          currentTurnLatency: null,
           sessionStats: null,
           error: null,
           interactionState: 'idle',

@@ -348,15 +348,30 @@ class OpenAIRealtimeService(InteractionModeService):
             )
 
         elif event_type == "response.done":
-            await self._event_queue.put(
-                ResponseEvent(
-                    type="response_ended",
-                    data={
-                        "response_id": event.get("response", {}).get("id"),
-                        "status": event.get("response", {}).get("status"),
-                    },
+            response_data = event.get("response", {})
+            status = response_data.get("status")
+
+            # T079: Handle cancelled status as interrupted event
+            if status == "cancelled":
+                await self._event_queue.put(
+                    ResponseEvent(
+                        type="interrupted",
+                        data={
+                            "response_id": response_data.get("id"),
+                            "reason": "cancelled",
+                        },
+                    )
                 )
-            )
+            else:
+                await self._event_queue.put(
+                    ResponseEvent(
+                        type="response_ended",
+                        data={
+                            "response_id": response_data.get("id"),
+                            "status": status,
+                        },
+                    )
+                )
 
         # Error events
         elif event_type == "error":

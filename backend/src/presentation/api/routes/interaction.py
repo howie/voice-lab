@@ -8,6 +8,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.use_cases.voice_interaction import (
@@ -20,12 +21,16 @@ from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.interaction_repository_impl import (
     SQLAlchemyInteractionRepository,
 )
+from src.infrastructure.persistence.scenario_template_repository_impl import (
+    SQLAlchemyScenarioTemplateRepository,
+)
 from src.infrastructure.storage.audio_storage import AudioStorageService
 from src.presentation.api.dependencies import get_voice_interaction_use_case
 from src.presentation.schemas.interaction import (
     ConversationMessage,
     InteractionResponse,
     LatencyStatsResponse,
+    ScenarioTemplateResponse,
     SessionListResponse,
     SessionResponse,
     TurnResponse,
@@ -238,6 +243,72 @@ async def list_session_turns(
     return [_turn_to_response(t) for t in turns]
 
 
+@router.get("/sessions/{session_id}/turns/{turn_id}/audio")
+async def get_turn_audio(
+    session_id: UUID,
+    turn_id: UUID,
+    audio_type: str = Query("ai", description="Audio type: 'user' or 'ai'"),
+    db: AsyncSession = Depends(get_db_session),
+) -> FileResponse:
+    """Get audio file for a specific turn.
+
+    T093 [US6]: GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
+
+    Args:
+        session_id: Session UUID
+        turn_id: Turn UUID
+        audio_type: 'user' for user's recording or 'ai' for AI's response
+
+    Returns:
+        Audio file as streaming response
+    """
+    repository = SQLAlchemyInteractionRepository(db)
+    audio_storage = AudioStorageService()
+
+    # Verify session exists
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get the turn
+    turn = await repository.get_turn(turn_id)
+    if not turn or turn.session_id != session_id:
+        raise HTTPException(status_code=404, detail="Turn not found")
+
+    # Get the appropriate audio path
+    if audio_type == "user":
+        audio_path = turn.user_audio_path
+    elif audio_type == "ai":
+        audio_path = turn.ai_audio_path
+    else:
+        raise HTTPException(status_code=400, detail="audio_type must be 'user' or 'ai'")
+
+    if not audio_path:
+        raise HTTPException(
+            status_code=404, detail=f"No {audio_type} audio available for this turn"
+        )
+
+    # Get the full file path
+    full_path = await audio_storage.get_audio_path(audio_path)
+    if not full_path or not full_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    # Determine media type based on file extension
+    media_type = "audio/mpeg"  # Default for mp3
+    if audio_path.endswith(".webm"):
+        media_type = "audio/webm"
+    elif audio_path.endswith(".wav"):
+        media_type = "audio/wav"
+    elif audio_path.endswith(".pcm"):
+        media_type = "audio/pcm"
+
+    return FileResponse(
+        path=full_path,
+        media_type=media_type,
+        filename=full_path.name,
+    )
+
+
 @router.get("/sessions/{session_id}/latency", response_model=LatencyStatsResponse)
 async def get_session_latency_stats(
     session_id: UUID,
@@ -262,3 +333,102 @@ async def get_session_latency_stats(
         avg_llm_ttft_ms=stats["avg_llm_ttft_ms"],
         avg_tts_ttfb_ms=stats["avg_tts_ttfb_ms"],
     )
+
+
+# =============================================================================
+# Scenario Templates Endpoints (US4 - Role/Scenario Configuration)
+# =============================================================================
+
+
+def _template_to_response(template) -> ScenarioTemplateResponse:
+    """Convert domain entity to response schema."""
+    return ScenarioTemplateResponse(
+        id=template.id,
+        name=template.name,
+        description=template.description,
+        user_role=template.user_role,
+        ai_role=template.ai_role,
+        scenario_context=template.scenario_context,
+        category=template.category,
+        is_default=template.is_default,
+    )
+
+
+@router.get("/templates", response_model=list[ScenarioTemplateResponse])
+async def list_scenario_templates(
+    category: str | None = Query(None, description="Filter by category"),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[ScenarioTemplateResponse]:
+    """List scenario templates with optional category filter.
+
+    T071 [US4]: GET /api/v1/interaction/templates
+    """
+    repository = SQLAlchemyScenarioTemplateRepository(db)
+
+    if category:
+        templates = await repository.list_by_category(category)
+    else:
+        templates = await repository.list_all()
+
+    return [_template_to_response(t) for t in templates]
+
+
+@router.get("/templates/{template_id}", response_model=ScenarioTemplateResponse)
+async def get_scenario_template(
+    template_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> ScenarioTemplateResponse:
+    """Get a specific scenario template by ID.
+
+    T072 [US4]: GET /api/v1/interaction/templates/{id}
+    """
+    repository = SQLAlchemyScenarioTemplateRepository(db)
+    template = await repository.get_by_id(template_id)
+
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    return _template_to_response(template)
+
+
+# =============================================================================
+# Providers Endpoints (US2 - Mode Selection)
+# =============================================================================
+
+
+@router.get("/providers")
+async def list_providers() -> dict:
+    """List available providers for cascade mode.
+
+    T051 [US2]: GET /api/v1/interaction/providers
+    Returns available STT, LLM, and TTS providers with metadata.
+    """
+    from src.domain.services.interaction.cascade_mode_factory import CascadeModeFactory
+
+    provider_info = CascadeModeFactory.get_provider_info()
+
+    return {
+        "stt_providers": provider_info["stt"],
+        "llm_providers": provider_info["llm"],
+        "tts_providers": provider_info["tts"],
+    }
+
+
+# =============================================================================
+# Metrics Endpoint (T104-T105 - Observability)
+# =============================================================================
+
+
+@router.get("/metrics")
+async def get_metrics() -> dict:
+    """Get interaction module metrics.
+
+    T104 [Phase 9]: API call counter metrics per provider.
+    T105 [Phase 9]: Error rate tracking.
+
+    Returns provider call counts, error rates, and latency statistics.
+    """
+    from src.infrastructure.logging import get_interaction_metrics
+
+    metrics = get_interaction_metrics()
+    return metrics.get_all_metrics()

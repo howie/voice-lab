@@ -39,6 +39,9 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
             mode=session.mode,
             provider_config=session.provider_config,
             system_prompt=session.system_prompt,
+            user_role=session.user_role,
+            ai_role=session.ai_role,
+            scenario_context=session.scenario_context,
             started_at=session.started_at,
             ended_at=session.ended_at,
             status=session.status,
@@ -65,6 +68,9 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
             model.mode = session.mode
             model.provider_config = session.provider_config
             model.system_prompt = session.system_prompt
+            model.user_role = session.user_role
+            model.ai_role = session.ai_role
+            model.scenario_context = session.scenario_context
             model.ended_at = session.ended_at
             model.status = session.status
             model.updated_at = session.updated_at
@@ -250,6 +256,9 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
             mode=model.mode,
             provider_config=model.provider_config,
             system_prompt=model.system_prompt,
+            user_role=model.user_role,
+            ai_role=model.ai_role,
+            scenario_context=model.scenario_context,
             started_at=model.started_at,
             ended_at=model.ended_at,
             status=model.status,

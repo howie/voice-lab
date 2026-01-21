@@ -9,9 +9,14 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 
 import { AudioVisualizer } from './AudioVisualizer'
+import { LatencyDisplay } from './LatencyDisplay'
 import { ModeSelector } from './ModeSelector'
+import { TranscriptDisplay } from './TranscriptDisplay'
+import { RoleScenarioEditor } from './RoleScenarioEditor'
+import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
 
 import { useInteractionStore } from '@/stores/interactionStore'
+import type { ScenarioTemplate, TurnLatencyData } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { useAudioPlayback } from '@/hooks/useAudioPlayback'
@@ -28,6 +33,51 @@ interface InteractionPanelProps {
 
 // Combined status for UI display
 type DisplayStatus = 'idle' | 'connecting' | 'ready' | 'listening' | 'processing' | 'speaking' | 'error'
+
+// T058: Fallback prompt component when Realtime API fails
+interface FallbackPromptProps {
+  isRealtimeMode: boolean
+  hasError: boolean
+  onSwitchToCascade: () => void
+}
+
+function FallbackPrompt({ isRealtimeMode, hasError, onSwitchToCascade }: FallbackPromptProps) {
+  if (!isRealtimeMode || !hasError) return null
+
+  return (
+    <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 dark:bg-amber-950/20">
+      <div className="flex items-start gap-3">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+        >
+          <path
+            fillRule="evenodd"
+            d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            Realtime API 連線失敗
+          </h4>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+            即時模式暫時無法使用。建議切換至串接模式 (STT → LLM → TTS)，可提供相似的互動體驗。
+          </p>
+          <button
+            type="button"
+            onClick={onSwitchToCascade}
+            className="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
+          >
+            切換至串接模式
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Status indicator component
 function StatusIndicator({
@@ -89,33 +139,51 @@ function float32ToPCM16(input: Float32Array): ArrayBuffer {
 export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionPanelProps) {
   const [permissionError, setPermissionError] = useState<string | null>(null)
 
+  // T087: Track when an interruption just occurred for the indicator
+  const [wasInterrupted, setWasInterrupted] = useState(false)
+
   // Ref to track if we're in the connecting phase
   const isConnectingRef = useRef(false)
+
+  // Ref for turn counter
+  const turnCounterRef = useRef(0)
 
   // Store state
   const {
     connectionStatus,
     interactionState,
     options,
+    turnHistory,
     userTranscript,
     aiResponseText,
+    isTranscriptFinal,
     isRecording,
     inputVolume,
     currentLatency,
+    currentTurnLatency,
+    sessionStats,
     error,
     setConnectionStatus,
     setInteractionState,
     setSession,
+    addTurnToHistory,
     setUserTranscript,
     appendAIResponse,
     clearTranscripts,
     setIsRecording,
     setInputVolume,
     setCurrentLatency,
+    setCurrentTurnLatency,
     setMode,
     setProviderConfig,
     setError,
     resetSession,
+    // US4: Role and scenario configuration
+    setUserRole,
+    setAiRole,
+    setScenarioContext,
+    // US5: Barge-in configuration
+    setBargeInEnabled,
   } = useInteractionStore()
 
   // Determine WebSocket URL
@@ -197,15 +265,53 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           }
           break
 
-        case 'response_ended':
+        case 'response_ended': {
+          // Save current turn to history before clearing
+          const currentUserTranscript = useInteractionStore.getState().userTranscript
+          const currentAIResponse = useInteractionStore.getState().aiResponseText
+          const currentSession = useInteractionStore.getState().session
+
+          if ((currentUserTranscript || currentAIResponse) && currentSession) {
+            turnCounterRef.current += 1
+            const now = new Date().toISOString()
+            addTurnToHistory({
+              id: `${currentSession.id}-turn-${turnCounterRef.current}`,
+              session_id: currentSession.id,
+              turn_number: turnCounterRef.current,
+              user_audio_path: null,
+              user_transcript: currentUserTranscript || null,
+              ai_response_text: currentAIResponse || null,
+              ai_audio_path: null,
+              interrupted: false,
+              started_at: now,
+              ended_at: now,
+            })
+          }
+
+          // Clear current transcripts for next turn
+          clearTranscripts()
           setInteractionState('listening')
-          if (data.latency_ms) {
+
+          // T065: Parse detailed latency data from response_ended message
+          const latencyData = data.latency as TurnLatencyData | undefined
+          if (latencyData) {
+            setCurrentLatency(latencyData.total_ms)
+            setCurrentTurnLatency(latencyData)
+          } else if (data.latency_ms) {
+            // Fallback for backward compatibility
             setCurrentLatency(data.latency_ms as number)
+            setCurrentTurnLatency(null)
           }
           break
+        }
 
         case 'interrupted':
+          // T085: Stop audio playback immediately on interrupt
+          stopAudio()
           setInteractionState('listening')
+          // T087: Show interrupt indicator briefly
+          setWasInterrupted(true)
+          setTimeout(() => setWasInterrupted(false), 2000)
           break
 
         case 'error':
@@ -224,9 +330,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       clearTranscripts,
       setUserTranscript,
       appendAIResponse,
+      addTurnToHistory,
       setCurrentLatency,
+      setCurrentTurnLatency,
       setError,
       queueAudioChunk,
+      stopAudio,
       userId,
       options.mode,
       options.providerConfig,
@@ -298,13 +407,26 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Handle start session after WebSocket connects
   useEffect(() => {
     if (wsStatus === 'connected' && isConnectingRef.current) {
-      // Send config message to start session
+      // T078: Send config message with role/scenario to start session
+      // T084: Include barge_in_enabled configuration
       sendMessage('config', {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
+        user_role: options.userRole,
+        ai_role: options.aiRole,
+        scenario_context: options.scenarioContext,
+        barge_in_enabled: options.bargeInEnabled,
       })
     }
   }, [wsStatus, sendMessage, options])
+
+  // Auto-start recording when session is ready (一鍵開始對話)
+  useEffect(() => {
+    if (wsStatus === 'connected' && interactionState === 'listening' && !isRecording) {
+      // Session is ready, auto-start recording
+      startRecording()
+    }
+  }, [wsStatus, interactionState, isRecording, startRecording])
 
   // Handle disconnect
   const handleDisconnect = () => {
@@ -316,25 +438,23 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     isConnectingRef.current = false
   }
 
-  // Handle start/stop recording
-  const handleToggleRecording = async () => {
-    if (isRecording) {
-      stopRecording()
-      // Send end turn signal
-      sendMessage('end_turn', {})
-    } else {
-      await startRecording()
-    }
-  }
-
   // Handle interrupt
   const handleInterrupt = () => {
     sendMessage('interrupt', {})
     stopAudio()
   }
 
+  // T076: Handle template selection - fill role/scenario from template
+  const handleTemplateSelect = useCallback(
+    (template: ScenarioTemplate) => {
+      setUserRole(template.user_role)
+      setAiRole(template.ai_role)
+      setScenarioContext(template.scenario_context)
+    },
+    [setUserRole, setAiRole, setScenarioContext]
+  )
+
   const isConnected = connectionStatus === 'connected'
-  const canRecord = isConnected && interactionState === 'listening'
   const displayError = error || wsError || micError || permissionError
 
   return (
@@ -345,6 +465,23 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         providerConfig={options.providerConfig}
         onModeChange={setMode}
         onProviderChange={setProviderConfig}
+        disabled={isConnected}
+      />
+
+      {/* US4: Scenario Template Selector */}
+      <ScenarioTemplateSelector
+        onSelect={handleTemplateSelect}
+        disabled={isConnected}
+      />
+
+      {/* US4: Role and Scenario Editor */}
+      <RoleScenarioEditor
+        userRole={options.userRole}
+        aiRole={options.aiRole}
+        scenarioContext={options.scenarioContext}
+        onUserRoleChange={setUserRole}
+        onAiRoleChange={setAiRole}
+        onScenarioContextChange={setScenarioContext}
         disabled={isConnected}
       />
 
@@ -383,84 +520,89 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         </div>
       )}
 
+      {/* T058: Fallback prompt when Realtime fails */}
+      <FallbackPrompt
+        isRealtimeMode={options.mode === 'realtime'}
+        hasError={connectionStatus === 'error' || !!wsError}
+        onSwitchToCascade={() => {
+          setError(null)
+          setMode('cascade')
+          setProviderConfig({
+            stt_provider: 'azure',
+            llm_provider: 'openai',
+            tts_provider: 'azure',
+            tts_voice: 'zh-TW-HsiaoChenNeural',
+          })
+        }}
+      />
+
       {/* Audio Visualizer */}
       <div className="rounded-lg border bg-card p-4">
-        <div className="mb-2 text-sm font-medium text-foreground">音訊輸入</div>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">音訊輸入</span>
+          <div className="flex items-center gap-3">
+            {/* T087: Interrupt indicator */}
+            {wasInterrupted && (
+              <span className="flex items-center gap-1 text-xs text-orange-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+                已打斷
+              </span>
+            )}
+            {isRecording && (
+              <span className="flex items-center gap-1 text-xs text-green-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                收音中
+              </span>
+            )}
+          </div>
+        </div>
         <AudioVisualizer level={inputVolume} isActive={isRecording} mode="bars" height={60} showLevel />
 
-        {/* Recording Button */}
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={handleToggleRecording}
-            disabled={!canRecord && !isRecording}
-            className={`
-              flex h-16 w-16 items-center justify-center rounded-full transition-all
-              ${
-                isRecording
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-              }
-              disabled:cursor-not-allowed disabled:opacity-50
-            `}
-          >
-            {isRecording ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
-                <path
-                  fillRule="evenodd"
-                  d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
-                <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
-                <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
-              </svg>
-            )}
-          </button>
-        </div>
+        {/* T086: Barge-in toggle and interrupt button */}
+        <div className="mt-4 flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={options.bargeInEnabled}
+              onChange={(e) => setBargeInEnabled(e.target.checked)}
+              disabled={isConnected}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <span className="text-sm text-muted-foreground">允許打斷 AI 回應</span>
+          </label>
 
-        {/* Interrupt Button */}
-        {interactionState === 'speaking' && (
-          <div className="mt-4 flex justify-center">
+          {/* Interrupt Button - only shown when AI is speaking and barge-in enabled */}
+          {interactionState === 'speaking' && options.bargeInEnabled && (
             <button
               onClick={handleInterrupt}
               className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
             >
               打斷回應
             </button>
-          </div>
-        )}
-      </div>
-
-      {/* Transcripts */}
-      <div className="rounded-lg border bg-card p-4">
-        <div className="mb-2 text-sm font-medium text-foreground">對話內容</div>
-        <div className="space-y-3">
-          {/* User transcript */}
-          {userTranscript && (
-            <div className="rounded-lg bg-primary/10 p-3">
-              <div className="mb-1 text-xs font-medium text-primary">您</div>
-              <div className="text-sm text-foreground">{userTranscript}</div>
-            </div>
-          )}
-
-          {/* AI response */}
-          {aiResponseText && (
-            <div className="rounded-lg bg-muted p-3">
-              <div className="mb-1 text-xs font-medium text-muted-foreground">AI</div>
-              <div className="text-sm text-foreground">{aiResponseText}</div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!userTranscript && !aiResponseText && (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              {isConnected ? '開始說話以進行對話' : '點擊「開始對話」按鈕以連接'}
-            </div>
           )}
         </div>
       </div>
+
+      {/* T065-T067: Latency Display */}
+      {options.showLatencyMetrics && (currentTurnLatency || sessionStats) && (
+        <LatencyDisplay
+          turnLatency={currentTurnLatency}
+          sessionStats={sessionStats}
+          mode={options.mode}
+          showBreakdown={true}
+          showSessionStats={!!sessionStats}
+        />
+      )}
+
+      {/* Transcripts - T078a: Show role names instead of fixed labels */}
+      <TranscriptDisplay
+        turnHistory={turnHistory}
+        currentUserTranscript={userTranscript}
+        currentAIResponse={aiResponseText}
+        isTranscriptFinal={isTranscriptFinal}
+        userRoleLabel={options.userRole}
+        aiRoleLabel={options.aiRole}
+      />
     </div>
   )
 }

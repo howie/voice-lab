@@ -15,6 +15,12 @@
 - 整合現有的 BYOL 憑證管理系統
 - 結構化日誌與基本指標監控
 
+核心 UX 設計：
+- **一鍵開始對話**：點擊「開始對話」自動完成連線並開始收音，無需額外操作
+- **角色與情境設定**：開始對話前設定「我的角色」、「AI 角色」和「對話情境」
+- **對話歷史顯示**：對話進行中即時顯示所有輪次的文字記錄（雙方發言）
+- **場景模板**：預設模板可一鍵填入角色與情境設定
+
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
@@ -86,9 +92,11 @@ backend/
 ├── src/
 │   ├── domain/
 │   │   ├── entities/
-│   │   │   ├── interaction_session.py      # 新增：對話會話實體
-│   │   │   ├── conversation_turn.py        # 新增：對話回合實體
-│   │   │   └── system_prompt_template.py   # 新增：提示詞模板實體
+│   │   │   ├── interaction_session.py      # 新增：對話會話實體（含角色與情境設定）
+│   │   │   ├── conversation_turn.py        # 新增：對話回合實體（含文字記錄）
+│   │   │   ├── role_configuration.py       # 新增：角色設定實體
+│   │   │   ├── scenario_context.py         # 新增：對話情境實體
+│   │   │   └── scenario_template.py        # 新增：場景模板實體
 │   │   ├── repositories/
 │   │   │   └── interaction_repository.py   # 新增：互動記錄儲存庫
 │   │   └── services/
@@ -128,12 +136,13 @@ frontend/
 ├── src/
 │   ├── components/
 │   │   └── interaction/                    # 新增：互動元件
-│   │       ├── InteractionPanel.tsx        # 主互動面板
+│   │       ├── InteractionPanel.tsx        # 主互動面板（一鍵開始、對話歷史顯示）
 │   │       ├── ModeSelector.tsx            # 模式選擇器
+│   │       ├── RoleScenarioEditor.tsx      # 角色與情境設定編輯器
 │   │       ├── AudioVisualizer.tsx         # 音訊視覺化
+│   │       ├── TranscriptDisplay.tsx       # 即時對話字幕顯示
 │   │       ├── LatencyDisplay.tsx          # 延遲顯示
-│   │       ├── SystemPromptEditor.tsx      # 提示詞編輯器
-│   │       └── ConversationHistory.tsx     # 對話歷史
+│   │       └── ScenarioTemplateSelector.tsx # 場景模板選擇器
 │   ├── hooks/
 │   │   ├── useWebSocket.ts                 # 新增：WebSocket hook
 │   │   ├── useMicrophone.ts                # 新增：麥克風 hook

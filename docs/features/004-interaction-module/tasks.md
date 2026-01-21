@@ -24,10 +24,10 @@
 **Purpose**: Project initialization and basic structure
 
 - [x] T001 Create interaction module directory structure per plan.md
-- [x] T002 [P] Create database migration for interaction_sessions table in backend/src/infrastructure/database/migrations/
+- [x] T002 [P] Create database migration for interaction_sessions table (with user_role, ai_role, scenario_context) in backend/src/infrastructure/database/migrations/
 - [x] T003 [P] Create database migration for conversation_turns table in backend/src/infrastructure/database/migrations/
 - [x] T004 [P] Create database migration for latency_metrics table in backend/src/infrastructure/database/migrations/
-- [x] T005 [P] Create database migration for system_prompt_templates table in backend/src/infrastructure/database/migrations/
+- [x] T005 [P] Create database migration for scenario_templates table in backend/src/infrastructure/database/migrations/
 - [x] T006 Create audio storage directory structure (storage/interactions/) and add to .gitignore
 
 ---
@@ -41,10 +41,10 @@
 ### Backend Domain Layer
 
 - [x] T007 [P] Create InteractionMode and SessionStatus enums in backend/src/domain/entities/interaction_enums.py
-- [x] T008 [P] Create InteractionSession entity in backend/src/domain/entities/interaction_session.py
+- [x] T008 [P] Create InteractionSession entity (with user_role, ai_role, scenario_context) in backend/src/domain/entities/interaction_session.py
 - [x] T009 [P] Create ConversationTurn entity in backend/src/domain/entities/conversation_turn.py
 - [x] T010 [P] Create LatencyMetrics entity in backend/src/domain/entities/latency_metrics.py
-- [x] T011 [P] Create SystemPromptTemplate entity in backend/src/domain/entities/system_prompt_template.py
+- [x] T011 [P] Create ScenarioTemplate entity (with user_role, ai_role, scenario_context) in backend/src/domain/entities/scenario_template.py
 - [x] T012 Create InteractionRepository interface in backend/src/domain/repositories/interaction_repository.py
 - [x] T013 Create base InteractionMode service interface in backend/src/domain/services/interaction/base.py
 - [x] T014 Create LatencyTracker service in backend/src/domain/services/interaction/latency_tracker.py
@@ -84,7 +84,11 @@
 
 **Goal**: Users can have real-time voice conversations with AI through the web interface
 
-**Independent Test**: Open microphone, speak a sentence, receive AI voice response
+**Independent Test**: Click "開始對話", speak a sentence, receive AI voice response, see conversation transcript
+
+**Key UX Requirements**:
+- 一鍵開始對話：點擊「開始對話」自動連線 + 自動開始收音
+- 對話歷史顯示：即時顯示所有輪次的文字記錄（使用者發言 + AI 回應）
 
 ### Tests for User Story 1 (TDD - Write First, Must Fail)
 
@@ -115,7 +119,14 @@
 - [x] T041 [US1] Add interaction route to main router configuration
 - [x] T042 [US1] Add status indicators (listening, processing, speaking) to InteractionPanel
 
-**Checkpoint**: User Story 1 complete - basic voice conversation functional with Realtime API
+### UX Improvements for US1 (New)
+
+- [x] T042a [US1] Refactor InteractionPanel: 一鍵開始對話（移除獨立麥克風按鈕，連線後自動收音）
+- [x] T042b [US1] Create TranscriptDisplay component for real-time conversation history in frontend/src/components/interaction/TranscriptDisplay.tsx
+- [x] T042c [US1] Update interactionStore to maintain turnHistory array for multi-turn display
+- [x] T042d [US1] Integrate TranscriptDisplay into InteractionPanel, showing all turns with role labels
+
+**Checkpoint**: User Story 1 complete - basic voice conversation functional with one-click start and transcript history
 
 ---
 
@@ -133,25 +144,25 @@
 
 ### Backend Implementation for US2
 
-- [ ] T043 [P] [US2] Create LLM service base interface in backend/src/domain/services/llm/base.py
-- [ ] T044 [P] [US2] Implement OpenAI GPT-4o provider in backend/src/domain/services/llm/openai_provider.py
-- [ ] T045 [P] [US2] Implement Google Gemini provider in backend/src/domain/services/llm/gemini_provider.py
-- [ ] T046 [US2] Implement Cascade mode service (STT→LLM→TTS) in backend/src/domain/services/interaction/cascade_mode.py
-- [ ] T047 [US2] Integrate existing Phase 3 STT providers in cascade_mode.py
-- [ ] T048 [US2] Integrate existing Phase 1 TTS providers in cascade_mode.py
-- [ ] T049 [US2] Add mode selection logic to StartSession use case
-- [ ] T050 [US2] Implement fallback from Realtime to Cascade mode on connection failure
-- [ ] T051 [US2] Add providers endpoint GET /api/v1/interaction/providers in backend/src/presentation/api/interaction_router.py
+- [x] T043 [P] [US2] Create LLM service base interface in backend/src/application/interfaces/llm_provider.py (existing)
+- [x] T044 [P] [US2] Implement OpenAI GPT-4o provider in backend/src/infrastructure/providers/llm/openai_llm.py (existing)
+- [x] T045 [P] [US2] Implement Google Gemini provider in backend/src/infrastructure/providers/llm/gemini_llm.py (existing)
+- [x] T046 [US2] Implement Cascade mode service (STT→LLM→TTS) in backend/src/domain/services/interaction/cascade_mode.py
+- [x] T047 [US2] Integrate existing Phase 3 STT providers in cascade_mode.py
+- [x] T048 [US2] Integrate existing Phase 1 TTS providers in cascade_mode.py
+- [x] T049 [US2] Add mode selection logic via CascadeModeFactory in backend/src/domain/services/interaction/cascade_mode_factory.py
+- [x] T050 [US2] Implement fallback from Realtime to Cascade mode on connection failure (frontend FallbackPrompt)
+- [x] T051 [US2] Add providers endpoint GET /api/v1/interaction/providers in backend/src/presentation/api/routes/interaction.py
 
 ### Frontend Implementation for US2
 
-- [ ] T052 [US2] Extend ModeSelector with Cascade mode UI in frontend/src/components/interaction/ModeSelector.tsx
-- [ ] T053 [US2] Add STT provider dropdown to ModeSelector
-- [ ] T054 [US2] Add LLM provider dropdown to ModeSelector
-- [ ] T055 [US2] Add TTS provider dropdown to ModeSelector
-- [ ] T056 [US2] Fetch available providers from API and display availability status
-- [ ] T057 [US2] Update interactionStore to handle mode and provider configuration
-- [ ] T058 [US2] Implement fallback prompt UI when Realtime API fails
+- [x] T052 [US2] Extend ModeSelector with Cascade mode UI in frontend/src/components/interaction/ModeSelector.tsx
+- [x] T053 [US2] Add STT provider dropdown to ModeSelector
+- [x] T054 [US2] Add LLM provider dropdown to ModeSelector
+- [x] T055 [US2] Add TTS provider dropdown to ModeSelector
+- [x] T056 [US2] Fetch available providers from API and display availability status
+- [x] T057 [US2] Update interactionStore to handle mode and provider configuration (already supported)
+- [x] T058 [US2] Implement fallback prompt UI when Realtime API fails (FallbackPrompt component)
 
 **Checkpoint**: User Story 2 complete - both modes functional and switchable
 
@@ -169,47 +180,63 @@
 
 ### Backend Implementation for US3
 
-- [ ] T059 [US3] Implement latency measurement in LatencyTracker for Realtime mode
-- [ ] T060 [US3] Implement segment latency measurement (STT, LLM TTFT, TTS TTFB) for Cascade mode
-- [ ] T061 [US3] Add latency data to response_ended WebSocket message
-- [ ] T062 [US3] Create latency statistics aggregation in InteractionRepository
-- [ ] T063 [US3] Add latency-stats endpoint GET /api/v1/interaction/sessions/{id}/latency-stats in interaction_router.py
+- [x] T059 [US3] Implement latency measurement in LatencyTracker for Realtime mode (already implemented in T014)
+- [x] T060 [US3] Implement segment latency measurement (STT, LLM TTFT, TTS TTFB) for Cascade mode (already implemented in T014)
+- [x] T061 [US3] Add latency data to response_ended WebSocket message
+- [x] T062 [US3] Create latency statistics aggregation in InteractionRepository (already implemented)
+- [x] T063 [US3] Add latency-stats endpoint GET /api/v1/interaction/sessions/{id}/latency in interaction_router.py (already implemented)
 
 ### Frontend Implementation for US3
 
-- [ ] T064 [P] [US3] Create LatencyDisplay component in frontend/src/components/interaction/LatencyDisplay.tsx
-- [ ] T065 [US3] Show real-time latency per turn in InteractionPanel
-- [ ] T066 [US3] Show segment breakdown for Cascade mode (STT/LLM/TTS bars)
-- [ ] T067 [US3] Display session summary statistics (avg, min, max, P95) on session end
+- [x] T064 [P] [US3] Create LatencyDisplay component in frontend/src/components/interaction/LatencyDisplay.tsx
+- [x] T065 [US3] Show real-time latency per turn in InteractionPanel
+- [x] T066 [US3] Show segment breakdown for Cascade mode (STT/LLM/TTS bars)
+- [x] T067 [US3] Display session summary statistics (avg, min, max, P95) on session end
 
 **Checkpoint**: User Story 3 complete - latency metrics visible for all turns
 
 ---
 
-## Phase 6: User Story 4 - 系統提示詞配置 (Priority: P2)
+## Phase 6: User Story 4 - 角色與情境設定 (Priority: P1) 🎯
 
-**Goal**: Users can configure AI system prompts and select from templates
+**Goal**: Users can configure user role, AI role, and scenario context before starting conversation
 
-**Independent Test**: Select a template, start conversation, verify AI behaves according to template
+**Independent Test**: Set roles (e.g., 病患/醫療助理), set scenario context, start conversation, verify AI behaves according to role and transcript shows role names
+
+**Key UX Requirements**:
+- 開始對話前必須先設定角色和情境
+- 對話記錄中使用設定的角色名稱標示發言者
+- 提供預設場景模板，一鍵填入角色和情境
+
+### Tests for User Story 4 (TDD - Write First, Must Fail)
+
+- [ ] T067a [P] [US4] Write unit tests for ScenarioTemplate repository in backend/tests/unit/test_scenario_template_repository.py
+- [ ] T067b [P] [US4] Write integration test for role/scenario configuration in backend/tests/integration/test_role_scenario_config.py
 
 ### Backend Implementation for US4
 
-- [ ] T068 [US4] Create template repository in backend/src/domain/repositories/template_repository.py
-- [ ] T069 [US4] Implement template repository with SQLAlchemy in backend/src/infrastructure/repositories/template_repository_impl.py
-- [ ] T070 [US4] Create seed data migration for default templates (客服機器人, 語言教師, 技術支援, 一般助理)
-- [ ] T071 [US4] Add templates endpoints GET /api/v1/interaction/templates in interaction_router.py
-- [ ] T072 [US4] Add template detail endpoint GET /api/v1/interaction/templates/{id} in interaction_router.py
-- [ ] T073 [US4] Pass system_prompt to Realtime API and LLM in interaction modes
+- [x] T068 [US4] Create ScenarioTemplateRepository interface in backend/src/domain/repositories/scenario_template_repository.py
+- [x] T069 [US4] Implement ScenarioTemplateRepository with SQLAlchemy in backend/src/infrastructure/persistence/scenario_template_repository_impl.py
+- [x] T070 [US4] Create seed data migration for default scenario templates (客服諮詢, 醫療諮詢, 語言教學, 技術支援, 一般對話)
+- [x] T071 [US4] Add templates endpoint GET /api/v1/interaction/templates in interaction_router.py
+- [x] T072 [US4] Add template detail endpoint GET /api/v1/interaction/templates/{id} in interaction_router.py
+- [x] T073 [US4] Update StartSession use case to accept user_role, ai_role, scenario_context
+- [x] T073a [US4] Generate system prompt from ai_role + scenario_context and pass to Realtime API / LLM
+- [x] T073b [US4] Include role names in transcript WebSocket messages
 
 ### Frontend Implementation for US4
 
-- [ ] T074 [P] [US4] Create SystemPromptEditor component in frontend/src/components/interaction/SystemPromptEditor.tsx
-- [ ] T075 [US4] Add template selection dropdown to SystemPromptEditor
-- [ ] T076 [US4] Add custom prompt textarea input
-- [ ] T077 [US4] Persist prompt selection in interactionStore
-- [ ] T078 [US4] Include system_prompt in start_session WebSocket message
+- [x] T074 [P] [US4] Create RoleScenarioEditor component in frontend/src/components/interaction/RoleScenarioEditor.tsx
+- [x] T074a [US4] Add user_role input field to RoleScenarioEditor
+- [x] T074b [US4] Add ai_role input field to RoleScenarioEditor
+- [x] T074c [US4] Add scenario_context textarea to RoleScenarioEditor
+- [x] T075 [P] [US4] Create ScenarioTemplateSelector component in frontend/src/components/interaction/ScenarioTemplateSelector.tsx
+- [x] T076 [US4] Integrate ScenarioTemplateSelector with RoleScenarioEditor (one-click fill)
+- [x] T077 [US4] Update interactionStore to include userRole, aiRole, scenarioContext in options
+- [x] T078 [US4] Include user_role, ai_role, scenario_context in config WebSocket message
+- [x] T078a [US4] Update TranscriptDisplay to show role names instead of fixed "您" / "AI"
 
-**Checkpoint**: User Story 4 complete - system prompts configurable
+**Checkpoint**: User Story 4 complete - role and scenario configuration functional
 
 ---
 
@@ -225,19 +252,19 @@
 
 ### Backend Implementation for US5
 
-- [ ] T079 [US5] Handle interrupted event from OpenAI Realtime API in realtime_mode.py
-- [ ] T080 [US5] Implement barge-in detection in Cascade mode (new speech during TTS playback)
-- [ ] T081 [US5] Add interrupt client message handler in interaction_handler.py
-- [ ] T082 [US5] Send interrupted server message when barge-in detected
-- [ ] T083 [US5] Record interrupted flag and timing in ConversationTurn
-- [ ] T084 [US5] Add barge_in_enabled configuration to start_session
+- [x] T079 [US5] Handle interrupted event from OpenAI Realtime API in realtime_mode.py (handle response.cancelled status)
+- [x] T080 [US5] Implement barge-in detection in Cascade mode (new speech during TTS playback) (already implemented with _interrupted flag)
+- [x] T081 [US5] Add interrupt client message handler in interaction_handler.py (already existed)
+- [x] T082 [US5] Send interrupted server message when barge-in detected (already existed)
+- [x] T083 [US5] Record interrupted flag and timing in ConversationTurn (already existed)
+- [x] T084 [US5] Add barge_in_enabled configuration to start_session
 
 ### Frontend Implementation for US5
 
-- [ ] T085 [US5] Handle interrupted WebSocket message - stop audio playback immediately
-- [ ] T086 [US5] Add barge-in toggle switch to InteractionPanel settings
-- [ ] T087 [US5] Display barge-in indicator when interruption occurs
-- [ ] T088 [US5] Show interrupt latency in LatencyDisplay
+- [x] T085 [US5] Handle interrupted WebSocket message - stop audio playback immediately
+- [x] T086 [US5] Add barge-in toggle switch to InteractionPanel settings
+- [x] T087 [US5] Display barge-in indicator when interruption occurs
+- [x] T088 [US5] Show interrupt latency in LatencyDisplay
 
 **Checkpoint**: User Story 5 complete - barge-in functional
 
@@ -255,23 +282,23 @@
 
 ### Backend Implementation for US6
 
-- [ ] T089 [US6] Add sessions list endpoint GET /api/v1/interaction/sessions with pagination and filters
-- [ ] T090 [US6] Add session detail endpoint GET /api/v1/interaction/sessions/{id}
-- [ ] T091 [US6] Add session delete endpoint DELETE /api/v1/interaction/sessions/{id}
-- [ ] T092 [US6] Add turns list endpoint GET /api/v1/interaction/sessions/{id}/turns
-- [ ] T093 [US6] Add audio streaming endpoint GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
-- [ ] T094 [US6] Implement audio file cleanup on session delete
+- [x] T089 [US6] Add sessions list endpoint GET /api/v1/interaction/sessions with pagination and filters (already existed)
+- [x] T090 [US6] Add session detail endpoint GET /api/v1/interaction/sessions/{id} (already existed)
+- [x] T091 [US6] Add session delete endpoint DELETE /api/v1/interaction/sessions/{id} (already existed with audio cleanup)
+- [x] T092 [US6] Add turns list endpoint GET /api/v1/interaction/sessions/{id}/turns (already existed)
+- [x] T093 [US6] Add audio streaming endpoint GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
+- [x] T094 [US6] Implement audio file cleanup on session delete (already existed in delete_session)
 
 ### Frontend Implementation for US6
 
-- [ ] T095 [P] [US6] Create ConversationHistory component in frontend/src/components/interaction/ConversationHistory.tsx
-- [ ] T096 [US6] Create HistoryPage with session list in frontend/src/routes/interaction/HistoryPage.tsx
-- [ ] T097 [US6] Add date range filter to HistoryPage
-- [ ] T098 [US6] Add mode filter (realtime/cascade) to HistoryPage
-- [ ] T099 [US6] Implement session detail view with turn list
-- [ ] T100 [US6] Implement audio playback for user and AI audio per turn
-- [ ] T101 [US6] Add session delete confirmation dialog
-- [ ] T102 [US6] Add history route to main router
+- [x] T095 [P] [US6] Create ConversationHistory component in frontend/src/components/interaction/ConversationHistory.tsx
+- [x] T096 [US6] Create HistoryPage with session list in frontend/src/routes/interaction/InteractionHistoryPage.tsx
+- [x] T097 [US6] Add date range filter to HistoryPage
+- [x] T098 [US6] Add mode filter (realtime/cascade) to HistoryPage
+- [x] T099 [US6] Implement session detail view with turn list
+- [x] T100 [US6] Implement audio playback for user and AI audio per turn
+- [x] T101 [US6] Add session delete confirmation dialog
+- [x] T102 [US6] Add history route to main router (/interaction/history)
 
 **Checkpoint**: User Story 6 complete - history browsing and playback functional
 
@@ -310,21 +337,25 @@
 - **Setup (Phase 1)**: No dependencies - can start immediately
 - **Foundational (Phase 2)**: Depends on Setup - BLOCKS all user stories
 - **User Stories (Phase 3-8)**: All depend on Foundational completion
-  - US1 & US2 (both P1): Can proceed sequentially (US1 first for MVP) or in parallel
-  - US3 & US4 (both P2): Can proceed after US1/US2 or in parallel
+  - US1, US4, US2 (all P1): US1 first (MVP), then US4 (role/scenario), then US2 (cascade mode)
+  - US3 (P2): Latency metrics - after US1/US2
   - US5 & US6 (both P3): Can proceed after US1/US2 or in parallel
 - **Polish (Phase 9)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies
 
-| Story | Depends On | Can Parallelize With |
-|-------|------------|---------------------|
-| US1 (P1) | Foundational | - |
-| US2 (P1) | Foundational | US1 (but US1 first for MVP) |
-| US3 (P2) | Foundational | US4 |
-| US4 (P2) | Foundational | US3 |
-| US5 (P3) | Foundational | US6 |
-| US6 (P3) | Foundational | US5 |
+| Story | Priority | Depends On | Can Parallelize With |
+|-------|----------|------------|---------------------|
+| US1 (P1) | P1 | Foundational | - |
+| US4 (P1) | P1 | US1 (needs TranscriptDisplay) | US2 |
+| US2 (P1) | P1 | Foundational | US4 |
+| US3 (P2) | P2 | Foundational | - |
+| US5 (P3) | P3 | Foundational | US6 |
+| US6 (P3) | P3 | Foundational | US5 |
+
+**Recommended Order**: US1 → US4 → US2 → US3 → US5 → US6
+- US4 should come after US1 because it builds on TranscriptDisplay
+- US4 should come before US2 because role/scenario is part of pre-conversation setup
 
 ### Within Each User Story
 
@@ -371,32 +402,46 @@ Task: "Create useAudioPlayback hook in frontend/src/hooks/useAudioPlayback.ts"
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### MVP First (User Story 1 with UX Improvements)
 
 1. Complete Phase 1: Setup (6 tasks)
-2. Complete Phase 2: Foundational (20 tasks)
-3. Complete Phase 3: User Story 1 (16 tasks)
-4. **STOP and VALIDATE**: Test basic voice conversation with Realtime API
-5. Deploy/demo if ready - users can have voice conversations!
+2. Complete Phase 2: Foundational (23 tasks)
+3. Complete Phase 3: User Story 1 (24 tasks, including UX improvements)
+4. **STOP and VALIDATE**: Test one-click start conversation, transcript history display
+5. Deploy/demo if ready - users can have voice conversations with proper UX!
 
-**MVP Scope**: 42 tasks for working voice conversation
+**MVP Scope**: 53 tasks for working voice conversation with one-click start and transcript history
+
+### Core P1 Delivery (Full P1 Feature Set)
+
+1. Complete MVP (53 tasks)
+2. Complete Phase 6: User Story 4 - Role & Scenario (19 tasks)
+3. Complete Phase 4: User Story 2 - Cascade Mode (19 tasks)
+4. **STOP and VALIDATE**: Full P1 feature set complete
+
+**Core P1 Scope**: 91 tasks for complete P1 features
 
 ### Incremental Delivery
 
-1. **MVP**: Setup + Foundational + US1 → Voice conversation works
-2. **+US2**: Add Cascade mode → Multiple provider options
-3. **+US3**: Add latency metrics → Performance visibility
-4. **+US4**: Add prompts → Scenario customization
-5. **+US5**: Add barge-in → Natural interruption
-6. **+US6**: Add history → Test record keeping
+1. **MVP**: Setup + Foundational + US1 → Voice conversation with proper UX
+2. **+US4**: Add role/scenario → Conversation context customization (P1)
+3. **+US2**: Add Cascade mode → Multiple provider options (P1)
+4. **+US3**: Add latency metrics → Performance visibility (P2)
+5. **+US5**: Add barge-in → Natural interruption (P3)
+6. **+US6**: Add history → Test record keeping (P3)
 7. **Polish**: Observability + documentation
 
 ### Recommended Execution Order
 
 For single developer:
 ```
-Phase 1 → Phase 2 → US1 → US2 → US3 → US4 → US5 → US6 → Phase 9
+Phase 1 → Phase 2 → US1 → US4 → US2 → US3 → US5 → US6 → Phase 9
 ```
+
+**Rationale**:
+- US1 first: Core conversation functionality (MVP)
+- US4 second: Role/scenario is pre-conversation setup, builds on TranscriptDisplay from US1
+- US2 third: Cascade mode is independent of role/scenario
 
 ---
 
@@ -406,17 +451,18 @@ Phase 1 → Phase 2 → US1 → US2 → US3 → US4 → US5 → US6 → Phase 9
 |-------|-------|------------|-------------|
 | Phase 1: Setup | 6 | 6 | Database migrations, directory structure |
 | Phase 2: Foundational | 23 | 29 | Entities, repositories, base services, hooks, contract tests |
-| Phase 3: US1 (P1) | 20 | 49 | Basic voice conversation (MVP) + TDD tests + Gemini support |
-| Phase 4: US2 (P1) | 19 | 68 | Mode selection, Cascade mode + TDD tests |
-| Phase 5: US3 (P2) | 10 | 78 | Latency measurement + TDD tests |
-| Phase 6: US4 (P2) | 11 | 89 | System prompts |
-| Phase 7: US5 (P3) | 11 | 100 | Barge-in + TDD tests |
-| Phase 8: US6 (P3) | 15 | 115 | History & playback + TDD tests |
-| Phase 9: Polish | 11 | 126 | Observability, docs, quality, coverage verification |
+| Phase 3: US1 (P1) | 24 | 53 | Basic voice conversation + UX improvements (一鍵開始、對話歷史) |
+| Phase 4: US2 (P1) | 19 | 72 | Mode selection, Cascade mode + TDD tests |
+| Phase 5: US3 (P2) | 10 | 82 | Latency measurement + TDD tests |
+| Phase 6: US4 (P1) | 19 | 101 | 角色與情境設定 + TDD tests |
+| Phase 7: US5 (P3) | 11 | 112 | Barge-in + TDD tests |
+| Phase 8: US6 (P3) | 15 | 127 | History & playback + TDD tests |
+| Phase 9: Polish | 11 | 138 | Observability, docs, quality, coverage verification |
 
-**Total Tasks**: 126
-**MVP Tasks**: 49 (Phase 1-3)
-**Test Tasks**: 14 (TDD contract + integration + unit tests)
+**Total Tasks**: 138
+**MVP Tasks**: 53 (Phase 1-3, with one-click start and transcript history)
+**Core P1 Tasks**: 101 (Phase 1-6, including role/scenario configuration)
+**Test Tasks**: 18 (TDD contract + integration + unit tests)
 
 ---
 

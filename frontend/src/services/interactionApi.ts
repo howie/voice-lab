@@ -11,6 +11,7 @@ import type {
   InteractionMode,
   InteractionSession,
   LatencyStats,
+  ProvidersResponse,
   SessionListParams,
   SessionListResponse,
   SessionStatus,
@@ -123,6 +124,18 @@ export async function getDefaultPromptTemplate(
 }
 
 // =============================================================================
+// Provider Endpoints (T056)
+// =============================================================================
+
+/**
+ * List available providers for cascade mode
+ */
+export async function listProviders(): Promise<ProvidersResponse> {
+  const response = await api.get<ProvidersResponse>('/interaction/providers')
+  return response.data
+}
+
+// =============================================================================
 // WebSocket URL Helpers
 // =============================================================================
 
@@ -147,6 +160,18 @@ export function buildWebSocketUrl(mode: InteractionMode, userId: string): string
 export function getAudioFileUrl(audioPath: string): string {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
   return `${baseUrl}/files/${audioPath}`
+}
+
+/**
+ * T093: Get URL for turn audio streaming
+ */
+export function getTurnAudioUrl(
+  sessionId: string,
+  turnId: string,
+  audioType: 'user' | 'ai' = 'ai'
+): string {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  return `${baseUrl}/api/v1/interaction/sessions/${sessionId}/turns/${turnId}/audio?audio_type=${audioType}`
 }
 
 /**

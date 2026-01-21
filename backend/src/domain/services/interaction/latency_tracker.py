@@ -91,11 +91,18 @@ class LatencyTracker:
         total_ms = int((m.response_started_at - m.speech_ended_at) * 1000)
         realtime_ms = total_ms  # In realtime mode, this is the same
 
-        return LatencyMetrics.for_realtime(
+        # T088: Calculate interrupt latency if turn was interrupted
+        interrupt_ms = None
+        if m.interrupted_at and m.response_started_at:
+            interrupt_ms = int((m.interrupted_at - m.response_started_at) * 1000)
+
+        metrics = LatencyMetrics.for_realtime(
             turn_id=turn_id,
             total_ms=total_ms,
             realtime_ms=realtime_ms,
         )
+        metrics.interrupt_latency_ms = interrupt_ms
+        return metrics
 
     def get_metrics_cascade(self, turn_id: UUID) -> LatencyMetrics | None:
         """Calculate metrics for Cascade mode.
@@ -124,13 +131,20 @@ class LatencyTracker:
         if m.response_started_at and m.speech_ended_at:
             total_ms = int((m.response_started_at - m.speech_ended_at) * 1000)
 
-        return LatencyMetrics.for_cascade(
+        # T088: Calculate interrupt latency if turn was interrupted
+        interrupt_ms = None
+        if m.interrupted_at and m.response_started_at:
+            interrupt_ms = int((m.interrupted_at - m.response_started_at) * 1000)
+
+        metrics = LatencyMetrics.for_cascade(
             turn_id=turn_id,
             total_ms=total_ms,
             stt_ms=stt_ms or 0,
             llm_ttft_ms=llm_ttft_ms or 0,
             tts_ttfb_ms=tts_ttfb_ms or 0,
         )
+        metrics.interrupt_latency_ms = interrupt_ms
+        return metrics
 
     def clear_turn(self, turn_id: UUID) -> None:
         """Remove measurement data for a turn."""

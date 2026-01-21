@@ -122,7 +122,8 @@ npm run dev
 ### WebSocket 連線 (JavaScript)
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/api/v1/interaction/ws?token=YOUR_JWT');
+// mode 可以是 'realtime' 或 'cascade'
+const ws = new WebSocket('ws://localhost:8000/api/v1/interaction/ws/realtime?token=YOUR_JWT');
 
 ws.onopen = () => {
   // 開始會話
@@ -172,7 +173,7 @@ curl -X GET "http://localhost:8000/api/v1/interaction/sessions" \
   -H "Authorization: Bearer YOUR_JWT"
 
 # 取得延遲統計
-curl -X GET "http://localhost:8000/api/v1/interaction/sessions/{session_id}/latency-stats" \
+curl -X GET "http://localhost:8000/api/v1/interaction/sessions/{session_id}/latency" \
   -H "Authorization: Bearer YOUR_JWT"
 
 # 取得可用提供者

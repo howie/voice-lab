@@ -282,23 +282,23 @@
 
 ### Backend Implementation for US6
 
-- [ ] T089 [US6] Add sessions list endpoint GET /api/v1/interaction/sessions with pagination and filters
-- [ ] T090 [US6] Add session detail endpoint GET /api/v1/interaction/sessions/{id}
-- [ ] T091 [US6] Add session delete endpoint DELETE /api/v1/interaction/sessions/{id}
-- [ ] T092 [US6] Add turns list endpoint GET /api/v1/interaction/sessions/{id}/turns
-- [ ] T093 [US6] Add audio streaming endpoint GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
-- [ ] T094 [US6] Implement audio file cleanup on session delete
+- [x] T089 [US6] Add sessions list endpoint GET /api/v1/interaction/sessions with pagination and filters (already existed)
+- [x] T090 [US6] Add session detail endpoint GET /api/v1/interaction/sessions/{id} (already existed)
+- [x] T091 [US6] Add session delete endpoint DELETE /api/v1/interaction/sessions/{id} (already existed with audio cleanup)
+- [x] T092 [US6] Add turns list endpoint GET /api/v1/interaction/sessions/{id}/turns (already existed)
+- [x] T093 [US6] Add audio streaming endpoint GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
+- [x] T094 [US6] Implement audio file cleanup on session delete (already existed in delete_session)
 
 ### Frontend Implementation for US6
 
-- [ ] T095 [P] [US6] Create ConversationHistory component in frontend/src/components/interaction/ConversationHistory.tsx
-- [ ] T096 [US6] Create HistoryPage with session list in frontend/src/routes/interaction/HistoryPage.tsx
-- [ ] T097 [US6] Add date range filter to HistoryPage
-- [ ] T098 [US6] Add mode filter (realtime/cascade) to HistoryPage
-- [ ] T099 [US6] Implement session detail view with turn list
-- [ ] T100 [US6] Implement audio playback for user and AI audio per turn
-- [ ] T101 [US6] Add session delete confirmation dialog
-- [ ] T102 [US6] Add history route to main router
+- [x] T095 [P] [US6] Create ConversationHistory component in frontend/src/components/interaction/ConversationHistory.tsx
+- [x] T096 [US6] Create HistoryPage with session list in frontend/src/routes/interaction/InteractionHistoryPage.tsx
+- [x] T097 [US6] Add date range filter to HistoryPage
+- [x] T098 [US6] Add mode filter (realtime/cascade) to HistoryPage
+- [x] T099 [US6] Implement session detail view with turn list
+- [x] T100 [US6] Implement audio playback for user and AI audio per turn
+- [x] T101 [US6] Add session delete confirmation dialog
+- [x] T102 [US6] Add history route to main router (/interaction/history)
 
 **Checkpoint**: User Story 6 complete - history browsing and playback functional
 

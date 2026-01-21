@@ -8,6 +8,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.use_cases.voice_interaction import (
@@ -240,6 +241,70 @@ async def list_session_turns(
 
     turns = await repository.list_turns(session_id)
     return [_turn_to_response(t) for t in turns]
+
+
+@router.get("/sessions/{session_id}/turns/{turn_id}/audio")
+async def get_turn_audio(
+    session_id: UUID,
+    turn_id: UUID,
+    audio_type: str = Query("ai", description="Audio type: 'user' or 'ai'"),
+    db: AsyncSession = Depends(get_db_session),
+) -> FileResponse:
+    """Get audio file for a specific turn.
+
+    T093 [US6]: GET /api/v1/interaction/sessions/{id}/turns/{turn_id}/audio
+
+    Args:
+        session_id: Session UUID
+        turn_id: Turn UUID
+        audio_type: 'user' for user's recording or 'ai' for AI's response
+
+    Returns:
+        Audio file as streaming response
+    """
+    repository = SQLAlchemyInteractionRepository(db)
+    audio_storage = AudioStorageService()
+
+    # Verify session exists
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get the turn
+    turn = await repository.get_turn(turn_id)
+    if not turn or turn.session_id != session_id:
+        raise HTTPException(status_code=404, detail="Turn not found")
+
+    # Get the appropriate audio path
+    if audio_type == "user":
+        audio_path = turn.user_audio_path
+    elif audio_type == "ai":
+        audio_path = turn.ai_audio_path
+    else:
+        raise HTTPException(status_code=400, detail="audio_type must be 'user' or 'ai'")
+
+    if not audio_path:
+        raise HTTPException(status_code=404, detail=f"No {audio_type} audio available for this turn")
+
+    # Get the full file path
+    full_path = await audio_storage.get_audio_path(audio_path)
+    if not full_path or not full_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    # Determine media type based on file extension
+    media_type = "audio/mpeg"  # Default for mp3
+    if audio_path.endswith(".webm"):
+        media_type = "audio/webm"
+    elif audio_path.endswith(".wav"):
+        media_type = "audio/wav"
+    elif audio_path.endswith(".pcm"):
+        media_type = "audio/pcm"
+
+    return FileResponse(
+        path=full_path,
+        media_type=media_type,
+        filename=full_path.name,
+    )
 
 
 @router.get("/sessions/{session_id}/latency", response_model=LatencyStatsResponse)

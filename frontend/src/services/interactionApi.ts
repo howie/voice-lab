@@ -163,6 +163,18 @@ export function getAudioFileUrl(audioPath: string): string {
 }
 
 /**
+ * T093: Get URL for turn audio streaming
+ */
+export function getTurnAudioUrl(
+  sessionId: string,
+  turnId: string,
+  audioType: 'user' | 'ai' = 'ai'
+): string {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  return `${baseUrl}/api/v1/interaction/sessions/${sessionId}/turns/${turnId}/audio?audio_type=${audioType}`
+}
+
+/**
  * Download audio file
  */
 export async function downloadAudioFile(audioPath: string, filename?: string): Promise<void> {

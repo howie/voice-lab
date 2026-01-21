@@ -131,9 +131,7 @@ class TestJobWorkerProcessing:
                 mock_use_case.execute = AsyncMock(return_value=mock_synthesis_result)
                 MockUseCase.return_value = mock_use_case
 
-                with patch(
-                    "src.infrastructure.workers.job_worker.LocalStorage"
-                ) as MockStorage:
+                with patch("src.infrastructure.workers.job_worker.LocalStorage") as MockStorage:
                     mock_storage = MagicMock()
                     mock_stored_file = MagicMock()
                     mock_stored_file.key = f"jobs/azure/2026-01-21/{job_id}.mp3"
@@ -206,14 +204,10 @@ class TestJobWorkerProcessing:
                 "src.infrastructure.workers.job_worker.SynthesizeMultiRoleUseCase"
             ) as MockUseCase:
                 mock_use_case = AsyncMock()
-                mock_use_case.execute = AsyncMock(
-                    side_effect=Exception("TTS provider error")
-                )
+                mock_use_case.execute = AsyncMock(side_effect=Exception("TTS provider error"))
                 MockUseCase.return_value = mock_use_case
 
-                with patch(
-                    "src.infrastructure.workers.job_worker.LocalStorage"
-                ):
+                with patch("src.infrastructure.workers.job_worker.LocalStorage"):
                     with patch("asyncio.sleep", new_callable=AsyncMock):
                         worker = JobWorker(session_factory=mock_factory)
                         await worker._process_next_job()
@@ -275,9 +269,7 @@ class TestJobWorkerProcessing:
                 "src.infrastructure.workers.job_worker.SynthesizeMultiRoleUseCase"
             ) as MockUseCase:
                 mock_use_case = AsyncMock()
-                mock_use_case.execute = AsyncMock(
-                    side_effect=Exception("TTS provider error")
-                )
+                mock_use_case.execute = AsyncMock(side_effect=Exception("TTS provider error"))
                 MockUseCase.return_value = mock_use_case
 
                 with patch("src.infrastructure.workers.job_worker.LocalStorage"):

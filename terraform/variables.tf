@@ -68,6 +68,12 @@ variable "api_subdomain" {
   default     = "api"
 }
 
+variable "frontend_subdomain" {
+  type        = string
+  description = "Subdomain for the frontend (used in Cloudflare DNS record name, e.g., voice-lab)"
+  default     = "voice-lab"
+}
+
 # -----------------------------------------------------------------------------
 # Cloudflare Configuration
 # -----------------------------------------------------------------------------

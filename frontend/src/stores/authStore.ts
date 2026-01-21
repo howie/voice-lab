@@ -10,9 +10,9 @@ import { authApi } from '@/lib/api'
 // Development mode: disable authentication
 const DISABLE_AUTH = import.meta.env.VITE_DISABLE_AUTH === 'true'
 
-// Development user
+// Development user (must be valid UUID for backend compatibility)
 const DEV_USER = {
-  id: 'dev-user-id',
+  id: '00000000-0000-0000-0000-000000000001',
   email: 'dev@localhost',
   name: 'Development User',
   picture_url: undefined,

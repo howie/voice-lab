@@ -42,16 +42,18 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 # VPC Serverless Connector for Cloud Run to access Cloud SQL
 resource "google_vpc_access_connector" "connector" {
-  name          = "voice-lab-connector"
-  project       = var.project_id
-  region        = var.region
-  network       = google_compute_network.vpc.name
-  ip_cidr_range = var.connector_cidr
+  name    = "voice-lab-connector"
+  project = var.project_id
+  region  = var.region
+
+  # Use existing subnet instead of network + ip_cidr_range to avoid conflicts
+  subnet {
+    name       = google_compute_subnetwork.connector_subnet.name
+    project_id = var.project_id
+  }
 
   min_throughput = var.min_throughput
   max_throughput = var.max_throughput
-
-  depends_on = [google_compute_subnetwork.connector_subnet]
 }
 
 # Firewall rule to allow internal traffic

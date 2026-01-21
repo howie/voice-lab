@@ -45,6 +45,12 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.environment
       }
 
+      # NLTK data directory (writable in Cloud Run)
+      env {
+        name  = "NLTK_DATA"
+        value = "/tmp/nltk_data"
+      }
+
       env {
         name  = "DATABASE_HOST"
         value = var.database_host
@@ -62,7 +68,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "ALLOWED_DOMAINS"
-        value = join(",", var.allowed_domains)
+        value = jsonencode(var.allowed_domains)
       }
 
       env {
@@ -124,17 +130,18 @@ resource "google_cloud_run_v2_service" "backend" {
       # Startup and liveness probes
       startup_probe {
         http_get {
-          path = "/health"
+          path = "/api/v1/health"
           port = 8000
         }
-        initial_delay_seconds = 5
+        initial_delay_seconds = 10
         period_seconds        = 10
-        failure_threshold     = 3
+        timeout_seconds       = 5
+        failure_threshold     = 6
       }
 
       liveness_probe {
         http_get {
-          path = "/health"
+          path = "/api/v1/health"
           port = 8000
         }
         period_seconds    = 30

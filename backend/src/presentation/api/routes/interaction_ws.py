@@ -41,22 +41,9 @@ class InteractionModeFactory:
             ValueError: If mode is not supported
         """
         if mode == "realtime":
-            # Determine provider from config
-            provider = config.get("provider", "openai")
-            if provider == "openai":
-                from src.domain.services.interaction.realtime_mode import (
-                    OpenAIRealtimeService,
-                )
+            from src.domain.services.interaction.realtime_mode import RealtimeModeFactory
 
-                return OpenAIRealtimeService()
-            elif provider == "gemini":
-                from src.domain.services.interaction.realtime_mode import (
-                    GeminiRealtimeService,
-                )
-
-                return GeminiRealtimeService()
-            else:
-                raise ValueError(f"Unsupported realtime provider: {provider}")
+            return RealtimeModeFactory.create(config)
         elif mode == "cascade":
             from src.domain.services.interaction.cascade_mode import CascadeModeService
 
@@ -94,12 +81,10 @@ async def interaction_websocket(
 
     repository = SQLAlchemyInteractionRepository(db)
     audio_storage = AudioStorageService()
-
-    # Mode service will be configured via CONFIG message
-    # Use a placeholder that will be replaced
     mode_service: InteractionModeService | None = None
 
     try:
+        # Accept connection first
         await websocket.accept()
 
         # Wait for config message to initialize mode service
@@ -109,6 +94,9 @@ async def interaction_websocket(
             return
 
         config = config_data.get("data", {}).get("config", {})
+        system_prompt = config_data.get("data", {}).get("system_prompt", "")
+
+        # Create mode service with proper API key from environment
         mode_service = InteractionModeFactory.create(mode, config)
 
         # Create handler with configured service
@@ -121,18 +109,30 @@ async def interaction_websocket(
             logger=logger,
         )
 
-        # Handler will process the config message internally
-        # Re-inject the config message for proper handling
-        handler._websocket = websocket
+        # Mark handler as connected (already accepted)
+        handler._connected = True
 
-        # Run the handler (it will re-accept but that's handled)
-        await handler.handle()
+        # Send connected message
+        await handler.on_connect()
+
+        # Process the config message to start session
+        from src.infrastructure.websocket.base_handler import MessageType, WebSocketMessage
+
+        config_message = WebSocketMessage(
+            type=MessageType.CONFIG,
+            data={"config": config, "system_prompt": system_prompt},
+        )
+        await handler._handle_config(config_message)
+
+        # Run the main handler loop
+        await handler.run()
 
     except WebSocketDisconnect:
         logger.info(f"Client disconnected from {mode} session")
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
-        await websocket.close(code=4002, reason=str(e))
+        with contextlib.suppress(Exception):
+            await websocket.close(code=4002, reason=str(e))
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         with contextlib.suppress(Exception):

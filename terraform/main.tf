@@ -185,7 +185,7 @@ resource "cloudflare_record" "frontend" {
   count = var.cloudflare_api_token != "" && var.custom_domain != "" ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = var.custom_domain
+  name    = var.frontend_subdomain
   content = "ghs.googleusercontent.com"
   type    = "CNAME"
   ttl     = 1     # Auto
@@ -198,7 +198,7 @@ resource "cloudflare_record" "backend" {
   count = var.cloudflare_api_token != "" && var.custom_domain != "" ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = "${var.api_subdomain}.${var.custom_domain}"
+  name    = "${var.api_subdomain}.${var.frontend_subdomain}"
   content = "ghs.googleusercontent.com"
   type    = "CNAME"
   ttl     = 1     # Auto

@@ -13,8 +13,8 @@ import { useAuthStore } from '@/stores/authStore'
 export function InteractionPage() {
   const user = useAuthStore((state) => state.user)
 
-  // Use a default userId if not authenticated (for testing)
-  const userId = user?.id || 'anonymous-user'
+  // Use a default userId if not authenticated (must be valid UUID for backend)
+  const userId = user?.id || '00000000-0000-0000-0000-000000000001'
 
   return (
     <div className="space-y-6">

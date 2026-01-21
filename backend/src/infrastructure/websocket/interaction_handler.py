@@ -16,6 +16,7 @@ from src.domain.entities import (
     ConversationTurn,
     InteractionMode,
     InteractionSession,
+    LatencyMetrics,
     SessionStatus,
 )
 from src.domain.repositories.interaction_repository import InteractionRepository
@@ -265,10 +266,14 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._latency_tracker.start_turn(self._current_turn.id)
         self._logger.debug(f"Started turn {turn_number} for session {self._session.id}")
 
-    async def _end_current_turn(self) -> None:
-        """End the current conversation turn and save metrics."""
+    async def _end_current_turn(self) -> LatencyMetrics | None:
+        """End the current conversation turn and save metrics.
+
+        Returns:
+            LatencyMetrics if available, None otherwise.
+        """
         if not self._current_turn or not self._session:
-            return
+            return None
 
         self._current_turn.end()
         await self._repository.update_turn(self._current_turn)
@@ -284,6 +289,8 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
         self._latency_tracker.clear_turn(self._current_turn.id)
         self._current_turn = None
+
+        return metrics
 
     async def _process_mode_events(self) -> None:
         """Process events from the mode service."""
@@ -384,19 +391,31 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             )
 
         elif event_type == "response_ended":
+            metrics: LatencyMetrics | None = None
             if self._current_turn:
                 self._latency_tracker.mark_response_ended(self._current_turn.id)
                 # Update turn with AI response
                 ai_text = data.get("text", "")
                 if ai_text:
                     self._current_turn.set_ai_response(ai_text, None)
-                await self._end_current_turn()
+                metrics = await self._end_current_turn()
+
+            # T061: Include latency data in response_ended message
+            response_data = {**data}
+            if metrics:
+                response_data["latency"] = {
+                    "total_ms": metrics.total_latency_ms,
+                    "stt_ms": metrics.stt_latency_ms,
+                    "llm_ttft_ms": metrics.llm_ttft_ms,
+                    "tts_ttfb_ms": metrics.tts_ttfb_ms,
+                    "realtime_ms": metrics.realtime_latency_ms,
+                }
 
             await self.send_message(
                 WebSocketMessage(
                     type=MessageType.RESPONSE_ENDED,
                     session_id=self.session_id,
-                    data=data,
+                    data=response_data,
                 )
             )
 

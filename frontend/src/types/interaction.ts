@@ -105,6 +105,15 @@ export interface LatencyMetrics {
   created_at: string
 }
 
+// T061: Latency data included in response_ended WebSocket message
+export interface TurnLatencyData {
+  total_ms: number
+  stt_ms: number | null
+  llm_ttft_ms: number | null
+  tts_ttfb_ms: number | null
+  realtime_ms: number | null
+}
+
 export interface LatencyStats {
   total_turns: number
   avg_total_ms: number | null

@@ -9,13 +9,14 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 
 import { AudioVisualizer } from './AudioVisualizer'
+import { LatencyDisplay } from './LatencyDisplay'
 import { ModeSelector } from './ModeSelector'
 import { TranscriptDisplay } from './TranscriptDisplay'
 import { RoleScenarioEditor } from './RoleScenarioEditor'
 import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
 
 import { useInteractionStore } from '@/stores/interactionStore'
-import type { ScenarioTemplate } from '@/types/interaction'
+import type { ScenarioTemplate, TurnLatencyData } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { useAudioPlayback } from '@/hooks/useAudioPlayback'
@@ -156,6 +157,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     isRecording,
     inputVolume,
     currentLatency,
+    currentTurnLatency,
+    sessionStats,
     error,
     setConnectionStatus,
     setInteractionState,
@@ -167,6 +170,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setIsRecording,
     setInputVolume,
     setCurrentLatency,
+    setCurrentTurnLatency,
     setMode,
     setProviderConfig,
     setError,
@@ -283,8 +287,15 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           clearTranscripts()
           setInteractionState('listening')
 
-          if (data.latency_ms) {
+          // T065: Parse detailed latency data from response_ended message
+          const latencyData = data.latency as TurnLatencyData | undefined
+          if (latencyData) {
+            setCurrentLatency(latencyData.total_ms)
+            setCurrentTurnLatency(latencyData)
+          } else if (data.latency_ms) {
+            // Fallback for backward compatibility
             setCurrentLatency(data.latency_ms as number)
+            setCurrentTurnLatency(null)
           }
           break
         }
@@ -311,6 +322,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       appendAIResponse,
       addTurnToHistory,
       setCurrentLatency,
+      setCurrentTurnLatency,
       setError,
       queueAudioChunk,
       userId,
@@ -536,6 +548,17 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           </div>
         )}
       </div>
+
+      {/* T065-T067: Latency Display */}
+      {options.showLatencyMetrics && (currentTurnLatency || sessionStats) && (
+        <LatencyDisplay
+          turnLatency={currentTurnLatency}
+          sessionStats={sessionStats}
+          mode={options.mode}
+          showBreakdown={true}
+          showSessionStats={!!sessionStats}
+        />
+      )}
 
       {/* Transcripts - T078a: Show role names instead of fixed labels */}
       <TranscriptDisplay

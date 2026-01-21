@@ -180,18 +180,18 @@
 
 ### Backend Implementation for US3
 
-- [ ] T059 [US3] Implement latency measurement in LatencyTracker for Realtime mode
-- [ ] T060 [US3] Implement segment latency measurement (STT, LLM TTFT, TTS TTFB) for Cascade mode
-- [ ] T061 [US3] Add latency data to response_ended WebSocket message
-- [ ] T062 [US3] Create latency statistics aggregation in InteractionRepository
-- [ ] T063 [US3] Add latency-stats endpoint GET /api/v1/interaction/sessions/{id}/latency-stats in interaction_router.py
+- [x] T059 [US3] Implement latency measurement in LatencyTracker for Realtime mode (already implemented in T014)
+- [x] T060 [US3] Implement segment latency measurement (STT, LLM TTFT, TTS TTFB) for Cascade mode (already implemented in T014)
+- [x] T061 [US3] Add latency data to response_ended WebSocket message
+- [x] T062 [US3] Create latency statistics aggregation in InteractionRepository (already implemented)
+- [x] T063 [US3] Add latency-stats endpoint GET /api/v1/interaction/sessions/{id}/latency in interaction_router.py (already implemented)
 
 ### Frontend Implementation for US3
 
-- [ ] T064 [P] [US3] Create LatencyDisplay component in frontend/src/components/interaction/LatencyDisplay.tsx
-- [ ] T065 [US3] Show real-time latency per turn in InteractionPanel
-- [ ] T066 [US3] Show segment breakdown for Cascade mode (STT/LLM/TTS bars)
-- [ ] T067 [US3] Display session summary statistics (avg, min, max, P95) on session end
+- [x] T064 [P] [US3] Create LatencyDisplay component in frontend/src/components/interaction/LatencyDisplay.tsx
+- [x] T065 [US3] Show real-time latency per turn in InteractionPanel
+- [x] T066 [US3] Show segment breakdown for Cascade mode (STT/LLM/TTS bars)
+- [x] T067 [US3] Display session summary statistics (avg, min, max, P95) on session end
 
 **Checkpoint**: User Story 3 complete - latency metrics visible for all turns
 

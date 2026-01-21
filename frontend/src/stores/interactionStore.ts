@@ -18,6 +18,7 @@ import type {
   LatencyStats,
   ProviderConfig,
   SystemPromptTemplate,
+  TurnLatencyData,
 } from '@/types/interaction'
 
 // =============================================================================
@@ -47,6 +48,7 @@ interface InteractionStoreState {
 
   // Latency tracking
   currentLatency: number | null
+  currentTurnLatency: TurnLatencyData | null
   sessionStats: LatencyStats | null
 
   // Configuration
@@ -79,6 +81,7 @@ interface InteractionStoreState {
 
   // Actions - Latency
   setCurrentLatency: (latency: number | null) => void
+  setCurrentTurnLatency: (latency: TurnLatencyData | null) => void
   setSessionStats: (stats: LatencyStats | null) => void
 
   // Actions - Configuration
@@ -137,6 +140,7 @@ const initialState = {
   aiResponseText: '',
   isTranscriptFinal: false,
   currentLatency: null,
+  currentTurnLatency: null,
   sessionStats: null,
   options: defaultOptions,
   availableTemplates: [],
@@ -199,6 +203,8 @@ export const useInteractionStore = create<InteractionStoreState>()(
 
       // Latency actions
       setCurrentLatency: (latency) => set({ currentLatency: latency }),
+
+      setCurrentTurnLatency: (latency) => set({ currentTurnLatency: latency }),
 
       setSessionStats: (stats) => set({ sessionStats: stats }),
 
@@ -268,6 +274,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
           aiResponseText: '',
           isTranscriptFinal: false,
           currentLatency: null,
+          currentTurnLatency: null,
           sessionStats: null,
           error: null,
           interactionState: 'idle',

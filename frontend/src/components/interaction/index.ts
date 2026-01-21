@@ -6,6 +6,7 @@
  */
 
 export { AudioVisualizer } from './AudioVisualizer'
+export { LatencyDisplay } from './LatencyDisplay'
 export { ModeSelector } from './ModeSelector'
 export { InteractionPanel } from './InteractionPanel'
 export { TranscriptDisplay } from './TranscriptDisplay'

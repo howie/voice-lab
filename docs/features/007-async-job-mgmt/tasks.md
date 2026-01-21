@@ -66,7 +66,7 @@
 
 - [x] T015 [P] [US1] Contract test for POST /jobs endpoint (201 response) in `backend/tests/contract/test_jobs_api.py`
 - [x] T016 [P] [US1] Contract test for job concurrent limit (429 response) in `backend/tests/contract/test_jobs_api.py`
-- [ ] T017 [US1] Integration test for job submission → background execution → completion flow in `backend/tests/integration/test_job_workflow.py`
+- [x] T017 [US1] Integration test for job submission → background execution → completion flow in `backend/tests/integration/test_job_workflow.py`
 
 ### Backend Implementation
 

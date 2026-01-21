@@ -207,9 +207,9 @@ class JobWorker:
             DialogueTurn(
                 speaker=turn["speaker"],
                 text=turn["text"],
-                emotion=turn.get("emotion"),
+                index=idx,
             )
-            for turn in input_params.get("turns", [])
+            for idx, turn in enumerate(input_params.get("turns", []))
         ]
 
         # Parse voice assignments

@@ -104,7 +104,7 @@ export function ModeSelector({
   // Get current Realtime provider settings
   const realtimeConfig = providerConfig as RealtimeProviderConfig
   const currentRealtimeProvider = 'provider' in providerConfig ? realtimeConfig.provider : 'openai'
-  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'alloy'
+  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'shimmer'
 
   // Get current Cascade provider settings
   const cascadeConfig = providerConfig as CascadeProviderConfig
@@ -127,7 +127,7 @@ export function ModeSelector({
     if (newMode === 'realtime') {
       onProviderChange({
         provider: 'openai',
-        voice: 'alloy',
+        voice: 'shimmer', // 較適合中文對話的語音
       })
     } else {
       onProviderChange({
@@ -140,7 +140,7 @@ export function ModeSelector({
   }
 
   const handleRealtimeProviderChange = (provider: 'openai' | 'gemini') => {
-    const defaultVoice = provider === 'gemini' ? 'Puck' : 'alloy'
+    const defaultVoice = provider === 'gemini' ? 'Puck' : 'shimmer' // shimmer 較適合中文對話
     onProviderChange({
       provider,
       voice: defaultVoice,

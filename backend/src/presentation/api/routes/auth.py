@@ -32,7 +32,8 @@ GOOGLE_SCOPES = ["openid", "profile", "email"]
 
 # Get base URL from environment (can be empty, will use request URL as fallback)
 BASE_URL = os.getenv("BASE_URL", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+# Use 'or' to handle both unset and empty string cases
+FRONTEND_URL = os.getenv("FRONTEND_URL") or "http://localhost:5173"
 
 
 def get_base_url(request: Request) -> str:

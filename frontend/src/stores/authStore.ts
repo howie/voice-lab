@@ -108,23 +108,24 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true })
 
-                try {
-                  const response = await authApi.getCurrentUser()
-                  set({
-                    user: response.data,
-                    token,
-                    isAuthenticated: true,
-                    isLoading: false,
-                  })
-                        } catch {
-                          localStorage.removeItem('auth_token')
-                          set({
-                            user: null,
-                            token: null,
-                            isAuthenticated: false,
-                            isLoading: false,
-                          })
-                        }      },
+        try {
+          const response = await authApi.getCurrentUser()
+          set({
+            user: response.data,
+            token,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } catch {
+          localStorage.removeItem('auth_token')
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          })
+        }
+      },
 
       clearError: () => set({ error: null }),
     }),

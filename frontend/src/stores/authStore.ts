@@ -62,17 +62,11 @@ export const useAuthStore = create<AuthState>()(
       login: async () => {
         set({ isLoading: true, error: null })
 
-        try {
-          // Get Google OAuth URL and redirect
-          const response = await authApi.getGoogleAuthUrl()
-          window.location.href = response.data.url
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : '登入失敗'
-          set({
-            error: message,
-            isLoading: false,
-          })
-        }
+        // Directly navigate to backend OAuth endpoint
+        // The backend will redirect to Google, then back to frontend with token
+        const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1'
+        const currentUrl = window.location.origin
+        window.location.href = `${apiBaseUrl}/auth/google?redirect_uri=${encodeURIComponent(currentUrl)}`
       },
 
       logout: async () => {

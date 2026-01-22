@@ -108,9 +108,17 @@ class Container:
         """Create TTS provider instances based on configuration."""
         providers: dict[str, ITTSProvider] = {}
 
-        # GCP TTS
+        # GCP TTS - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
+        # or running in GCP environment (Cloud Run uses ADC automatically)
         gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
-        if gcp_credentials or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        enable_gcp = (
+            gcp_credentials
+            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            or os.getenv("K_SERVICE")  # Cloud Run sets this
+            or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
+            or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
+        )
+        if enable_gcp:
             try:
                 from src.infrastructure.providers.tts import GCPTTSProvider
 
@@ -159,9 +167,17 @@ class Container:
         """Create STT provider instances based on configuration."""
         providers: dict[str, ISTTProvider] = {}
 
-        # GCP STT
+        # GCP STT - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
+        # or running in GCP environment (Cloud Run uses ADC automatically)
         gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
-        if gcp_credentials or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        enable_gcp = (
+            gcp_credentials
+            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            or os.getenv("K_SERVICE")  # Cloud Run sets this
+            or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
+            or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
+        )
+        if enable_gcp:
             try:
                 from src.infrastructure.providers.stt import GCPSTTProvider
 

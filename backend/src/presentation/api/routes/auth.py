@@ -5,7 +5,7 @@ import uuid
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -30,9 +30,19 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 GOOGLE_SCOPES = ["openid", "profile", "email"]
 
-# Get base URL from environment
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+# Get base URL from environment (can be empty, will use request URL as fallback)
+BASE_URL = os.getenv("BASE_URL", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+
+def get_base_url(request: Request) -> str:
+    """Get base URL from environment or derive from request."""
+    if BASE_URL:
+        return BASE_URL
+    # Derive from request - use X-Forwarded headers if behind proxy (Cloud Run)
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.url.netloc)
+    return f"{scheme}://{host}"
 
 
 class UserResponse(BaseModel):
@@ -55,6 +65,7 @@ class TokenResponse(BaseModel):
 
 @router.get("/google")
 async def google_auth_start(
+    request: Request,
     redirect_uri: str | None = Query(None, description="URL to redirect after successful login"),
 ) -> RedirectResponse:
     """Initiate Google OAuth 2.0 login flow.
@@ -67,7 +78,8 @@ async def google_auth_start(
             detail="Google OAuth not configured",
         )
 
-    callback_url = f"{BASE_URL}/api/v1/auth/google/callback"
+    base_url = get_base_url(request)
+    callback_url = f"{base_url}/api/v1/auth/google/callback"
 
     # Build state with redirect URI
     state = redirect_uri or FRONTEND_URL
@@ -88,6 +100,7 @@ async def google_auth_start(
 
 @router.get("/google/callback")
 async def google_auth_callback(
+    request: Request,
     code: str = Query(..., description="Authorization code from Google"),
     state: str = Query("", description="State parameter with redirect URI"),
 ) -> RedirectResponse:
@@ -101,7 +114,8 @@ async def google_auth_callback(
             detail="Google OAuth not configured",
         )
 
-    callback_url = f"{BASE_URL}/api/v1/auth/google/callback"
+    base_url = get_base_url(request)
+    callback_url = f"{base_url}/api/v1/auth/google/callback"
 
     # Exchange code for tokens
     async with httpx.AsyncClient() as client:

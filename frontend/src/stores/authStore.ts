@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthState>()(
         const token = localStorage.getItem('auth_token')
 
         if (!token) {
-          set({ isAuthenticated: false, user: null })
+          set({ isAuthenticated: false, user: null, isLoading: false })
           return
         }
 

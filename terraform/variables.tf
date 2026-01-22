@@ -310,3 +310,13 @@ variable "labels" {
     project    = "voice-lab"
   }
 }
+
+# -----------------------------------------------------------------------------
+# CORS Configuration
+# -----------------------------------------------------------------------------
+
+variable "additional_cors_origins" {
+  type        = list(string)
+  description = "Additional CORS origins to allow (e.g., Cloud Run direct URLs for testing before custom domain SSL is ready)"
+  default     = []
+}

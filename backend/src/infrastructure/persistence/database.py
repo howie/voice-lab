@@ -6,11 +6,32 @@ from sqlalchemy.orm import DeclarativeBase
 
 load_dotenv()
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/voicelab"
-)
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+def get_database_url() -> str:
+    """Build database URL from environment variables.
+
+    Supports both:
+    - Direct DATABASE_URL
+    - Separate DATABASE_HOST, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD
+    """
+    # First check for direct DATABASE_URL
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url
+
+    # Build from separate components (used in Cloud Run)
+    host = os.getenv("DATABASE_HOST", "localhost")
+    name = os.getenv("DATABASE_NAME", "voicelab")
+    user = os.getenv("DATABASE_USER", "postgres")
+    password = os.getenv("DATABASE_PASSWORD", "postgres")
+    port = os.getenv("DATABASE_PORT", "5432")
+
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
+
+
+DATABASE_URL = get_database_url()
+
+engine = create_async_engine(DATABASE_URL, echo=False)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

@@ -3,7 +3,11 @@
  * T039: Add streaming fetch support (ReadableStream)
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+// Helper to get API base URL from runtime config or env
+function getApiBaseUrl(): string {
+  const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string } }).__RUNTIME_CONFIG__
+  return runtimeConfig?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || '/api/v1'
+}
 
 export interface StreamingOptions {
   text: string
@@ -27,8 +31,9 @@ export async function fetchStreamingAudio(
   options: StreamingOptions
 ): Promise<ArrayBuffer> {
   const token = localStorage.getItem('auth_token')
+  const apiBaseUrl = getApiBaseUrl()
 
-  const response = await fetch(`${API_BASE_URL}/tts/stream`, {
+  const response = await fetch(`${apiBaseUrl}/tts/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

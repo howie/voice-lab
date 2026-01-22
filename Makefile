@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend install-hooks dev dev-back dev-front build test lint format check clean manual-test manual-test-stop
+.PHONY: help install install-backend install-frontend install-hooks dev dev-back dev-front build test lint format check clean manual-test manual-test-stop test-entrypoint verify-deployment
 
 # Colors for output
 CYAN := \033[36m
@@ -145,6 +145,22 @@ test-cov:
 	@echo "$(CYAN)執行測試並產生覆蓋率報告...$(RESET)"
 	cd backend && PYTHONPATH=. uv run pytest --cov=src --cov-report=html
 	cd frontend && npm run test:coverage
+
+test-entrypoint:
+	@echo "$(CYAN)測試 Docker entrypoint 配置生成...$(RESET)"
+	bash frontend/tests/docker-entrypoint.test.sh
+
+test-runtime-config:
+	@echo "$(CYAN)測試前端 runtime config...$(RESET)"
+	cd frontend && npm run test -- --run src/lib/__tests__/runtimeConfig.test.ts
+
+verify-deployment:
+	@echo "$(CYAN)驗證部署配置...$(RESET)"
+	@if [ -z "$(URL)" ]; then \
+		echo "$(YELLOW)Usage: make verify-deployment URL=https://your-frontend-url$(RESET)"; \
+		exit 1; \
+	fi
+	bash scripts/verify-deployment.sh $(URL) $(API_URL)
 
 # =============================================================================
 # Code Quality

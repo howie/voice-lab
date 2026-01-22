@@ -5,7 +5,11 @@
 
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+// Check runtime config first (for Cloud Run), then build-time env, then fallback
+const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string } }).__RUNTIME_CONFIG__
+const API_BASE_URL = runtimeConfig?.VITE_API_BASE_URL
+  || import.meta.env.VITE_API_BASE_URL
+  || '/api/v1'
 const DISABLE_AUTH = import.meta.env.VITE_DISABLE_AUTH === 'true'
 
 export const api = axios.create({

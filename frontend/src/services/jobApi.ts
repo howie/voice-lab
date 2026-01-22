@@ -110,11 +110,17 @@ export async function cancelJob(jobId: string): Promise<JobResponse> {
   return response.data
 }
 
+// Helper to get API base URL from runtime config or env
+function getApiBaseUrl(): string {
+  const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string } }).__RUNTIME_CONFIG__
+  return runtimeConfig?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || '/api/v1'
+}
+
 /**
  * Get download URL for completed job audio
  */
 export function getDownloadUrl(jobId: string): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+  const baseUrl = getApiBaseUrl()
   return `${baseUrl}/jobs/${jobId}/download`
 }
 

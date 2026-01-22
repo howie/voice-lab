@@ -64,7 +64,11 @@ export const useAuthStore = create<AuthState>()(
 
         // Directly navigate to backend OAuth endpoint (not through Vite proxy)
         // This avoids CORS issues with Google OAuth redirect
-        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+        // Check runtime config first, then build-time env, then fallback
+        const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string } }).__RUNTIME_CONFIG__
+        const backendUrl = runtimeConfig?.VITE_API_BASE_URL
+          || import.meta.env.VITE_API_BASE_URL
+          || '/api/v1'
         const currentUrl = window.location.origin
         window.location.href = `${backendUrl}/auth/google?redirect_uri=${encodeURIComponent(currentUrl)}`
       },

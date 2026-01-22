@@ -1,0 +1,36 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Gitleaks - Detect secrets in git repos
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # Additional useful hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Prevent large files from being committed
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      # Check for files that would conflict on case-insensitive filesystems
+      - id: check-case-conflict
+      # Detect private keys
+      - id: detect-private-key
+      # Ensure files end with a newline
+      - id: end-of-file-fixer
+        exclude: '\.min\.(js|css)$'
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        exclude: '\.min\.(js|css)$'
+      # Check YAML syntax
+      - id: check-yaml
+        args: ['--unsafe']
+      # Check JSON syntax (exclude tsconfig which has comments)
+      - id: check-json
+        exclude: 'tsconfig.*\.json$'
+      # Check TOML syntax
+      - id: check-toml

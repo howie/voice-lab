@@ -34,7 +34,7 @@ git push -u origin HEAD
 
 ### Step 3: Create Pull Request
 
-Generate a Pull Request using the GitHub CLI. 
+Generate a Pull Request using the GitHub CLI.
 The title and body will be interactively prompted or can be auto-generated from commits.
 
 ```bash

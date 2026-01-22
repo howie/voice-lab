@@ -275,6 +275,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._current_turn = ConversationTurn(
             session_id=self._session.id,
             turn_number=turn_number,
+            started_at=datetime.utcnow(),
         )
         self._current_turn = await self._repository.create_turn(self._current_turn)
         self._latency_tracker.start_turn(self._current_turn.id)

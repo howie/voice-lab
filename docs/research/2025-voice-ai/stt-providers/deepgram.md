@@ -101,7 +101,7 @@ def main():
     )
 
     connection.start(options)
-    
+
     # 這裡需實作音訊串流發送邏輯 (如從麥克風讀取)
     # connection.send(audio_data)
 

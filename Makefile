@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend dev dev-back dev-front build test lint format check clean manual-test manual-test-stop
+.PHONY: help install install-backend install-frontend install-hooks dev dev-back dev-front build test lint format check clean manual-test manual-test-stop
 
 # Colors for output
 CYAN := \033[36m
@@ -10,9 +10,10 @@ help:
 	@echo "$(CYAN)Voice Lab - 開發指令$(RESET)"
 	@echo ""
 	@echo "$(GREEN)安裝指令:$(RESET)"
-	@echo "  make install          - 安裝所有依賴（前後端）"
+	@echo "  make install          - 安裝所有依賴（前後端 + hooks）"
 	@echo "  make install-backend  - 安裝後端依賴"
 	@echo "  make install-frontend - 安裝前端依賴"
+	@echo "  make install-hooks    - 安裝 pre-commit hooks (gitleaks)"
 	@echo ""
 	@echo "$(GREEN)服務管理:$(RESET)"
 	@echo "  make services-start   - 啟動服務 (PostgreSQL, Redis)"
@@ -53,8 +54,22 @@ help:
 # Installation
 # =============================================================================
 
-install: install-backend install-frontend
+install: install-backend install-frontend install-hooks
 	@echo "$(GREEN)✓ 所有依賴安裝完成$(RESET)"
+
+install-hooks:
+	@echo "$(CYAN)安裝 pre-commit hooks...$(RESET)"
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		echo "  gitleaks 已安裝"; \
+	else \
+		echo "$(YELLOW)⚠ gitleaks 未安裝，請執行: brew install gitleaks$(RESET)"; \
+	fi
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit install && echo "$(GREEN)✓ pre-commit hooks 已安裝$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠ pre-commit 未安裝，正在安裝...$(RESET)"; \
+		pip install pre-commit && pre-commit install && echo "$(GREEN)✓ pre-commit hooks 已安裝$(RESET)"; \
+	fi
 
 install-backend:
 	@echo "$(CYAN)安裝後端依賴...$(RESET)"

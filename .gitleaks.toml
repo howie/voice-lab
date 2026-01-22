@@ -1,0 +1,54 @@
+# Gitleaks configuration
+# Docs: https://github.com/gitleaks/gitleaks
+
+title = "voice-lab gitleaks config"
+
+[extend]
+# Use the default gitleaks config as base
+useDefault = true
+
+# Additional paths to ignore
+[allowlist]
+paths = [
+    '''\.gitleaks\.toml$''',
+    '''\.pre-commit-config\.yaml$''',
+    '''terraform/terraform\.tfvars\.example$''',
+    '''(^|/)test[s]?/''',
+    '''(^|/)__tests__/''',
+    '''\.test\.(ts|tsx|js|jsx|py)$''',
+    '''_test\.py$''',
+    '''conftest\.py$''',
+]
+
+# Ignore specific patterns that are false positives
+regexes = [
+    # Test/example keys
+    '''sk-test[a-zA-Z0-9]+''',
+    '''your-.*-here''',
+    '''your-.*-id''',
+    '''your-.*-secret''',
+    '''your-.*-key''',
+    '''placeholder''',
+    '''example\.com''',
+]
+
+# Custom rules for this project
+[[rules]]
+id = "terraform-tfvars"
+description = "Terraform tfvars files should not be committed"
+path = '''terraform/.*\.tfvars$'''
+regex = '''.*'''
+allowlist = { paths = ['''terraform/terraform\.tfvars\.example$'''] }
+
+[[rules]]
+id = "terraform-tfstate"
+description = "Terraform state files should not be committed"
+path = '''\.tfstate'''
+regex = '''.*'''
+
+[[rules]]
+id = "env-files"
+description = "Environment files should not be committed"
+path = '''\.env(?:\.[^.]+)?$'''
+regex = '''.*'''
+allowlist = { paths = ['''\.env\.example$''', '''\.env\.sample$'''] }

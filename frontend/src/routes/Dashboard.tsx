@@ -190,8 +190,8 @@ export function Dashboard() {
                                   : '-'}
                               </td>
                               <td className="py-2 text-sm text-muted-foreground">
-                                {provider.supported_languages.slice(0, 3).join(', ')}
-                                {provider.supported_languages.length > 3 && '...'}
+                                {(provider.supported_languages ?? []).slice(0, 3).join(', ') || '-'}
+                                {(provider.supported_languages?.length ?? 0) > 3 && '...'}
                               </td>
                             </tr>
                           )

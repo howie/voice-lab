@@ -31,10 +31,11 @@ export function UserMenu() {
     ? user.name
         .split(' ')
         .map((n) => n[0])
+        .filter(Boolean)
         .join('')
         .toUpperCase()
-        .slice(0, 2)
-    : user.email[0].toUpperCase()
+        .slice(0, 2) || 'U'
+    : (user.email?.[0]?.toUpperCase() ?? 'U')
 
   return (
     <div className="relative" ref={menuRef}>

@@ -135,9 +135,7 @@ class TestOAuthEndpoints:
 
     def test_google_auth_redirects_or_unavailable(self, client_with_auth_enabled):
         """GET /auth/google should redirect or return 503 if not configured."""
-        response = client_with_auth_enabled.get(
-            "/api/v1/auth/google", follow_redirects=False
-        )
+        response = client_with_auth_enabled.get("/api/v1/auth/google", follow_redirects=False)
 
         # Should either redirect to Google OAuth or return 503 if not configured
         assert response.status_code in [307, 503]

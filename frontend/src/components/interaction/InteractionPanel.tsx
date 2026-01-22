@@ -349,7 +349,6 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     connect: wsConnect,
     disconnect: wsDisconnect,
     sendMessage,
-    sendBinary,
     error: wsError,
   } = useWebSocket({
     url: resolvedWsUrl,
@@ -367,9 +366,16 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   } = useMicrophone({
     onAudioChunk: (chunk: Float32Array) => {
       if (wsStatus === 'connected') {
-        // Convert Float32 to PCM16 and send as binary
+        // Convert Float32 to PCM16 and send as base64-encoded JSON
         const pcm16Buffer = float32ToPCM16(chunk)
-        sendBinary(pcm16Buffer)
+        const base64Audio = btoa(
+          String.fromCharCode(...new Uint8Array(pcm16Buffer))
+        )
+        sendMessage('audio_chunk', {
+          audio: base64Audio,
+          format: 'pcm16',
+          sample_rate: 16000,
+        })
       }
     },
     onVolumeChange: setInputVolume,

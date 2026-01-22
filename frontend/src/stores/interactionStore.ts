@@ -297,6 +297,19 @@ export const useInteractionStore = create<InteractionStoreState>()(
         options: state.options,
         outputVolume: state.outputVolume,
       }),
+      // Merge persisted options with defaults to handle schema migrations
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<InteractionStoreState>
+        return {
+          ...currentState,
+          ...persisted,
+          // Ensure options always have all default fields
+          options: {
+            ...defaultOptions,
+            ...(persisted.options || {}),
+          },
+        }
+      },
     }
   )
 )

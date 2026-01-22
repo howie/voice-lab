@@ -19,6 +19,24 @@ import { useAuthStore } from '@/stores/authStore'
 
 function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
+  const setToken = useAuthStore((state) => state.setToken)
+
+  // Handle OAuth token from URL (after SSO redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    const error = params.get('error')
+
+    if (token) {
+      // Store token and clean URL
+      setToken(token)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (error) {
+      // Handle error (e.g., domain_not_allowed)
+      console.error('OAuth error:', error)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [setToken])
 
   // Check auth on app load
   useEffect(() => {

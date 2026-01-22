@@ -75,8 +75,9 @@ export function RoleScenarioEditor({
     [onScenarioContextChange, maxScenarioLength]
   )
 
-  // T074b: Calculate character usage
-  const scenarioCharCount = scenarioContext.length
+  // T074b: Calculate character usage (with safe fallback for undefined)
+  const safeScenarioContext = scenarioContext ?? ''
+  const scenarioCharCount = safeScenarioContext.length
   const scenarioCharPercentage = (scenarioCharCount / maxScenarioLength) * 100
   const isNearLimit = scenarioCharPercentage >= 80
   const isAtLimit = scenarioCharPercentage >= 100

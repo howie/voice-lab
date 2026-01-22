@@ -113,7 +113,7 @@ const defaultOptions: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
     provider: 'openai',
-    voice: 'alloy',
+    voice: 'shimmer', // 較適合中文對話的語音
   },
   systemPrompt: '',
   // US4: Role and scenario defaults
@@ -221,7 +221,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
             // Reset provider config when mode changes
             providerConfig:
               mode === 'realtime'
-                ? { provider: 'openai', voice: 'alloy' }
+                ? { provider: 'openai', voice: 'shimmer' }
                 : {
                     stt_provider: 'azure',
                     llm_provider: 'openai',

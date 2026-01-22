@@ -21,27 +21,28 @@ function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
   const setToken = useAuthStore((state) => state.setToken)
 
-  // Handle OAuth token from URL (after SSO redirect)
+  // Handle OAuth token from URL and check auth
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     const error = params.get('error')
 
     if (token) {
-      // Store token and clean URL
+      // Store token, clean URL, then check auth
       setToken(token)
       window.history.replaceState({}, '', window.location.pathname)
+      // checkAuth will be called after token is set
+      checkAuth()
     } else if (error) {
       // Handle error (e.g., domain_not_allowed)
       console.error('OAuth error:', error)
       window.history.replaceState({}, '', window.location.pathname)
+      checkAuth()
+    } else {
+      // No token in URL, just check existing auth
+      checkAuth()
     }
-  }, [setToken])
-
-  // Check auth on app load
-  useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+  }, [setToken, checkAuth])
 
   return (
     <Routes>

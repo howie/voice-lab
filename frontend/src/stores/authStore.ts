@@ -62,11 +62,11 @@ export const useAuthStore = create<AuthState>()(
       login: async () => {
         set({ isLoading: true, error: null })
 
-        // Directly navigate to backend OAuth endpoint
-        // The backend will redirect to Google, then back to frontend with token
-        const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1'
+        // Directly navigate to backend OAuth endpoint (not through Vite proxy)
+        // This avoids CORS issues with Google OAuth redirect
+        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
         const currentUrl = window.location.origin
-        window.location.href = `${apiBaseUrl}/auth/google?redirect_uri=${encodeURIComponent(currentUrl)}`
+        window.location.href = `${backendUrl}/auth/google?redirect_uri=${encodeURIComponent(currentUrl)}`
       },
 
       logout: async () => {
@@ -108,23 +108,24 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true })
 
-                try {
-                  const response = await authApi.getCurrentUser()
-                  set({
-                    user: response.data,
-                    token,
-                    isAuthenticated: true,
-                    isLoading: false,
-                  })
-                        } catch {
-                          localStorage.removeItem('auth_token')
-                          set({
-                            user: null,
-                            token: null,
-                            isAuthenticated: false,
-                            isLoading: false,
-                          })
-                        }      },
+        try {
+          const response = await authApi.getCurrentUser()
+          set({
+            user: response.data,
+            token,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } catch {
+          localStorage.removeItem('auth_token')
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          })
+        }
+      },
 
       clearError: () => set({ error: null }),
     }),

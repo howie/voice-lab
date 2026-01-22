@@ -21,9 +21,33 @@ import type {
   RealtimeProviderConfig,
 } from '@/types/interaction'
 
+// Voice information with gender and language support
+interface VoiceInfo {
+  id: string
+  label: string
+  gender: '男' | '女' | '中性'
+  languages: string
+}
+
 // Available voices for each Realtime provider
-const OPENAI_VOICES = ['alloy', 'echo', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse']
-const GEMINI_VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede']
+const OPENAI_VOICES: VoiceInfo[] = [
+  { id: 'shimmer', label: 'Shimmer', gender: '女', languages: '多語言（含中文）' },
+  { id: 'coral', label: 'Coral', gender: '女', languages: '多語言（含中文）' },
+  { id: 'sage', label: 'Sage', gender: '女', languages: '多語言（含中文）' },
+  { id: 'ballad', label: 'Ballad', gender: '女', languages: '多語言（含中文）' },
+  { id: 'alloy', label: 'Alloy', gender: '中性', languages: '多語言（含中文）' },
+  { id: 'verse', label: 'Verse', gender: '男', languages: '多語言（含中文）' },
+  { id: 'ash', label: 'Ash', gender: '男', languages: '多語言（含中文）' },
+  { id: 'echo', label: 'Echo', gender: '男', languages: '多語言（含中文）' },
+]
+
+const GEMINI_VOICES: VoiceInfo[] = [
+  { id: 'Kore', label: 'Kore', gender: '女', languages: '多語言（含中文）' },
+  { id: 'Aoede', label: 'Aoede', gender: '女', languages: '多語言（含中文）' },
+  { id: 'Puck', label: 'Puck', gender: '男', languages: '多語言（含中文）' },
+  { id: 'Charon', label: 'Charon', gender: '男', languages: '多語言（含中文）' },
+  { id: 'Fenrir', label: 'Fenrir', gender: '男', languages: '多語言（含中文）' },
+]
 
 // Default TTS voices by provider
 const DEFAULT_TTS_VOICES: Record<string, string> = {
@@ -104,7 +128,7 @@ export function ModeSelector({
   // Get current Realtime provider settings
   const realtimeConfig = providerConfig as RealtimeProviderConfig
   const currentRealtimeProvider = 'provider' in providerConfig ? realtimeConfig.provider : 'openai'
-  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'alloy'
+  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'shimmer'
 
   // Get current Cascade provider settings
   const cascadeConfig = providerConfig as CascadeProviderConfig
@@ -127,7 +151,7 @@ export function ModeSelector({
     if (newMode === 'realtime') {
       onProviderChange({
         provider: 'openai',
-        voice: 'alloy',
+        voice: 'shimmer', // 較適合中文對話的語音
       })
     } else {
       onProviderChange({
@@ -140,7 +164,8 @@ export function ModeSelector({
   }
 
   const handleRealtimeProviderChange = (provider: 'openai' | 'gemini') => {
-    const defaultVoice = provider === 'gemini' ? 'Puck' : 'alloy'
+    // 預設選擇女性語音，較適合中文對話
+    const defaultVoice = provider === 'gemini' ? 'Kore' : 'shimmer'
     onProviderChange({
       provider,
       voice: defaultVoice,
@@ -333,8 +358,8 @@ export function ModeSelector({
                     "
                   >
                     {availableRealtimeVoices.map((voice) => (
-                      <option key={voice} value={voice}>
-                        {voice}
+                      <option key={voice.id} value={voice.id}>
+                        {voice.label} ({voice.gender}) - {voice.languages}
                       </option>
                     ))}
                   </select>

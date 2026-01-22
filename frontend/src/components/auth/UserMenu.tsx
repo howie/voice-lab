@@ -5,10 +5,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useAuthStore } from '@/stores/authStore'
+import { SettingsDialog } from '@/components/settings/SettingsDialog'
 
 export function UserMenu() {
   const { user, logout, isLoading } = useAuthStore()
   const [isOpen, setIsOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Close menu when clicking outside
@@ -56,7 +58,7 @@ export function UserMenu() {
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-card shadow-lg">
+        <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-card shadow-lg z-50">
           {/* User info */}
           <div className="border-b px-4 py-3">
             <p className="text-sm font-medium">{user.name || '使用者'}</p>
@@ -70,29 +72,7 @@ export function UserMenu() {
             <button
               onClick={() => {
                 setIsOpen(false)
-                // Navigate to profile page if needed
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-accent"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-4 w-4"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              個人資料
-            </button>
-
-            <button
-              onClick={() => {
-                setIsOpen(false)
-                // Navigate to settings page if needed
+                setIsSettingsOpen(true)
               }}
               className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-accent"
             >
@@ -139,6 +119,12 @@ export function UserMenu() {
           </div>
         </div>
       )}
+
+      {/* Settings Dialog */}
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   )
 }

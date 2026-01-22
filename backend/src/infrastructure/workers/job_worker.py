@@ -81,7 +81,12 @@ class JobWorker:
             return
 
         # T039: Recovery - mark stale processing jobs as failed on startup
-        await self._recover_stale_jobs()
+        # Allow startup to continue even if recovery fails (e.g., DB not ready)
+        try:
+            await self._recover_stale_jobs()
+        except Exception as e:
+            logger.warning(f"Failed to recover stale jobs on startup: {e}")
+            logger.info("Will retry stale job recovery in background")
 
         self._running = True
         self._task = asyncio.create_task(self._polling_loop())

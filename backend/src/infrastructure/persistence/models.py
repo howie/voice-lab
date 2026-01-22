@@ -93,12 +93,18 @@ class SynthesisLog(Base):
 
 
 class VoiceCache(Base):
-    """Voice cache model for caching available voices."""
+    """Voice cache model for caching available voices.
+
+    Enhanced for feature 008-voai-multi-role-voice-generation with age_group,
+    styles, use_cases, and deprecation tracking.
+    """
 
     __tablename__ = "voice_cache"
     __table_args__ = (
         Index("idx_voice_cache_provider", "provider"),
         Index("idx_voice_cache_language", "language"),
+        Index("idx_voice_cache_age_group", "age_group"),
+        Index("idx_voice_cache_deprecated", "is_deprecated"),
     )
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)  # provider:voice_id
@@ -107,8 +113,13 @@ class VoiceCache(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     language: Mapped[str] = mapped_column(String(20), nullable=False)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    styles: Mapped[dict[str, Any]] = mapped_column(JSON, default=list)
+    age_group: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    styles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    use_cases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    sample_audio_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    is_deprecated: Mapped[bool] = mapped_column(Boolean, default=False)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=True)
+    synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -573,3 +584,34 @@ class ScenarioTemplateModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+# =============================================================================
+# Voice Sync Models (Feature 008)
+# =============================================================================
+
+
+class VoiceSyncJobModel(Base):
+    """SQLAlchemy model for voice sync job tracking.
+
+    Tracks background sync operations that fetch voice metadata from providers.
+    """
+
+    __tablename__ = "voice_sync_jobs"
+    __table_args__ = (
+        Index("idx_voice_sync_jobs_status", "status"),
+        Index("idx_voice_sync_jobs_provider", "provider"),
+        Index("idx_voice_sync_jobs_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider: Mapped[str | None] = mapped_column(String(50), nullable=True)  # None = all providers
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    voices_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    voices_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    voices_deprecated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

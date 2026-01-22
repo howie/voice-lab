@@ -14,6 +14,8 @@ from src.application.interfaces.llm_provider import ILLMProvider
 from src.application.interfaces.storage_service import IStorageService
 from src.application.interfaces.stt_provider import ISTTProvider
 from src.application.interfaces.tts_provider import ITTSProvider
+from src.application.interfaces.voice_cache_repository import IVoiceCacheRepository
+from src.application.interfaces.voice_sync_job_repository import IVoiceSyncJobRepository
 from src.application.services.stt_service import STTService
 from src.application.use_cases.compare_providers import CompareProvidersUseCase
 
@@ -35,6 +37,8 @@ from src.domain.repositories.voice_repository import IVoiceRepository
 from src.infrastructure.persistence import (
     InMemoryTestRecordRepository,
     InMemoryVoiceRepository,
+    VoiceCacheRepositoryImpl,
+    VoiceSyncJobRepositoryImpl,
 )
 from src.infrastructure.persistence.credential_repository import (
     SQLAlchemyProviderCredentialRepository,
@@ -359,6 +363,20 @@ def get_job_repository(
 ) -> IJobRepository:
     """FastAPI dependency for job repository."""
     return JobRepositoryImpl(session)
+
+
+def get_voice_cache_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IVoiceCacheRepository:
+    """FastAPI dependency for voice cache repository."""
+    return VoiceCacheRepositoryImpl(session)
+
+
+def get_voice_sync_job_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IVoiceSyncJobRepository:
+    """FastAPI dependency for voice sync job repository."""
+    return VoiceSyncJobRepositoryImpl(session)
 
 
 def get_stt_service(

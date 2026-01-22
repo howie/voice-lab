@@ -1,13 +1,16 @@
 """Authentication routes for Google SSO."""
 
+import logging
 import os
-import uuid
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.auth.domain_validator import (
     DomainValidationError,
@@ -16,11 +19,15 @@ from src.infrastructure.auth.domain_validator import (
     validate_email_domain,
 )
 from src.infrastructure.auth.jwt import create_access_token
+from src.infrastructure.persistence.database import get_db_session
+from src.infrastructure.persistence.models import User
 from src.presentation.api.middleware.auth import (
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
     CurrentUserDep,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -64,6 +71,49 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 
+async def get_or_create_user(
+    db: AsyncSession,
+    google_id: str,
+    email: str,
+    name: str | None = None,
+    picture_url: str | None = None,
+) -> User:
+    """Get existing user by google_id or create a new one.
+
+    This implements auto-signup: when a user logs in via Google OAuth
+    for the first time, they are automatically registered in the database.
+    """
+    # Try to find existing user by google_id
+    result = await db.execute(select(User).where(User.google_id == google_id))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Update last login time and any changed profile info
+        user.last_login_at = datetime.now(UTC)
+        if name and user.name != name:
+            user.name = name
+        if picture_url and user.picture_url != picture_url:
+            user.picture_url = picture_url
+        await db.commit()
+        await db.refresh(user)
+        logger.info(f"User logged in: {email} (id={user.id})")
+        return user
+
+    # Create new user (auto-signup)
+    user = User(
+        google_id=google_id,
+        email=email,
+        name=name,
+        picture_url=picture_url,
+        last_login_at=datetime.now(UTC),
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    logger.info(f"New user created: {email} (id={user.id})")
+    return user
+
+
 @router.get("/google")
 async def google_auth_start(
     request: Request,
@@ -104,10 +154,12 @@ async def google_auth_callback(
     request: Request,
     code: str = Query(..., description="Authorization code from Google"),
     state: str = Query("", description="State parameter with redirect URI"),
+    db: AsyncSession = Depends(get_db_session),
 ) -> RedirectResponse:
     """Handle Google OAuth callback.
 
     Exchanges authorization code for tokens and creates JWT.
+    Auto-creates user in database if first login (auto-signup).
     """
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(
@@ -166,16 +218,22 @@ async def google_auth_callback(
         error_msg = f"domain_not_allowed:{email.split('@')[1] if '@' in email else 'unknown'}"
         return RedirectResponse(url=f"{redirect_url}{separator}error={error_msg}")
 
-    # Create or update user in database (simplified - should use repository)
-    user_id = str(uuid.uuid4())  # In production, lookup or create user in DB
-
-    # Create JWT token
-    jwt_token = create_access_token(
-        user_id=user_id,
-        email=user_info["email"],
+    # Get or create user in database (auto-signup on first login)
+    user = await get_or_create_user(
+        db=db,
         google_id=user_info["id"],
+        email=email,
         name=user_info.get("name"),
         picture_url=user_info.get("picture"),
+    )
+
+    # Create JWT token with actual user ID from database
+    jwt_token = create_access_token(
+        user_id=str(user.id),
+        email=user.email,
+        google_id=user.google_id,
+        name=user.name,
+        picture_url=user.picture_url,
     )
 
     # Redirect to frontend with token

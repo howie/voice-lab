@@ -2,9 +2,17 @@
 
 Orchestrates multi-role dialogue synthesis by automatically selecting
 native or segmented mode based on provider capability.
+
+Feature: 008-voai-multi-role-voice-generation
+T013-T017: Native synthesis with limit validation and auto-fallback
 """
 
+import asyncio
+import logging
+import time
 from dataclasses import dataclass
+
+import azure.cognitiveservices.speech as speechsdk
 
 from src.application.use_cases.base import UseCase
 from src.domain.entities.audio import AudioFormat
@@ -19,10 +27,14 @@ from src.infrastructure.providers.tts.factory import (
     TTSProviderFactory,
 )
 from src.infrastructure.providers.tts.multi_role import (
+    AzureSSMLBuilder,
+    ElevenLabsDialogueBuilder,
     MergeConfig,
     SegmentedMergerService,
     get_provider_capability,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,7 +54,14 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
     """Use case for synthesizing multi-role dialogue.
 
     Automatically selects native or segmented synthesis mode
-    based on provider capability.
+    based on provider capability and content limits.
+
+    Native Mode Support:
+        - Azure: SSML with multiple <voice> tags (limit: 50,000 chars)
+        - ElevenLabs: Text to Dialogue API (limit: 5,000 chars)
+
+    Auto-fallback:
+        If content exceeds native limits, automatically falls back to segmented mode.
     """
 
     async def execute(self, input_data: SynthesizeMultiRoleInput) -> MultiRoleTTSResult:
@@ -87,11 +106,59 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
         # Build voice map
         voice_map = {va.speaker: va.voice_id for va in input_data.voice_assignments}
 
-        # Select synthesis mode
+        # Select synthesis mode with auto-fallback for native providers
         if capability.support_type == MultiRoleSupportType.NATIVE:
-            return await self._synthesize_native(input_data, voice_map)
+            # Check if native mode is feasible
+            can_use_native = self._can_use_native(input_data, voice_map)
+
+            if can_use_native:
+                try:
+                    return await self._synthesize_native(input_data, voice_map)
+                except ValueError as e:
+                    # Limit exceeded during build, fall back to segmented
+                    logger.warning(
+                        f"Native synthesis failed for {input_data.provider}, "
+                        f"falling back to segmented: {e}"
+                    )
+                    return await self._synthesize_segmented(input_data, voice_map)
+            else:
+                logger.info(
+                    f"Content exceeds native limits for {input_data.provider}, using segmented mode"
+                )
+                return await self._synthesize_segmented(input_data, voice_map)
         else:
             return await self._synthesize_segmented(input_data, voice_map)
+
+    def _can_use_native(
+        self,
+        input_data: SynthesizeMultiRoleInput,
+        voice_map: dict[str, str],
+    ) -> bool:
+        """Check if native mode can be used based on content size.
+
+        Args:
+            input_data: Synthesis parameters.
+            voice_map: Speaker to voice ID mapping.
+
+        Returns:
+            True if native mode is feasible, False otherwise.
+        """
+        provider = input_data.provider.lower()
+
+        if provider == "azure":
+            builder = AzureSSMLBuilder()
+            return builder.can_use_native(input_data.turns, voice_map)
+        elif provider == "elevenlabs":
+            builder = ElevenLabsDialogueBuilder()
+            return builder.can_use_native(input_data.turns, voice_map)
+        else:
+            # For other providers marked as NATIVE but without specific builder,
+            # use simple character limit check
+            total_chars = sum(len(t.text) for t in input_data.turns)
+            capability = get_provider_capability(provider)
+            if capability:
+                return total_chars <= capability.character_limit
+            return False
 
     async def _synthesize_native(
         self,
@@ -100,7 +167,36 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
     ) -> MultiRoleTTSResult:
         """Synthesize using native multi-role support.
 
-        For providers like ElevenLabs with Audio Tags or Azure with SSML.
+        Routes to provider-specific native synthesis implementation.
+
+        Args:
+            input_data: Synthesis parameters.
+            voice_map: Speaker to voice ID mapping.
+
+        Returns:
+            MultiRoleTTSResult with synthesized audio.
+
+        Raises:
+            ValueError: If synthesis fails or limits exceeded.
+        """
+        provider = input_data.provider.lower()
+
+        if provider == "azure":
+            return await self._synthesize_azure_native(input_data, voice_map)
+        elif provider == "elevenlabs":
+            return await self._synthesize_elevenlabs_native(input_data, voice_map)
+        else:
+            # For GCP or other native providers without implementation,
+            # fall back to segmented
+            logger.info(f"Native synthesis not implemented for {provider}, using segmented mode")
+            return await self._synthesize_segmented(input_data, voice_map)
+
+    async def _synthesize_azure_native(
+        self,
+        input_data: SynthesizeMultiRoleInput,
+        voice_map: dict[str, str],
+    ) -> MultiRoleTTSResult:
+        """Synthesize using Azure SSML multi-voice.
 
         Args:
             input_data: Synthesis parameters.
@@ -109,10 +205,148 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
         Returns:
             MultiRoleTTSResult with synthesized audio.
         """
-        # For now, fall back to segmented mode
-        # Native implementations for specific providers will be added later
-        # This placeholder allows the API to work while we build out native support
-        return await self._synthesize_segmented(input_data, voice_map)
+        import os
+
+        start_time = time.time()
+
+        # Build SSML
+        builder = AzureSSMLBuilder()
+        ssml = builder.build_multi_voice_ssml(
+            turns=input_data.turns,
+            voice_map=voice_map,
+            language=input_data.language,
+            gap_ms=input_data.gap_ms,
+        )
+
+        # Get Azure credentials from environment
+        subscription_key = os.getenv("AZURE_SPEECH_KEY")
+        region = os.getenv("AZURE_SPEECH_REGION")
+
+        if not subscription_key or not region:
+            raise ValueError("Azure Speech credentials not configured")
+
+        # Create speech config
+        speech_config = speechsdk.SpeechConfig(
+            subscription=subscription_key,
+            region=region,
+        )
+
+        # Set output format
+        format_map = {
+            "mp3": speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
+            "wav": speechsdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm,
+            "ogg": speechsdk.SpeechSynthesisOutputFormat.Ogg16Khz16BitMonoOpus,
+        }
+        output_format = format_map.get(
+            input_data.output_format.lower(),
+            speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
+        )
+        speech_config.set_speech_synthesis_output_format(output_format)
+
+        # Synthesize
+        synthesizer = speechsdk.SpeechSynthesizer(
+            speech_config=speech_config,
+            audio_config=None,
+        )
+
+        result = await asyncio.to_thread(synthesizer.speak_ssml_async(ssml).get)
+
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            # Estimate duration (rough: 150 words/minute for Chinese)
+            total_chars = sum(len(t.text) for t in input_data.turns)
+            estimated_duration_ms = int(total_chars * 200)  # ~200ms per character
+
+            content_type_map = {
+                "mp3": "audio/mpeg",
+                "wav": "audio/wav",
+                "ogg": "audio/ogg",
+            }
+
+            return MultiRoleTTSResult(
+                audio_content=result.audio_data,
+                content_type=content_type_map.get(input_data.output_format.lower(), "audio/mpeg"),
+                duration_ms=estimated_duration_ms,
+                latency_ms=latency_ms,
+                provider="azure",
+                synthesis_mode=MultiRoleSupportType.NATIVE,
+                turn_timings=None,
+            )
+        elif result.reason == speechsdk.ResultReason.Canceled:
+            cancellation = result.cancellation_details
+            raise ValueError(
+                f"Azure TTS synthesis canceled: {cancellation.reason}. "
+                f"Error: {cancellation.error_details}"
+            )
+        else:
+            raise ValueError(f"Azure TTS synthesis failed: {result.reason}")
+
+    async def _synthesize_elevenlabs_native(
+        self,
+        input_data: SynthesizeMultiRoleInput,
+        voice_map: dict[str, str],
+    ) -> MultiRoleTTSResult:
+        """Synthesize using ElevenLabs Text to Dialogue API.
+
+        Args:
+            input_data: Synthesis parameters.
+            voice_map: Speaker to voice ID mapping.
+
+        Returns:
+            MultiRoleTTSResult with synthesized audio.
+        """
+        import os
+
+        import httpx
+
+        start_time = time.time()
+
+        # Build request
+        builder = ElevenLabsDialogueBuilder()
+        request = builder.build_dialogue_request(
+            turns=input_data.turns,
+            voice_map=voice_map,
+        )
+        payload = builder.to_api_payload(request)
+
+        # Get API key
+        api_key = os.getenv("ELEVENLABS_API_KEY")
+        if not api_key:
+            raise ValueError("ElevenLabs API key not configured")
+
+        # Call Text to Dialogue API
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://api.elevenlabs.io/v1/text-to-dialogue",
+                json=payload,
+                headers={
+                    "xi-api-key": api_key,
+                    "Content-Type": "application/json",
+                },
+            )
+
+            if response.status_code != 200:
+                error_detail = response.text
+                raise ValueError(f"ElevenLabs API error ({response.status_code}): {error_detail}")
+
+            audio_data = response.content
+
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        # Estimate duration
+        total_chars = sum(len(t.text) for t in input_data.turns)
+        estimated_duration_ms = int(total_chars * 200)
+
+        return MultiRoleTTSResult(
+            audio_content=audio_data,
+            content_type="audio/mpeg",
+            duration_ms=estimated_duration_ms,
+            latency_ms=latency_ms,
+            provider="elevenlabs",
+            synthesis_mode=MultiRoleSupportType.NATIVE,
+            turn_timings=None,
+        )
 
     async def _synthesize_segmented(
         self,

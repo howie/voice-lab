@@ -158,3 +158,9 @@ variable "labels" {
   description = "Labels to apply to resources"
   default     = {}
 }
+
+variable "additional_cors_origins" {
+  type        = list(string)
+  description = "Additional CORS origins to allow (e.g., Cloud Run direct URLs)"
+  default     = []
+}

@@ -1,5 +1,7 @@
 """Shared test fixtures and utilities."""
 
+import os
+import socket
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -12,6 +14,40 @@ import pytest
 from src.domain.entities.job import Job, JobStatus, JobType
 from src.main import app
 from src.presentation.api.routes import credentials as credentials_module
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "integration: mark test as integration test requiring database"
+    )
+
+
+def _is_database_available() -> bool:
+    """Check if PostgreSQL database is available."""
+    host = os.environ.get("DB_HOST", "localhost")
+    port = int(os.environ.get("DB_PORT", "5432"))
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except OSError:
+        return False
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip integration tests if database is not available."""
+    if _is_database_available():
+        return
+
+    skip_integration = pytest.mark.skip(
+        reason="Database not available (skipping integration tests)"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
 
 
 @pytest.fixture

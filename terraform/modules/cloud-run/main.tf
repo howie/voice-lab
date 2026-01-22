@@ -45,10 +45,10 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.environment
       }
 
-      # NLTK data directory (writable in Cloud Run)
+      # NLTK data directory (pre-downloaded in Docker image)
       env {
         name  = "NLTK_DATA"
-        value = "/tmp/nltk_data"
+        value = "/app/nltk_data"
       }
 
       env {
@@ -79,6 +79,22 @@ resource "google_cloud_run_v2_service" "backend" {
       env {
         name  = "FRONTEND_URL"
         value = var.custom_domain != "" ? "https://${var.custom_domain}" : ""
+      }
+
+      # Backend base URL for OAuth callback
+      env {
+        name  = "BASE_URL"
+        value = var.custom_domain != "" ? "https://${var.api_subdomain}.${var.custom_domain}" : ""
+      }
+
+      # CORS origins - custom domain, additional origins, and localhost for development
+      env {
+        name  = "CORS_ORIGINS"
+        value = jsonencode(concat(
+          var.custom_domain != "" ? ["https://${var.custom_domain}"] : [],
+          var.additional_cors_origins,
+          ["http://localhost:5173", "http://localhost:3000"]
+        ))
       }
 
       # Database password from Secret Manager

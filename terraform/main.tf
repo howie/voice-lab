@@ -161,10 +161,11 @@ module "cloud_run" {
   openai_api_key_secret      = module.secrets.openai_api_key_secret_id
 
   # Application config
-  allowed_domains  = var.allowed_domains
-  audio_bucket     = module.storage.audio_bucket_name
-  custom_domain    = var.custom_domain
-  api_subdomain    = var.api_subdomain
+  allowed_domains         = var.allowed_domains
+  audio_bucket            = module.storage.audio_bucket_name
+  custom_domain           = var.custom_domain
+  api_subdomain           = var.api_subdomain
+  additional_cors_origins = var.additional_cors_origins
 
   labels = local.common_labels
 

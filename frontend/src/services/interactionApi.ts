@@ -139,13 +139,31 @@ export async function listProviders(): Promise<ProvidersResponse> {
 // WebSocket URL Helpers
 // =============================================================================
 
+// Helper to get API base URL from runtime config or env
+function getApiBaseUrl(): string {
+  const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string; VITE_WS_URL?: string } }).__RUNTIME_CONFIG__
+  return runtimeConfig?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || ''
+}
+
+function getWsUrl(): string {
+  const runtimeConfig = (window as { __RUNTIME_CONFIG__?: { VITE_WS_URL?: string } }).__RUNTIME_CONFIG__
+  return runtimeConfig?.VITE_WS_URL || import.meta.env.VITE_WS_URL || ''
+}
+
 /**
  * Build WebSocket URL for interaction session
  */
 export function buildWebSocketUrl(mode: InteractionMode, userId: string): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+  // Try dedicated WS URL first, then derive from API URL
+  const wsUrl = getWsUrl()
+  if (wsUrl) {
+    return `${wsUrl}/api/interaction/ws/${mode}?user_id=${userId}`
+  }
+
+  const baseUrl = getApiBaseUrl() || window.location.origin
   const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws'
-  const host = baseUrl.replace(/^https?:\/\//, '')
+  // Remove /api/v1 suffix if present, then remove protocol
+  const host = baseUrl.replace(/\/api\/v1$/, '').replace(/^https?:\/\//, '')
 
   return `${wsProtocol}://${host}/api/interaction/ws/${mode}?user_id=${userId}`
 }
@@ -158,7 +176,7 @@ export function buildWebSocketUrl(mode: InteractionMode, userId: string): string
  * Get URL for audio file playback
  */
 export function getAudioFileUrl(audioPath: string): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  const baseUrl = getApiBaseUrl()
   return `${baseUrl}/files/${audioPath}`
 }
 
@@ -170,8 +188,9 @@ export function getTurnAudioUrl(
   turnId: string,
   audioType: 'user' | 'ai' = 'ai'
 ): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
-  return `${baseUrl}/api/v1/interaction/sessions/${sessionId}/turns/${turnId}/audio?audio_type=${audioType}`
+  const baseUrl = getApiBaseUrl()
+  // baseUrl already includes /api/v1, so just append the path
+  return `${baseUrl}/interaction/sessions/${sessionId}/turns/${turnId}/audio?audio_type=${audioType}`
 }
 
 /**

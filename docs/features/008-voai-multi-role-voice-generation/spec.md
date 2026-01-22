@@ -49,6 +49,8 @@ async def _synthesize_native(...) -> MultiRoleTTSResult:
 - Q: 聲音資料需要哪些 metadata？ → A: gender（性別）、age_group（年齡層）、language（語言）、style（風格）、use_case（用途）
 - Q: 聲音同步頻率？ → A: 每日一次背景同步，或手動觸發
 - Q: 是否需要支援使用者自訂聲音？ → A: 暫不需要，僅同步 Provider 提供的聲音
+- Q: Azure SSML 字元限制閾值？ → A: 保守設定 50,000 字元（以 Unicode 字元數計算，1 個中文字 = 1 字元），超過則 fallback 到 segmented 模式
+- Q: 聲音同步失敗時的重試策略？ → A: 指數退避重試最多 3 次（1s, 2s, 4s），之後記錄失敗並等待下次排程
 
 ---
 
@@ -157,9 +159,9 @@ async def _synthesize_native(...) -> MultiRoleTTSResult:
 ### Edge Cases
 
 - Provider API 不可用時，系統從快取返回聲音清單（標示為快取資料）
-- 同步過程中遇到部分 Provider 失敗，繼續同步其他 Provider 並記錄錯誤
+- 同步過程中遇到部分 Provider 失敗，以指數退避重試最多 3 次（1s, 2s, 4s），仍失敗則記錄錯誤並繼續同步其他 Provider
 - 聲音被 Provider 移除時，標記為 deprecated 而非直接刪除（避免影響現有設定）
-- Azure SSML 超過字元限制時，fallback 到 segmented 模式
+- Azure SSML 超過 50,000 字元限制時（以 Unicode 字元數計算，1 個中文字 = 1 字元，含 SSML 標籤），自動 fallback 到 segmented 模式
 - ElevenLabs Audio Tags 不支援的特殊字元需要跳脫處理
 
 ---
@@ -174,6 +176,7 @@ async def _synthesize_native(...) -> MultiRoleTTSResult:
 - **FR-002**: 系統 MUST 實作 ElevenLabs Audio Tags 多角色合成，使用 `[dialogue]` 和 `[Sn]` 語法。
 - **FR-003**: 系統 SHOULD 實作 GCP SSML 多角色合成。
 - **FR-004**: 系統 MUST 在 Native 合成失敗時自動 fallback 到 Segmented 模式。
+- **FR-004a**: 系統 MUST 在 Azure SSML 內容超過 50,000 字元（Unicode 字元數，1 中文字 = 1 字元）時，自動切換至 Segmented 模式。
 - **FR-005**: 系統 MUST 在合成結果中標示使用的合成模式（native/segmented）。
 
 **Voice Database Storage**
@@ -190,6 +193,7 @@ async def _synthesize_native(...) -> MultiRoleTTSResult:
 - **FR-012**: 系統 MUST 提供 API endpoint 供管理員手動觸發聲音同步。
 - **FR-013**: 系統 MUST 在同步時保留聲音的 metadata（gender、age_group、language、styles）。
 - **FR-014**: 系統 MUST 記錄每次同步的時間戳記和結果（成功/失敗、新增/更新/移除數量）。
+- **FR-014a**: 系統 MUST 在單一 Provider 同步失敗時，以指數退避策略重試最多 3 次（間隔 1s, 2s, 4s），仍失敗則記錄錯誤並繼續處理其他 Provider。
 
 **Voice API Enhancement**
 

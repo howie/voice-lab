@@ -1,0 +1,360 @@
+openapi: 3.0.3
+info:
+  title: VoAI Voice Sync API
+  description: API for managing voice synchronization operations
+  version: 1.0.0
+
+paths:
+  /api/v1/admin/voices/sync:
+    post:
+      summary: Trigger voice synchronization
+      description: |
+        Manually trigger voice synchronization from providers.
+        Can sync all providers or a specific provider.
+
+        **Note**: This is an admin-only endpoint.
+      operationId: triggerVoiceSync
+      tags:
+        - Voice Sync
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceSyncRequest'
+      responses:
+        '202':
+          description: Sync job created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSyncJobResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Sync already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/voices/sync/jobs:
+    get:
+      summary: List sync jobs
+      description: List recent voice synchronization jobs
+      operationId: listVoiceSyncJobs
+      tags:
+        - Voice Sync
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: provider
+          in: query
+          description: Filter by provider
+          schema:
+            type: string
+            enum: [azure, gcp, elevenlabs, openai, cartesia, deepgram]
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: List of sync jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSyncJobListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/voices/sync/jobs/{job_id}:
+    get:
+      summary: Get sync job details
+      description: Get detailed information about a specific sync job
+      operationId: getVoiceSyncJob
+      tags:
+        - Voice Sync
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Sync job UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sync job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSyncJobDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/voices/sync/status:
+    get:
+      summary: Get sync status overview
+      description: Get an overview of voice sync status across all providers
+      operationId: getVoiceSyncStatus
+      tags:
+        - Voice Sync
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sync status overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSyncStatusResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    VoiceSyncRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [azure, gcp, elevenlabs, openai, cartesia, deepgram]
+          description: |
+            Specific provider to sync.
+            If not provided, syncs all providers.
+        force:
+          type: boolean
+          default: false
+          description: Force sync even if recently synced
+      example:
+        provider: azure
+        force: false
+
+    VoiceSyncJobResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - message
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Sync job UUID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [pending, running]
+          example: pending
+        message:
+          type: string
+          example: "Voice sync job created and queued"
+        provider:
+          type: string
+          nullable: true
+          description: Provider being synced (null = all)
+          example: azure
+
+    VoiceSyncJobListResponse:
+      type: object
+      required:
+        - jobs
+        - total
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoiceSyncJobSummary'
+        total:
+          type: integer
+          example: 15
+
+    VoiceSyncJobSummary:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        provider:
+          type: string
+          nullable: true
+          example: azure
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+          example: completed
+        voices_added:
+          type: integer
+          example: 5
+        voices_updated:
+          type: integer
+          example: 12
+        voices_deprecated:
+          type: integer
+          example: 0
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-22T10:30:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-01-22T10:32:15Z"
+
+    VoiceSyncJobDetail:
+      allOf:
+        - $ref: '#/components/schemas/VoiceSyncJobSummary'
+        - type: object
+          properties:
+            error_message:
+              type: string
+              nullable: true
+              description: Error message if failed
+              example: "Provider API timeout after 3 retries"
+            retry_count:
+              type: integer
+              description: Number of retry attempts
+              example: 3
+            started_at:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-01-22T10:30:05Z"
+
+    VoiceSyncStatusResponse:
+      type: object
+      required:
+        - providers
+        - last_full_sync
+        - total_voices
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderSyncStatus'
+        last_full_sync:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time all providers were synced
+          example: "2026-01-22T02:00:00Z"
+        total_voices:
+          type: integer
+          description: Total number of active (non-deprecated) voices
+          example: 785
+        total_deprecated:
+          type: integer
+          description: Total number of deprecated voices
+          example: 12
+
+    ProviderSyncStatus:
+      type: object
+      required:
+        - provider
+        - voice_count
+        - last_sync
+        - status
+      properties:
+        provider:
+          type: string
+          enum: [azure, gcp, elevenlabs, openai, cartesia, deepgram]
+          example: azure
+        voice_count:
+          type: integer
+          description: Number of active voices from this provider
+          example: 420
+        deprecated_count:
+          type: integer
+          description: Number of deprecated voices from this provider
+          example: 5
+        last_sync:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last successful sync time
+          example: "2026-01-22T02:00:00Z"
+        status:
+          type: string
+          enum: [healthy, stale, error]
+          description: |
+            - healthy: synced within last 48 hours
+            - stale: not synced in last 48 hours
+            - error: last sync failed
+          example: healthy
+        last_error:
+          type: string
+          nullable: true
+          description: Last error message if any
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "SYNC_IN_PROGRESS"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "A sync job is already running for this provider"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details

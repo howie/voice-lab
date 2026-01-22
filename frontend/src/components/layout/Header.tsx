@@ -1,4 +1,5 @@
-import { Bell, User } from 'lucide-react'
+import { Bell } from 'lucide-react'
+import { UserMenu } from '@/components/auth/UserMenu'
 
 export function Header() {
   return (
@@ -10,10 +11,7 @@ export function Header() {
         <button className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
           <Bell className="h-5 w-5" />
         </button>
-        <button className="flex items-center gap-2 rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-          <User className="h-5 w-5" />
-          <span className="text-sm">使用者</span>
-        </button>
+        <UserMenu />
       </div>
     </header>
   )

@@ -19,11 +19,30 @@ import { useAuthStore } from '@/stores/authStore'
 
 function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
+  const setToken = useAuthStore((state) => state.setToken)
 
-  // Check auth on app load
+  // Handle OAuth token from URL and check auth
   useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    const error = params.get('error')
+
+    if (token) {
+      // Store token, clean URL, then check auth
+      setToken(token)
+      window.history.replaceState({}, '', window.location.pathname)
+      // checkAuth will be called after token is set
+      checkAuth()
+    } else if (error) {
+      // Handle error (e.g., domain_not_allowed)
+      console.error('OAuth error:', error)
+      window.history.replaceState({}, '', window.location.pathname)
+      checkAuth()
+    } else {
+      // No token in URL, just check existing auth
+      checkAuth()
+    }
+  }, [setToken, checkAuth])
 
   return (
     <Routes>

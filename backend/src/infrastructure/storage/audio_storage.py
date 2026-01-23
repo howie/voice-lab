@@ -140,3 +140,47 @@ class AudioStorageService:
                 total_size += file_path.stat().st_size
 
         return total_size
+
+    # =========================================================================
+    # Batch Upload Methods (V2V Lightweight Mode)
+    # =========================================================================
+
+    async def save_user_audio_batch(
+        self,
+        session_id: UUID,
+        turn_number: int,
+        audio_data: bytes,
+        format: str = "webm",
+    ) -> Path:
+        """Save user audio from batch upload.
+
+        Used when lightweight_mode is enabled and audio is uploaded
+        after the session ends instead of being streamed in real-time.
+        """
+        await self.ensure_session_dir(session_id)
+        path = self._user_audio_path(session_id, turn_number, format)
+
+        async with aiofiles.open(path, "wb") as f:
+            await f.write(audio_data)
+
+        return path
+
+    async def save_ai_audio_batch(
+        self,
+        session_id: UUID,
+        turn_number: int,
+        audio_data: bytes,
+        format: str = "mp3",
+    ) -> Path:
+        """Save AI audio from batch upload.
+
+        Used when lightweight_mode is enabled and audio is uploaded
+        after the session ends instead of being streamed in real-time.
+        """
+        await self.ensure_session_dir(session_id)
+        path = self._ai_audio_path(session_id, turn_number, format)
+
+        async with aiofiles.open(path, "wb") as f:
+            await f.write(audio_data)
+
+        return path

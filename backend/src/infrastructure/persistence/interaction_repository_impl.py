@@ -183,6 +183,19 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
         max_turn = result.scalar() or 0
         return max_turn + 1
 
+    async def get_turn_by_session_and_number(
+        self, session_id: UUID, turn_number: int
+    ) -> ConversationTurn | None:
+        """Get a turn by session ID and turn number."""
+        result = await self._session.execute(
+            select(ConversationTurnModel).where(
+                ConversationTurnModel.session_id == session_id,
+                ConversationTurnModel.turn_number == turn_number,
+            )
+        )
+        model = result.scalar_one_or_none()
+        return self._turn_model_to_entity(model) if model else None
+
     # Latency operations
     async def create_latency_metrics(self, metrics: LatencyMetrics) -> LatencyMetrics:
         model = LatencyMetricsModel(

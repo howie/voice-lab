@@ -77,6 +77,35 @@ class Settings(BaseSettings):
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
 
+    # ==========================================================================
+    # V2V Performance Feature Toggles
+    # ==========================================================================
+    # These toggles allow A/B testing of performance optimizations
+    # Set via environment variables: V2V_LIGHTWEIGHT_MODE=true, etc.
+
+    # Lightweight mode: skip sync audio storage for lower latency
+    # Trade-off: Audio not saved in real-time, need batch upload after session
+    v2v_lightweight_mode: bool = True
+
+    # WebSocket compression: reduce bandwidth but add CPU overhead
+    # Trade-off: Lower bandwidth vs higher CPU usage
+    v2v_ws_compression: bool = False
+
+    # Batch audio upload: buffer audio and upload after session ends
+    # Trade-off: No real-time audio backup vs lower latency
+    v2v_batch_audio_upload: bool = True
+
+    # Skip latency tracking: disable detailed metrics collection
+    # Trade-off: No latency metrics vs lower overhead
+    v2v_skip_latency_tracking: bool = False
+
+    # Gemini model configuration
+    # Options: gemini-2.0-flash-exp, gemini-2.5-flash-preview-native-audio-dialog
+    gemini_live_model: str = "gemini-2.0-flash-exp"
+
+    # Google AI API Key (for Gemini)
+    google_ai_api_key: str = ""
+
     @field_validator("allowed_domains", mode="before")
     @classmethod
     def parse_allowed_domains(cls, v):

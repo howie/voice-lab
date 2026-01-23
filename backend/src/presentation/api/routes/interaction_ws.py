@@ -95,6 +95,8 @@ async def interaction_websocket(
 
         config = config_data.get("data", {}).get("config", {})
         system_prompt = config_data.get("data", {}).get("system_prompt", "")
+        # Lightweight mode: skip sync audio storage for lower latency V2V
+        lightweight_mode = config_data.get("data", {}).get("lightweight_mode", False)
 
         # Create mode service with proper API key from environment
         mode_service = InteractionModeFactory.create(mode, config)
@@ -107,6 +109,7 @@ async def interaction_websocket(
             repository=repository,
             audio_storage=audio_storage,
             logger=logger,
+            lightweight_mode=lightweight_mode,
         )
 
         # Mark handler as connected (already accepted)
@@ -120,7 +123,11 @@ async def interaction_websocket(
 
         config_message = WebSocketMessage(
             type=MessageType.CONFIG,
-            data={"config": config, "system_prompt": system_prompt},
+            data={
+                "config": config,
+                "system_prompt": system_prompt,
+                "lightweight_mode": lightweight_mode,
+            },
         )
         await handler._handle_config(config_message)
 

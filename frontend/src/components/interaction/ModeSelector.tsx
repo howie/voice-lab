@@ -49,6 +49,29 @@ const GEMINI_VOICES: VoiceInfo[] = [
   { id: 'Fenrir', label: 'Fenrir', gender: '男', languages: '多語言（含中文）' },
 ]
 
+// Available Gemini models for V2V
+interface ModelInfo {
+  id: string
+  label: string
+  description: string
+  status: 'stable' | 'preview' | 'deprecated'
+}
+
+const GEMINI_MODELS: ModelInfo[] = [
+  {
+    id: 'gemini-2.0-flash-exp',
+    label: 'Gemini 2.0 Flash',
+    description: '當前預設，2026年3月退役',
+    status: 'deprecated',
+  },
+  {
+    id: 'gemini-2.5-flash-preview-native-audio-dialog',
+    label: 'Gemini 2.5 Flash (Native Audio)',
+    description: '30種HD語音，24種語言，更自然的對話',
+    status: 'preview',
+  },
+]
+
 // Default TTS voices by provider
 const DEFAULT_TTS_VOICES: Record<string, string> = {
   azure: 'zh-TW-HsiaoChenNeural',
@@ -127,8 +150,9 @@ export function ModeSelector({
 
   // Get current Realtime provider settings
   const realtimeConfig = providerConfig as RealtimeProviderConfig
-  const currentRealtimeProvider = 'provider' in providerConfig ? realtimeConfig.provider : 'openai'
-  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'shimmer'
+  const currentRealtimeProvider = 'provider' in providerConfig ? realtimeConfig.provider : 'gemini'
+  const currentRealtimeVoice = 'voice' in providerConfig ? realtimeConfig.voice : 'Kore'
+  const currentRealtimeModel = 'model' in providerConfig ? realtimeConfig.model : undefined
 
   // Get current Cascade provider settings
   const cascadeConfig = providerConfig as CascadeProviderConfig
@@ -364,6 +388,43 @@ export function ModeSelector({
                     ))}
                   </select>
                 </div>
+
+                {/* Model Selection (Gemini only) */}
+                {currentRealtimeProvider === 'gemini' && (
+                  <div>
+                    <label className="mb-2 block text-sm text-muted-foreground">模型版本</label>
+                    <select
+                      value={currentRealtimeModel || 'gemini-2.0-flash-exp'}
+                      onChange={(e) =>
+                        onProviderChange({
+                          ...providerConfig,
+                          model: e.target.value,
+                        } as ProviderConfig)
+                      }
+                      disabled={disabled}
+                      className="
+                        w-full rounded-lg border bg-background px-3 py-2 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-primary
+                        disabled:cursor-not-allowed disabled:opacity-50
+                      "
+                    >
+                      {GEMINI_MODELS.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.label}{' '}
+                          {model.status === 'preview'
+                            ? '(預覽)'
+                            : model.status === 'deprecated'
+                              ? '(即將退役)'
+                              : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {GEMINI_MODELS.find((m) => m.id === (currentRealtimeModel || 'gemini-2.0-flash-exp'))
+                        ?.description}
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               /* Cascade Mode Providers (T052-T055) */

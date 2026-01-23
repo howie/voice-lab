@@ -39,6 +39,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
     Supports both Realtime API mode and Cascade mode through the
     unified InteractionModeService interface.
+
+    Lightweight Mode:
+        When lightweight_mode=True, audio storage is deferred to batch upload
+        via REST API, reducing latency for realtime V2V interactions.
     """
 
     def __init__(
@@ -49,12 +53,14 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         repository: InteractionRepository,
         audio_storage: AudioStorageService,
         logger: logging.Logger | None = None,
+        lightweight_mode: bool = False,
     ) -> None:
         super().__init__(websocket, logger=logger)
         self._user_id = user_id
         self._mode_service = mode_service
         self._repository = repository
         self._audio_storage = audio_storage
+        self._lightweight_mode = lightweight_mode
 
         self._session: InteractionSession | None = None
         self._current_turn: ConversationTurn | None = None
@@ -69,6 +75,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
         self._event_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
+
+        # Lightweight mode: buffer audio for batch upload instead of sync storage
+        self._audio_buffer: list[tuple[bytes, int]] = []  # (audio_bytes, turn_number)
+        self._audio_buffer_task: asyncio.Task[None] | None = None
 
         # Register message handlers
         self.register_handler(MessageType.CONFIG, self._handle_config)
@@ -150,6 +160,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         # T084 [US5]: Extract barge-in configuration
         barge_in_enabled = data.get("barge_in_enabled", True)
 
+        # Lightweight mode configuration (can be set at connection or config time)
+        if "lightweight_mode" in data:
+            self._lightweight_mode = data.get("lightweight_mode", False)
+
         # Store for use in transcript messages
         self._user_role = user_role
         self._ai_role = ai_role
@@ -205,7 +219,11 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             await self.send_error("SESSION_ERROR", f"Failed to start session: {e}")
 
     async def _handle_audio_chunk(self, message: WebSocketMessage) -> None:
-        """Handle incoming audio chunk from client."""
+        """Handle incoming audio chunk from client.
+
+        In lightweight mode, audio is buffered for batch upload instead of
+        being stored synchronously, reducing latency for V2V interactions.
+        """
         if not self._session or not self._mode_service.is_connected():
             await self.send_error("NOT_CONNECTED", "No active session")
             return
@@ -224,16 +242,18 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         if not self._current_turn:
             await self._start_new_turn()
 
-        # Store audio chunk
-        if self._current_turn:
+        # Lightweight mode: skip sync storage, forward immediately to Gemini
+        # Audio can be uploaded later via batch REST API
+        if not self._lightweight_mode and self._current_turn:
+            # Standard mode: store audio synchronously
             await self._audio_storage.append_user_audio(
                 session_id=self._session.id,
                 turn_number=self._current_turn.turn_number,
                 audio_chunk=audio_bytes,
-                format="webm",  # Store in webm format
+                format="webm",
             )
 
-        # Send to mode service
+        # Send to mode service immediately (minimal latency path)
         audio_chunk = AudioChunk(
             data=audio_bytes,
             format=format_str,

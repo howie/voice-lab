@@ -432,3 +432,149 @@ async def get_metrics() -> dict:
 
     metrics = get_interaction_metrics()
     return metrics.get_all_metrics()
+
+
+# =============================================================================
+# V2V Feature Flags Endpoint (Performance Optimization)
+# =============================================================================
+
+
+@router.get("/v2v/feature-flags")
+async def get_v2v_feature_flags() -> dict:
+    """Get V2V performance feature flags.
+
+    Returns current state of all V2V optimization toggles for A/B testing.
+    These can be overridden per-session via WebSocket config message.
+    """
+    from src.config import get_settings
+
+    settings = get_settings()
+
+    return {
+        "feature_flags": {
+            "lightweight_mode": {
+                "enabled": settings.v2v_lightweight_mode,
+                "description": "Skip sync audio storage for lower latency",
+                "trade_off": "Audio not saved in real-time, need batch upload after session",
+            },
+            "ws_compression": {
+                "enabled": settings.v2v_ws_compression,
+                "description": "WebSocket permessage-deflate compression",
+                "trade_off": "Lower bandwidth vs higher CPU usage",
+            },
+            "batch_audio_upload": {
+                "enabled": settings.v2v_batch_audio_upload,
+                "description": "Buffer audio and upload after session ends",
+                "trade_off": "No real-time audio backup vs lower latency",
+            },
+            "skip_latency_tracking": {
+                "enabled": settings.v2v_skip_latency_tracking,
+                "description": "Disable detailed latency metrics collection",
+                "trade_off": "No latency metrics vs lower overhead",
+            },
+        },
+        "gemini_config": {
+            "model": settings.gemini_live_model,
+            "available_models": [
+                "gemini-2.0-flash-exp",
+                "gemini-2.5-flash-preview-native-audio-dialog",
+            ],
+        },
+    }
+
+
+# =============================================================================
+# Batch Audio Upload Endpoint (V2V Performance Optimization)
+# =============================================================================
+
+
+@router.post("/sessions/{session_id}/audio/batch")
+async def batch_upload_audio(
+    session_id: UUID,
+    audio: UploadFile = File(..., description="Audio file (WebM/PCM)"),
+    turn_numbers: str = Form(..., description="Comma-separated turn numbers for this audio"),
+    audio_type: str = Form("user", description="Audio type: 'user' or 'ai'"),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Batch upload audio for a session after it ends.
+
+    This endpoint is used when lightweight_mode is enabled and audio
+    is buffered on the client side instead of being streamed in real-time.
+
+    Args:
+        session_id: Session UUID
+        audio: Audio file (WebM or PCM format)
+        turn_numbers: Comma-separated list of turn numbers this audio covers
+        audio_type: 'user' for user's recording or 'ai' for AI's response
+
+    Returns:
+        Upload status and saved file path
+    """
+    repository = SQLAlchemyInteractionRepository(db)
+    audio_storage = AudioStorageService()
+
+    # Verify session exists
+    session = await repository.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Parse turn numbers
+    try:
+        turns = [int(t.strip()) for t in turn_numbers.split(",") if t.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid turn_numbers format") from None
+
+    if not turns:
+        raise HTTPException(status_code=400, detail="At least one turn number required")
+
+    # Read audio data
+    audio_bytes = await audio.read()
+
+    # Determine format from filename or content type
+    audio_format = "webm"
+    if audio.filename:
+        if audio.filename.endswith(".pcm"):
+            audio_format = "pcm"
+        elif audio.filename.endswith(".wav"):
+            audio_format = "wav"
+        elif audio.filename.endswith(".mp3"):
+            audio_format = "mp3"
+
+    # Store the audio file
+    saved_paths = []
+    for turn_number in turns:
+        if audio_type == "user":
+            path = await audio_storage.save_user_audio_batch(
+                session_id=session_id,
+                turn_number=turn_number,
+                audio_data=audio_bytes,
+                format=audio_format,
+            )
+        else:
+            path = await audio_storage.save_ai_audio_batch(
+                session_id=session_id,
+                turn_number=turn_number,
+                audio_data=audio_bytes,
+                format=audio_format,
+            )
+        saved_paths.append(str(path))
+
+        # Update turn record with audio path
+        turn = await repository.get_turn_by_session_and_number(session_id, turn_number)
+        if turn:
+            if audio_type == "user":
+                turn.user_audio_path = str(path)
+            else:
+                turn.ai_audio_path = str(path)
+            await repository.update_turn(turn)
+
+    await db.commit()
+
+    return {
+        "status": "uploaded",
+        "session_id": str(session_id),
+        "turns": turns,
+        "audio_type": audio_type,
+        "paths": saved_paths,
+        "size_bytes": len(audio_bytes),
+    }

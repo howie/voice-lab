@@ -184,9 +184,9 @@ export function Dashboard() {
                                 </span>
                               </td>
                               <td className="py-2 pr-4 text-sm text-muted-foreground">
-                                {provider.supported_formats.length > 0
-                                  ? provider.supported_formats.slice(0, 3).join(', ') +
-                                    (provider.supported_formats.length > 3 ? '...' : '')
+                                {(provider.supported_formats ?? []).length > 0
+                                  ? (provider.supported_formats ?? []).slice(0, 3).join(', ') +
+                                    ((provider.supported_formats?.length ?? 0) > 3 ? '...' : '')
                                   : '-'}
                               </td>
                               <td className="py-2 text-sm text-muted-foreground">

@@ -399,7 +399,7 @@ describe('Voice list reload', () => {
 
     // Should call getVoices with azure provider
     await waitFor(() => {
-      expect(ttsApi.getVoices).toHaveBeenCalledWith('azure', expect.any(String))
+      expect(ttsApi.getVoices).toHaveBeenCalledWith('azure', expect.any(Object))
     })
   })
 

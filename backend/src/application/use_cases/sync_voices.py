@@ -220,9 +220,7 @@ class SyncVoicesUseCase:
             current_voice_ids={p.voice_id for p in profiles},
         )
 
-        logger.info(
-            f"Synced {len(profiles)} Azure voices, deprecated {deprecated_count}"
-        )
+        logger.info(f"Synced {len(profiles)} Azure voices, deprecated {deprecated_count}")
         return len(profiles), deprecated_count
 
     async def _sync_elevenlabs(self) -> tuple[int, int]:
@@ -232,9 +230,7 @@ class SyncVoicesUseCase:
             Tuple of (voices_synced, voices_deprecated).
         """
         # Fetch voices with retry
-        raw_voices = await self._fetch_with_retry(
-            lambda: self.elevenlabs_fetcher.fetch_voices()
-        )
+        raw_voices = await self._fetch_with_retry(lambda: self.elevenlabs_fetcher.fetch_voices())
 
         # Convert to VoiceProfile entities
         profiles = []
@@ -251,9 +247,7 @@ class SyncVoicesUseCase:
             current_voice_ids={p.voice_id for p in profiles},
         )
 
-        logger.info(
-            f"Synced {len(profiles)} ElevenLabs voices, deprecated {deprecated_count}"
-        )
+        logger.info(f"Synced {len(profiles)} ElevenLabs voices, deprecated {deprecated_count}")
         return len(profiles), deprecated_count
 
     async def _fetch_with_retry(self, fetch_fn) -> list:
@@ -276,9 +270,7 @@ class SyncVoicesUseCase:
                 return await fetch_fn()
             except Exception as e:
                 last_error = e
-                logger.warning(
-                    f"Fetch attempt {attempt + 1}/{self.MAX_RETRIES} failed: {e}"
-                )
+                logger.warning(f"Fetch attempt {attempt + 1}/{self.MAX_RETRIES} failed: {e}")
                 if attempt < self.MAX_RETRIES - 1:
                     await asyncio.sleep(backoff)
                     backoff *= 2  # Exponential backoff

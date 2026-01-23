@@ -62,9 +62,7 @@ class ElevenLabsVoiceFetcher:
         """Get the voices list endpoint URL."""
         return f"{self.API_BASE}/voices"
 
-    async def fetch_voices(
-        self, show_legacy: bool = False
-    ) -> list[ElevenLabsVoiceInfo]:
+    async def fetch_voices(self, show_legacy: bool = False) -> list[ElevenLabsVoiceInfo]:
         """Fetch available voices from ElevenLabs.
 
         Args:
@@ -90,9 +88,7 @@ class ElevenLabsVoiceFetcher:
             params["show_legacy"] = "true"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                self.voices_endpoint, headers=headers, params=params
-            )
+            response = await client.get(self.voices_endpoint, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
 
@@ -115,8 +111,7 @@ class ElevenLabsVoiceFetcher:
                 preview_url=item.get("preview_url"),
                 labels=labels,
                 available_for_tiers=item.get("available_for_tiers", []) or [],
-                high_quality_base_model_ids=item.get("high_quality_base_model_ids", [])
-                or [],
+                high_quality_base_model_ids=item.get("high_quality_base_model_ids", []) or [],
             )
             voices.append(voice)
 
@@ -150,9 +145,7 @@ class ElevenLabsVoiceFetcher:
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{self.voices_endpoint}/{voice_id}", headers=headers
-            )
+            response = await client.get(f"{self.voices_endpoint}/{voice_id}", headers=headers)
             if response.status_code == 404:
                 return None
             response.raise_for_status()
@@ -175,6 +168,5 @@ class ElevenLabsVoiceFetcher:
             preview_url=item.get("preview_url"),
             labels=labels,
             available_for_tiers=item.get("available_for_tiers", []) or [],
-            high_quality_base_model_ids=item.get("high_quality_base_model_ids", [])
-            or [],
+            high_quality_base_model_ids=item.get("high_quality_base_model_ids", []) or [],
         )

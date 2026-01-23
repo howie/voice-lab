@@ -111,8 +111,7 @@ class VoiceMetadataInferrer:
 
         # Default to adult for professional-sounding voices
         if any(
-            s in style_lower
-            for s in ["news", "narration", "customer", "assistant", "professional"]
+            s in style_lower for s in ["news", "narration", "customer", "assistant", "professional"]
         ):
             return AgeGroup.ADULT
 

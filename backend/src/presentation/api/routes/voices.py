@@ -28,8 +28,12 @@ async def list_voices(
     provider: str | None = Query(None, description="Filter by provider"),
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
-    age_group: str | None = Query(None, description="Filter by age group (child, young, adult, senior)"),
-    style: str | None = Query(None, description="Filter by style (e.g., news, conversation, cheerful)"),
+    age_group: str | None = Query(
+        None, description="Filter by age group (child, young, adult, senior)"
+    ),
+    style: str | None = Query(
+        None, description="Filter by style (e.g., news, conversation, cheerful)"
+    ),
     search: str | None = Query(None, description="Search by name or description"),
     limit: int | None = Query(None, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Results offset"),
@@ -75,8 +79,12 @@ async def list_voices_by_provider(
     provider: str,
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
-    age_group: str | None = Query(None, description="Filter by age group (child, young, adult, senior)"),
-    style: str | None = Query(None, description="Filter by style (e.g., news, conversation, cheerful)"),
+    age_group: str | None = Query(
+        None, description="Filter by age group (child, young, adult, senior)"
+    ),
+    style: str | None = Query(
+        None, description="Filter by style (e.g., news, conversation, cheerful)"
+    ),
 ) -> list[dict]:
     """List voices for a specific provider.
 

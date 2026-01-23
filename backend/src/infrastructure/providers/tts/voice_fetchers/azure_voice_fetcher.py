@@ -107,9 +107,7 @@ class AzureVoiceFetcher:
         logger.info(f"Fetched {len(voices)} voices from Azure")
         return voices
 
-    async def fetch_neural_voices(
-        self, language: str | None = None
-    ) -> list[AzureVoiceInfo]:
+    async def fetch_neural_voices(self, language: str | None = None) -> list[AzureVoiceInfo]:
         """Fetch only Neural voices from Azure.
 
         Args:

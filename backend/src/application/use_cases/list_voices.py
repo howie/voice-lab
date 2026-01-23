@@ -33,6 +33,7 @@ class VoiceFilter:
     language: str | None = None
     gender: str | None = None
     age_group: str | None = None
+    style: str | None = None
     search: str | None = None
 
 
@@ -159,6 +160,15 @@ class ListVoicesUseCase:
 
         if filter.age_group:
             filtered = [v for v in filtered if v.age_group == filter.age_group]
+
+        if filter.style:
+            # Filter by style - voice must have the style in supported_styles
+            style_lower = filter.style.lower()
+            filtered = [
+                v
+                for v in filtered
+                if v.supported_styles and any(style_lower in s.lower() for s in v.supported_styles)
+            ]
 
         if filter.search:
             search_lower = filter.search.lower()

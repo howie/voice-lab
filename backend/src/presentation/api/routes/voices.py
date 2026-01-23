@@ -29,6 +29,7 @@ async def list_voices(
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
     age_group: str | None = Query(None, description="Filter by age group (child, young, adult, senior)"),
+    style: str | None = Query(None, description="Filter by style (e.g., news, conversation, cheerful)"),
     search: str | None = Query(None, description="Search by name or description"),
     limit: int | None = Query(None, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Results offset"),
@@ -56,6 +57,7 @@ async def list_voices(
         language=language,
         gender=gender,
         age_group=age_group,
+        style=style,
         search=search,
     )
 
@@ -74,6 +76,7 @@ async def list_voices_by_provider(
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
     age_group: str | None = Query(None, description="Filter by age group (child, young, adult, senior)"),
+    style: str | None = Query(None, description="Filter by style (e.g., news, conversation, cheerful)"),
 ) -> list[dict]:
     """List voices for a specific provider.
 
@@ -82,6 +85,7 @@ async def list_voices_by_provider(
         language: Optional language filter
         gender: Optional gender filter
         age_group: Optional age group filter (child, young, adult, senior)
+        style: Optional style filter (e.g., news, conversation, cheerful)
 
     Returns:
         List of voice profiles for the provider
@@ -104,6 +108,7 @@ async def list_voices_by_provider(
         language=language,
         gender=gender,
         age_group=age_group,
+        style=style,
     )
 
     voices = await list_voices_use_case.execute(filter=filter)

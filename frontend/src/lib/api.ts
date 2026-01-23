@@ -126,7 +126,7 @@ export const ttsApi = {
   // Get voices for a provider
   getVoices: (
     provider: string,
-    filters?: { language?: string; gender?: string; age_group?: string }
+    filters?: { language?: string; gender?: string; age_group?: string; style?: string }
   ) =>
     api.get<VoiceProfile[]>(`/voices/${provider}`, {
       params: filters,
@@ -137,6 +137,7 @@ export const ttsApi = {
     language?: string
     gender?: string
     age_group?: string
+    style?: string
   }) =>
     api.get<VoiceProfile[]>('/voices', {
       params: filters,
@@ -227,10 +228,10 @@ export const historyApi = {
 
 // Voices API
 export const voicesApi = {
-  list: (params?: { language?: string; gender?: string; age_group?: string }) =>
+  list: (params?: { language?: string; gender?: string; age_group?: string; style?: string }) =>
     api.get('/voices', { params }),
   listByProvider: (
     provider: string,
-    params?: { language?: string; gender?: string; age_group?: string }
+    params?: { language?: string; gender?: string; age_group?: string; style?: string }
   ) => api.get(`/voices/${provider}`, { params }),
 }

@@ -29,9 +29,16 @@ logger = logging.getLogger(__name__)
 # Gemini Live API endpoint
 GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
 
-# Default configuration
+# Available models for Gemini Live API
+# See: https://ai.google.dev/gemini-api/docs/models
+AVAILABLE_MODELS = [
+    "gemini-2.0-flash-exp",  # Current default, retiring March 2026
+    "gemini-2.5-flash-preview-native-audio-dialog",  # Native audio with 30 HD voices
+]
+
+# Default configuration - uses settings if available
 DEFAULT_MODEL = "gemini-2.0-flash-exp"
-DEFAULT_VOICE = "Puck"
+DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 
 class GeminiRealtimeService(InteractionModeService):
@@ -120,11 +127,25 @@ class GeminiRealtimeService(InteractionModeService):
         config: dict[str, Any],
         system_prompt: str,
     ) -> None:
-        """Send setup message to Gemini."""
-        model = config.get("model", DEFAULT_MODEL)
+        """Send setup message to Gemini.
+
+        Supports both gemini-2.0-flash-exp and gemini-2.5-flash-preview-native-audio-dialog.
+        The 2.5 model provides native audio with 30 HD voices in 24 languages.
+        """
+        # Get model from config, fallback to settings, then default
+        model = config.get("model")
+        if not model:
+            try:
+                from src.config import get_settings
+
+                settings = get_settings()
+                model = settings.gemini_live_model
+            except Exception:
+                model = DEFAULT_MODEL
+
         voice = config.get("voice", DEFAULT_VOICE)
 
-        setup_message = {
+        setup_message: dict[str, Any] = {
             "setup": {
                 "model": f"models/{model}",
                 "generation_config": {
@@ -140,6 +161,7 @@ class GeminiRealtimeService(InteractionModeService):
         if system_prompt:
             setup_message["setup"]["system_instruction"] = {"parts": [{"text": system_prompt}]}
 
+        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
         await self._send_message(setup_message)
 
     async def disconnect(self) -> None:

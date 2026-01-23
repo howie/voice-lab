@@ -96,6 +96,8 @@ interface InteractionStoreState {
   setScenarioContext: (context: string) => void
   // US5: Barge-in configuration
   setBargeInEnabled: (enabled: boolean) => void
+  // Performance optimization
+  setLightweightMode: (enabled: boolean) => void
 
   // Actions - Error
   setError: (error: string | null) => void
@@ -278,6 +280,12 @@ export const useInteractionStore = create<InteractionStoreState>()(
       setBargeInEnabled: (enabled) =>
         set((state) => ({
           options: { ...state.options, bargeInEnabled: enabled },
+        })),
+
+      // Performance optimization action
+      setLightweightMode: (enabled) =>
+        set((state) => ({
+          options: { ...state.options, lightweightMode: enabled },
         })),
 
       // Error actions

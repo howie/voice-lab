@@ -11,6 +11,7 @@ import { useEffect, useCallback, useState, useRef } from 'react'
 import { AudioVisualizer } from './AudioVisualizer'
 import { LatencyDisplay } from './LatencyDisplay'
 import { ModeSelector } from './ModeSelector'
+import { PerformanceSettings } from './PerformanceSettings'
 import { TranscriptDisplay } from './TranscriptDisplay'
 import { RoleScenarioEditor } from './RoleScenarioEditor'
 import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
@@ -184,6 +185,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setScenarioContext,
     // US5: Barge-in configuration
     setBargeInEnabled,
+    // Performance optimization
+    setLightweightMode,
   } = useInteractionStore()
 
   // Determine WebSocket URL (must include user_id query parameter)
@@ -475,6 +478,15 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         onProviderChange={setProviderConfig}
         disabled={isConnected}
       />
+
+      {/* Performance Settings (V2V Feature Toggles) */}
+      {options.mode === 'realtime' && (
+        <PerformanceSettings
+          lightweightMode={options.lightweightMode}
+          onLightweightModeChange={setLightweightMode}
+          disabled={isConnected}
+        />
+      )}
 
       {/* US4: Scenario Template Selector */}
       <ScenarioTemplateSelector

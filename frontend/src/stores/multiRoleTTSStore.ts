@@ -244,7 +244,8 @@ export const useMultiRoleTTSStore = create<MultiRoleTTSState>()(
         set({ voicesLoading: true })
 
         try {
-          const response = await ttsApi.getVoices(provider, language)
+          const filters = language ? { language } : undefined
+          const response = await ttsApi.getVoices(provider, filters)
           set({ voices: response.data, voicesLoading: false })
         } catch (error) {
           console.error('Failed to load voices:', error)

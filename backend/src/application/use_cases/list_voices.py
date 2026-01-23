@@ -19,6 +19,7 @@ class VoiceProfile:
     provider: str
     language: str
     gender: str | None = None
+    age_group: str | None = None
     description: str | None = None
     sample_url: str | None = None
     supported_styles: list[str] | None = None
@@ -31,6 +32,7 @@ class VoiceFilter:
     provider: str | None = None
     language: str | None = None
     gender: str | None = None
+    age_group: str | None = None
     search: str | None = None
 
 
@@ -86,12 +88,20 @@ class ListVoicesUseCase:
                         else:
                             gender_str = str(gender_val) if gender_val else None
 
+                        # Convert AgeGroup enum to string if needed
+                        age_group_val = getattr(voice, "age_group", None)
+                        if age_group_val is not None and hasattr(age_group_val, "value"):
+                            age_group_str = age_group_val.value
+                        else:
+                            age_group_str = str(age_group_val) if age_group_val else None
+
                         profile = VoiceProfile(
                             id=getattr(voice, "id", ""),
                             name=getattr(voice, "name", getattr(voice, "display_name", "")),
                             provider=provider_name,
                             language=getattr(voice, "language", ""),
                             gender=gender_str,
+                            age_group=age_group_str,
                             description=getattr(voice, "description", None),
                             sample_url=getattr(
                                 voice, "sample_url", getattr(voice, "sample_audio_url", None)
@@ -109,6 +119,7 @@ class ListVoicesUseCase:
                             provider=provider_name,
                             language=voice.get("language", ""),
                             gender=voice.get("gender"),
+                            age_group=voice.get("age_group"),
                             description=voice.get("description"),
                             sample_url=voice.get("sample_url", voice.get("sample_audio_url")),
                             supported_styles=voice.get("supported_styles", voice.get("styles")),
@@ -145,6 +156,9 @@ class ListVoicesUseCase:
 
         if filter.gender:
             filtered = [v for v in filtered if v.gender == filter.gender]
+
+        if filter.age_group:
+            filtered = [v for v in filtered if v.age_group == filter.age_group]
 
         if filter.search:
             search_lower = filter.search.lower()
@@ -187,12 +201,20 @@ class ListVoicesUseCase:
                         else:
                             gender_str = str(gender_val) if gender_val else None
 
+                        # Convert AgeGroup enum to string if needed
+                        age_group_val = getattr(voice, "age_group", None)
+                        if age_group_val is not None and hasattr(age_group_val, "value"):
+                            age_group_str = age_group_val.value
+                        else:
+                            age_group_str = str(age_group_val) if age_group_val else None
+
                         return VoiceProfile(
                             id=vid,
                             name=getattr(voice, "name", getattr(voice, "display_name", "")),
                             provider=provider,
                             language=getattr(voice, "language", ""),
                             gender=gender_str,
+                            age_group=age_group_str,
                             description=getattr(voice, "description", None),
                             sample_url=getattr(
                                 voice, "sample_url", getattr(voice, "sample_audio_url", None)
@@ -211,6 +233,7 @@ class ListVoicesUseCase:
                             provider=provider,
                             language=voice.get("language", ""),
                             gender=voice.get("gender"),
+                            age_group=voice.get("age_group"),
                             description=voice.get("description"),
                             sample_url=voice.get("sample_url", voice.get("sample_audio_url")),
                             supported_styles=voice.get("supported_styles", voice.get("styles")),

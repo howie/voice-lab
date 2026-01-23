@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 
 class VoiceSyncStatus(Enum):
@@ -29,11 +29,10 @@ class VoiceSyncJob:
                                                 +--retry (if retry_count < 3)--> [PENDING]
     """
 
-    id: UUID
-    provider: str | None  # None = all providers
+    id: str  # UUID as string
+    providers: list[str]  # List of providers to sync, empty = all
     status: VoiceSyncStatus
-    voices_added: int = 0
-    voices_updated: int = 0
+    voices_synced: int = 0
     voices_deprecated: int = 0
     error_message: str | None = None
     retry_count: int = 0  # Max: 3
@@ -46,43 +45,44 @@ class VoiceSyncJob:
     RETRY_DELAYS: tuple[float, ...] = field(default=(1.0, 2.0, 4.0), init=False, repr=False)
 
     @classmethod
-    def create(cls, provider: str | None = None) -> "VoiceSyncJob":
+    def create(cls, providers: list[str] | None = None) -> "VoiceSyncJob":
         """Create a new sync job."""
         return cls(
-            id=uuid4(),
-            provider=provider,
+            id=str(uuid4()),
+            providers=providers or [],
             status=VoiceSyncStatus.PENDING,
         )
 
-    def start(self) -> None:
-        """Start processing the job."""
+    def start(self) -> "VoiceSyncJob":
+        """Start processing the job. Returns self for chaining."""
         if self.status != VoiceSyncStatus.PENDING:
             raise ValueError(f"Cannot start job in {self.status} status")
         self.status = VoiceSyncStatus.RUNNING
         self.started_at = datetime.utcnow()
+        return self
 
     def complete(
         self,
-        voices_added: int = 0,
-        voices_updated: int = 0,
+        voices_synced: int = 0,
         voices_deprecated: int = 0,
-    ) -> None:
-        """Mark job as completed."""
+    ) -> "VoiceSyncJob":
+        """Mark job as completed. Returns self for chaining."""
         if self.status != VoiceSyncStatus.RUNNING:
             raise ValueError(f"Cannot complete job in {self.status} status")
         self.status = VoiceSyncStatus.COMPLETED
-        self.voices_added = voices_added
-        self.voices_updated = voices_updated
+        self.voices_synced = voices_synced
         self.voices_deprecated = voices_deprecated
         self.completed_at = datetime.utcnow()
+        return self
 
-    def fail(self, error_message: str) -> None:
-        """Mark job as failed."""
+    def fail(self, error: str) -> "VoiceSyncJob":
+        """Mark job as failed. Returns self for chaining."""
         if self.status != VoiceSyncStatus.RUNNING:
             raise ValueError(f"Cannot fail job in {self.status} status")
         self.status = VoiceSyncStatus.FAILED
-        self.error_message = error_message
+        self.error_message = error
         self.completed_at = datetime.utcnow()
+        return self
 
     def can_retry(self) -> bool:
         """Check if job can be retried."""
@@ -112,4 +112,4 @@ class VoiceSyncJob:
     @property
     def total_voices_processed(self) -> int:
         """Get total number of voices processed."""
-        return self.voices_added + self.voices_updated + self.voices_deprecated
+        return self.voices_synced + self.voices_deprecated

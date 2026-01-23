@@ -600,15 +600,13 @@ class VoiceSyncJobModel(Base):
     __tablename__ = "voice_sync_jobs"
     __table_args__ = (
         Index("idx_voice_sync_jobs_status", "status"),
-        Index("idx_voice_sync_jobs_provider", "provider"),
         Index("idx_voice_sync_jobs_created_at", "created_at"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider: Mapped[str | None] = mapped_column(String(50), nullable=True)  # None = all providers
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)  # UUID as string
+    providers: Mapped[list] = mapped_column(JSON, nullable=False, default=list)  # List of providers
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    voices_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    voices_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    voices_synced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     voices_deprecated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

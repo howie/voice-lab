@@ -6,7 +6,6 @@ T007: Define VoiceSyncJobRepository protocol
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from uuid import UUID
 
 from src.domain.entities.voice_sync_job import VoiceSyncJob, VoiceSyncStatus
 
@@ -31,11 +30,11 @@ class IVoiceSyncJobRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, job_id: UUID) -> VoiceSyncJob | None:
+    async def get_by_id(self, job_id: str) -> VoiceSyncJob | None:
         """Get sync job by ID.
 
         Args:
-            job_id: Job UUID
+            job_id: Job UUID as string
 
         Returns:
             VoiceSyncJob if found, None otherwise
@@ -60,56 +59,24 @@ class IVoiceSyncJobRepository(ABC):
     @abstractmethod
     async def update_status(
         self,
-        job_id: UUID,
+        job_id: str,
         status: VoiceSyncStatus,
         *,
-        voices_added: int | None = None,
-        voices_updated: int | None = None,
+        voices_synced: int | None = None,
         voices_deprecated: int | None = None,
         error_message: str | None = None,
     ) -> VoiceSyncJob | None:
         """Update sync job status and metrics.
 
         Args:
-            job_id: Job UUID
+            job_id: Job UUID as string
             status: New status
-            voices_added: Number of voices added (optional)
-            voices_updated: Number of voices updated (optional)
+            voices_synced: Number of voices synced (optional)
             voices_deprecated: Number of voices deprecated (optional)
             error_message: Error message if failed (optional)
 
         Returns:
             Updated job, or None if not found
-        """
-        pass
-
-    @abstractmethod
-    async def get_latest_by_provider(
-        self,
-        provider: str | None,
-    ) -> VoiceSyncJob | None:
-        """Get the latest sync job for a provider.
-
-        Args:
-            provider: Provider name, or None for all-provider jobs
-
-        Returns:
-            Most recent job for the provider, or None if none exist
-        """
-        pass
-
-    @abstractmethod
-    async def get_latest_completed_by_provider(
-        self,
-        provider: str | None,
-    ) -> VoiceSyncJob | None:
-        """Get the latest completed sync job for a provider.
-
-        Args:
-            provider: Provider name, or None for all-provider jobs
-
-        Returns:
-            Most recent completed job for the provider, or None if none exist
         """
         pass
 
@@ -163,14 +130,8 @@ class IVoiceSyncJobRepository(ABC):
         pass
 
     @abstractmethod
-    async def has_running_job(
-        self,
-        provider: str | None = None,
-    ) -> bool:
+    async def has_running_job(self) -> bool:
         """Check if there's a running sync job.
-
-        Args:
-            provider: Provider name, or None to check all
 
         Returns:
             True if there's a running job, False otherwise

@@ -6,7 +6,6 @@ T009: Implement VoiceSyncJobRepositoryImpl
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,10 +25,9 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         """Create a new sync job."""
         model = VoiceSyncJobModel(
             id=job.id,
-            provider=job.provider,
+            providers=job.providers,
             status=job.status.value,
-            voices_added=job.voices_added,
-            voices_updated=job.voices_updated,
+            voices_synced=job.voices_synced,
             voices_deprecated=job.voices_deprecated,
             error_message=job.error_message,
             retry_count=job.retry_count,
@@ -41,7 +39,7 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         await self._session.flush()
         return job
 
-    async def get_by_id(self, job_id: UUID) -> VoiceSyncJob | None:
+    async def get_by_id(self, job_id: str) -> VoiceSyncJob | None:
         """Get sync job by ID."""
         result = await self._session.execute(
             select(VoiceSyncJobModel).where(VoiceSyncJobModel.id == job_id)
@@ -55,9 +53,9 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
             update(VoiceSyncJobModel)
             .where(VoiceSyncJobModel.id == job.id)
             .values(
+                providers=job.providers,
                 status=job.status.value,
-                voices_added=job.voices_added,
-                voices_updated=job.voices_updated,
+                voices_synced=job.voices_synced,
                 voices_deprecated=job.voices_deprecated,
                 error_message=job.error_message,
                 retry_count=job.retry_count,
@@ -70,11 +68,10 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
 
     async def update_status(
         self,
-        job_id: UUID,
+        job_id: str,
         status: VoiceSyncStatus,
         *,
-        voices_added: int | None = None,
-        voices_updated: int | None = None,
+        voices_synced: int | None = None,
         voices_deprecated: int | None = None,
         error_message: str | None = None,
     ) -> VoiceSyncJob | None:
@@ -86,10 +83,8 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         elif status in (VoiceSyncStatus.COMPLETED, VoiceSyncStatus.FAILED):
             values["completed_at"] = datetime.utcnow()
 
-        if voices_added is not None:
-            values["voices_added"] = voices_added
-        if voices_updated is not None:
-            values["voices_updated"] = voices_updated
+        if voices_synced is not None:
+            values["voices_synced"] = voices_synced
         if voices_deprecated is not None:
             values["voices_deprecated"] = voices_deprecated
         if error_message is not None:
@@ -101,44 +96,6 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         await self._session.flush()
 
         return await self.get_by_id(job_id)
-
-    async def get_latest_by_provider(
-        self,
-        provider: str | None,
-    ) -> VoiceSyncJob | None:
-        """Get the latest sync job for a provider."""
-        query = select(VoiceSyncJobModel)
-
-        if provider is None:
-            query = query.where(VoiceSyncJobModel.provider.is_(None))
-        else:
-            query = query.where(VoiceSyncJobModel.provider == provider)
-
-        query = query.order_by(VoiceSyncJobModel.created_at.desc()).limit(1)
-
-        result = await self._session.execute(query)
-        model = result.scalar_one_or_none()
-        return self._model_to_entity(model) if model else None
-
-    async def get_latest_completed_by_provider(
-        self,
-        provider: str | None,
-    ) -> VoiceSyncJob | None:
-        """Get the latest completed sync job for a provider."""
-        query = select(VoiceSyncJobModel).where(
-            VoiceSyncJobModel.status == VoiceSyncStatus.COMPLETED.value
-        )
-
-        if provider is None:
-            query = query.where(VoiceSyncJobModel.provider.is_(None))
-        else:
-            query = query.where(VoiceSyncJobModel.provider == provider)
-
-        query = query.order_by(VoiceSyncJobModel.completed_at.desc()).limit(1)
-
-        result = await self._session.execute(query)
-        model = result.scalar_one_or_none()
-        return self._model_to_entity(model) if model else None
 
     async def list_recent(
         self,
@@ -186,19 +143,13 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         )
         return result.scalar() or 0
 
-    async def has_running_job(
-        self,
-        provider: str | None = None,
-    ) -> bool:
+    async def has_running_job(self) -> bool:
         """Check if there's a running sync job."""
         query = (
             select(func.count())
             .select_from(VoiceSyncJobModel)
             .where(VoiceSyncJobModel.status == VoiceSyncStatus.RUNNING.value)
         )
-
-        if provider is not None:
-            query = query.where(VoiceSyncJobModel.provider == provider)
 
         result = await self._session.execute(query)
         return (result.scalar() or 0) > 0
@@ -220,10 +171,9 @@ class VoiceSyncJobRepositoryImpl(IVoiceSyncJobRepository):
         """Convert SQLAlchemy model to domain entity."""
         return VoiceSyncJob(
             id=model.id,
-            provider=model.provider,
+            providers=model.providers or [],
             status=VoiceSyncStatus(model.status),
-            voices_added=model.voices_added,
-            voices_updated=model.voices_updated,
+            voices_synced=model.voices_synced,
             voices_deprecated=model.voices_deprecated,
             error_message=model.error_message,
             retry_count=model.retry_count,

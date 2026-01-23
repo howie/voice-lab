@@ -1,0 +1,379 @@
+openapi: 3.0.3
+info:
+  title: Audiobook Characters API
+  description: API for managing audiobook characters and voice settings
+  version: 1.0.0
+
+paths:
+  /api/v1/audiobook/projects/{project_id}/characters:
+    get:
+      summary: List project characters
+      operationId: listCharacters
+      tags:
+        - Characters
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: List of characters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterListResponse'
+        '404':
+          description: Project not found
+
+  /api/v1/audiobook/projects/{project_id}/characters/{character_id}:
+    get:
+      summary: Get character details
+      operationId: getCharacter
+      tags:
+        - Characters
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          description: Character details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterDetail'
+        '404':
+          description: Character not found
+
+    patch:
+      summary: Update character settings
+      operationId: updateCharacter
+      tags:
+        - Characters
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/CharacterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCharacterRequest'
+      responses:
+        '200':
+          description: Character updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterDetail'
+        '404':
+          description: Character not found
+
+  /api/v1/audiobook/projects/{project_id}/characters/{character_id}/preview:
+    post:
+      summary: Preview character voice
+      description: Generate a preview audio for the character using their first line or custom text
+      operationId: previewCharacterVoice
+      tags:
+        - Characters
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/CharacterId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewRequest'
+      responses:
+        '200':
+          description: Preview generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewResponse'
+        '400':
+          description: Voice not configured
+        '404':
+          description: Character not found
+
+  /api/v1/audiobook/projects/{project_id}/turns:
+    get:
+      summary: List script turns
+      operationId: listTurns
+      tags:
+        - Script Turns
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, generating, completed, failed]
+        - name: character_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of turns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnListResponse'
+
+  /api/v1/audiobook/projects/{project_id}/turns/{turn_id}:
+    get:
+      summary: Get turn details
+      operationId: getTurn
+      tags:
+        - Script Turns
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/TurnId'
+      responses:
+        '200':
+          description: Turn details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnDetail'
+
+    patch:
+      summary: Update turn text
+      operationId: updateTurn
+      tags:
+        - Script Turns
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/TurnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTurnRequest'
+      responses:
+        '200':
+          description: Turn updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnDetail'
+
+components:
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CharacterId:
+      name: character_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    TurnId:
+      name: turn_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    UpdateCharacterRequest:
+      type: object
+      properties:
+        voice_id:
+          type: string
+          description: Voice ID in format provider:voice_id
+          example: "azure:zh-TW-HsiaoYuNeural"
+        gender:
+          type: string
+          enum: [male, female, neutral]
+        age_group:
+          type: string
+          enum: [child, young, adult, senior]
+        style:
+          type: string
+          example: "cheerful"
+        speech_rate:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+          default: 1.0
+        pitch:
+          type: number
+          minimum: -50
+          maximum: 50
+          default: 0
+
+    CharacterListResponse:
+      type: object
+      required:
+        - characters
+      properties:
+        characters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharacterDetail'
+
+    CharacterDetail:
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "豬探長"
+        voice_id:
+          type: string
+          nullable: true
+          example: "azure:zh-TW-YunJheNeural"
+        voice_name:
+          type: string
+          nullable: true
+          description: Display name of the voice
+          example: "雲哲"
+        gender:
+          type: string
+          enum: [male, female, neutral]
+          nullable: true
+        age_group:
+          type: string
+          enum: [child, young, adult, senior]
+          nullable: true
+        style:
+          type: string
+          nullable: true
+        speech_rate:
+          type: number
+          default: 1.0
+        pitch:
+          type: number
+          default: 0
+        turn_count:
+          type: integer
+          description: Number of lines this character has
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PreviewRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Custom text to preview. If not provided, uses character's first line.
+          example: "你好，我是豬探長！"
+
+    PreviewResponse:
+      type: object
+      required:
+        - audio_url
+        - duration_ms
+      properties:
+        audio_url:
+          type: string
+          description: URL to preview audio
+        duration_ms:
+          type: integer
+        text:
+          type: string
+          description: Text that was synthesized
+
+    TurnListResponse:
+      type: object
+      required:
+        - turns
+        - total
+      properties:
+        turns:
+          type: array
+          items:
+            $ref: '#/components/schemas/TurnDetail'
+        total:
+          type: integer
+        by_status:
+          type: object
+          properties:
+            pending:
+              type: integer
+            generating:
+              type: integer
+            completed:
+              type: integer
+            failed:
+              type: integer
+
+    TurnDetail:
+      type: object
+      required:
+        - id
+        - project_id
+        - character_id
+        - sequence
+        - text
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        character_id:
+          type: string
+          format: uuid
+        character_name:
+          type: string
+        sequence:
+          type: integer
+          description: Order in the script (1-based)
+        text:
+          type: string
+        chapter:
+          type: string
+          nullable: true
+        audio_url:
+          type: string
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [pending, generating, completed, failed]
+        error_message:
+          type: string
+          nullable: true
+        retry_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateTurnRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Updated dialogue text
+        chapter:
+          type: string
+          description: Chapter name

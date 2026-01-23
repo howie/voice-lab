@@ -109,16 +109,23 @@ interface InteractionStoreState {
 // Initial State
 // =============================================================================
 
+// Default system prompt for Chinese kindergarten teacher persona
+const DEFAULT_SYSTEM_PROMPT = `你是一個講中文台灣腔調的幼教老師。
+當小朋友有問題時，你會用 3~6 歲小朋友聽得懂的方式對話和解說。
+請用溫柔、有耐心的語氣，並且使用簡單易懂的詞彙。
+回答要簡短、清楚，適合小朋友的注意力。
+請一律使用繁體中文回覆。`
+
 const defaultOptions: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
-    provider: 'openai',
-    voice: 'shimmer', // 較適合中文對話的語音
+    provider: 'gemini',
+    voice: 'Kore', // 女性語音，較適合幼教老師角色
   },
-  systemPrompt: '',
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
   // US4: Role and scenario defaults
-  userRole: '使用者',
-  aiRole: 'AI 助理',
+  userRole: '小朋友',
+  aiRole: '老師',
   scenarioContext: '',
   // Audio settings
   autoPlayResponse: true,
@@ -128,6 +135,8 @@ const defaultOptions: InteractionOptions = {
   bargeInEnabled: true,
   showLatencyMetrics: true,
   showTranscripts: true,
+  // Lightweight mode: skip sync audio storage for lower latency
+  lightweightMode: true,
 }
 
 const initialState = {
@@ -221,12 +230,14 @@ export const useInteractionStore = create<InteractionStoreState>()(
             // Reset provider config when mode changes
             providerConfig:
               mode === 'realtime'
-                ? { provider: 'openai', voice: 'shimmer' }
+                ? { provider: 'gemini', voice: 'Kore' }
                 : {
                     stt_provider: 'azure',
                     llm_provider: 'openai',
                     tts_provider: 'azure',
                   },
+            // Lightweight mode for realtime V2V
+            lightweightMode: mode === 'realtime',
           },
         })),
 

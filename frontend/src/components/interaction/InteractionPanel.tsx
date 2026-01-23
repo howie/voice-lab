@@ -415,6 +415,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     if (wsStatus === 'connected' && isConnectingRef.current) {
       // T078: Send config message with role/scenario to start session
       // T084: Include barge_in_enabled configuration
+      // T089: Include lightweight_mode for lower latency V2V
       sendMessage('config', {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
@@ -422,6 +423,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         ai_role: options.aiRole,
         scenario_context: options.scenarioContext,
         barge_in_enabled: options.bargeInEnabled,
+        lightweight_mode: options.lightweightMode ?? true,
       })
     }
   }, [wsStatus, sendMessage, options])

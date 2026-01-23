@@ -306,6 +306,10 @@ export interface InteractionOptions {
   // Display settings
   showLatencyMetrics: boolean
   showTranscripts: boolean
+
+  // Performance optimization
+  // Lightweight mode: skip sync audio storage for lower latency V2V
+  lightweightMode?: boolean
 }
 
 export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {

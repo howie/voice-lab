@@ -210,16 +210,15 @@ class GeminiRealtimeService(InteractionModeService):
         """Async iterator for response events from Gemini.
 
         Yields ResponseEvent objects as they are received from the API.
+
+        Note: Uses pure async wait without timeout to minimize latency.
+        The loop exits when disconnected or cancelled.
         """
         while self._connected:
             try:
-                event = await asyncio.wait_for(
-                    self._event_queue.get(),
-                    timeout=0.1,
-                )
+                # Use pure async wait without timeout for minimal latency
+                event = await self._event_queue.get()
                 yield event
-            except TimeoutError:
-                continue
             except asyncio.CancelledError:
                 break
 

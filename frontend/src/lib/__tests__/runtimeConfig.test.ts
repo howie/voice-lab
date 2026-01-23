@@ -9,7 +9,7 @@
  * - Environment variable naming mismatches (VITE_API_URL vs VITE_API_BASE_URL)
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // Type for window with runtime config
 declare global {

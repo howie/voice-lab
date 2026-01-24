@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: Audiobook Projects API
+  description: API for managing audiobook production projects
+  version: 1.0.0
+
+paths:
+  /api/v1/audiobook/projects:
+    get:
+      summary: List user's audiobook projects
+      operationId: listProjects
+      tags:
+        - Projects
+      parameters:
+        - name: status
+          in: query
+          description: Filter by project status
+          schema:
+            type: string
+            enum: [draft, generating, completed, failed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+
+    post:
+      summary: Create a new audiobook project
+      operationId: createProject
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/audiobook/projects/{project_id}:
+    get:
+      summary: Get project details
+      operationId: getProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '404':
+          description: Project not found
+
+    patch:
+      summary: Update project
+      operationId: updateProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '404':
+          description: Project not found
+
+    delete:
+      summary: Delete project
+      operationId: deleteProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '204':
+          description: Project deleted
+        '404':
+          description: Project not found
+
+  /api/v1/audiobook/projects/{project_id}/script:
+    put:
+      summary: Update project script
+      description: Update the script content and trigger re-parsing of characters
+      operationId: updateScript
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScriptRequest'
+      responses:
+        '200':
+          description: Script updated, characters re-parsed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptParseResult'
+        '400':
+          description: Invalid script format
+
+  /api/v1/audiobook/projects/{project_id}/duplicate:
+    post:
+      summary: Duplicate project
+      operationId: duplicateProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name for the duplicated project
+      responses:
+        '201':
+          description: Project duplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+
+  /api/v1/audiobook/projects/{project_id}/background-music:
+    post:
+      summary: Upload background music
+      operationId: uploadBackgroundMusic
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Audio file (MP3 or WAV, max 50MB)
+              required:
+                - file
+      responses:
+        '201':
+          description: Music uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundMusic'
+        '400':
+          description: Invalid file format or size
+
+    delete:
+      summary: Remove background music
+      operationId: removeBackgroundMusic
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '204':
+          description: Music removed
+
+components:
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    CreateProjectRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "豬探長的冒險"
+        description:
+          type: string
+          example: "一個關於偵探豬的故事"
+        language:
+          type: string
+          default: "zh-TW"
+          example: "zh-TW"
+        script_content:
+          type: string
+          description: Initial script content
+          example: "旁白：從前從前...\n豬探長：我來了！"
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        language:
+          type: string
+        background_music_volume:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.3
+
+    UpdateScriptRequest:
+      type: object
+      required:
+        - script_content
+      properties:
+        script_content:
+          type: string
+          description: Full script content
+          example: "旁白：從前從前...\n豬探長：我來了！\n小豬：豬探長好厲害！"
+
+    ProjectListResponse:
+      type: object
+      required:
+        - projects
+        - total
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectSummary'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ProjectSummary:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, generating, completed, failed]
+        character_count:
+          type: integer
+        turn_count:
+          type: integer
+        output_duration_ms:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProjectDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProjectSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+              nullable: true
+            language:
+              type: string
+            script_content:
+              type: string
+            background_music:
+              $ref: '#/components/schemas/BackgroundMusic'
+            background_music_volume:
+              type: number
+            output_audio_url:
+              type: string
+              nullable: true
+            characters:
+              type: array
+              items:
+                $ref: '#/components/schemas/CharacterSummary'
+
+    ScriptParseResult:
+      type: object
+      required:
+        - characters
+        - turn_count
+      properties:
+        characters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharacterSummary'
+          description: Parsed characters from script
+        turn_count:
+          type: integer
+          description: Total number of dialogue turns
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Parsing warnings (e.g., unrecognized lines)
+
+    CharacterSummary:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        voice_id:
+          type: string
+          nullable: true
+        turn_count:
+          type: integer
+
+    BackgroundMusic:
+      type: object
+      required:
+        - id
+        - filename
+        - duration_ms
+        - format
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        file_url:
+          type: string
+        duration_ms:
+          type: integer
+        format:
+          type: string
+          enum: [mp3, wav]
+        file_size_bytes:
+          type: integer
+        uploaded_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

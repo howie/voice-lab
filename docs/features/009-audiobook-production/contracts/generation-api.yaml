@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: Audiobook Generation API
+  description: API for managing audiobook generation jobs and export
+  version: 1.0.0
+
+paths:
+  /api/v1/audiobook/projects/{project_id}/generate:
+    post:
+      summary: Start audiobook generation
+      description: Start async generation of all script turns. Returns immediately with job ID.
+      operationId: startGeneration
+      tags:
+        - Generation
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationRequest'
+      responses:
+        '202':
+          description: Generation job started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+        '400':
+          description: Invalid request (missing voice assignments, empty script, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Generation already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/audiobook/projects/{project_id}/jobs:
+    get:
+      summary: List generation jobs
+      operationId: listGenerationJobs
+      tags:
+        - Generation
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: List of generation jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobListResponse'
+
+  /api/v1/audiobook/projects/{project_id}/jobs/{job_id}:
+    get:
+      summary: Get generation job status
+      operationId: getGenerationJob
+      tags:
+        - Generation
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job status and progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobDetail'
+        '404':
+          description: Job not found
+
+  /api/v1/audiobook/projects/{project_id}/jobs/{job_id}/cancel:
+    post:
+      summary: Cancel generation job
+      operationId: cancelGeneration
+      tags:
+        - Generation
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobDetail'
+        '400':
+          description: Job cannot be cancelled (already completed/failed)
+
+  /api/v1/audiobook/projects/{project_id}/mix:
+    post:
+      summary: Mix audio with background music
+      description: Combine generated audio with background music. Requires completed generation.
+      operationId: mixAudio
+      tags:
+        - Generation
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MixRequest'
+      responses:
+        '202':
+          description: Mix job started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MixJobResponse'
+        '400':
+          description: Generation not completed or no background music
+
+  /api/v1/audiobook/projects/{project_id}/export:
+    post:
+      summary: Export final audiobook
+      description: Export the audiobook in specified format
+      operationId: exportAudiobook
+      tags:
+        - Export
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Export ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '400':
+          description: Generation not completed
+
+    get:
+      summary: Get export status
+      operationId: getExportStatus
+      tags:
+        - Export
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Export status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportStatusResponse'
+
+components:
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    GenerationRequest:
+      type: object
+      properties:
+        skip_completed:
+          type: boolean
+          default: true
+          description: Skip turns that already have audio (for retrying failed turns)
+        regenerate_failed:
+          type: boolean
+          default: true
+          description: Regenerate turns that previously failed
+
+    GenerationJobResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - total_turns
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running]
+        total_turns:
+          type: integer
+        message:
+          type: string
+          example: "Generation job created and queued"
+
+    GenerationJobListResponse:
+      type: object
+      required:
+        - jobs
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenerationJobSummary'
+
+    GenerationJobSummary:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        total_turns:
+          type: integer
+        completed_turns:
+          type: integer
+        failed_turns:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    GenerationJobDetail:
+      allOf:
+        - $ref: '#/components/schemas/GenerationJobSummary'
+        - type: object
+          properties:
+            current_turn:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                sequence:
+                  type: integer
+                character_name:
+                  type: string
+                text:
+                  type: string
+            progress_percent:
+              type: number
+              description: Completion percentage (0-100)
+            estimated_remaining_seconds:
+              type: integer
+              nullable: true
+            error_message:
+              type: string
+              nullable: true
+            started_at:
+              type: string
+              format: date-time
+              nullable: true
+            failed_turns:
+              type: array
+              items:
+                type: object
+                properties:
+                  turn_id:
+                    type: string
+                    format: uuid
+                  sequence:
+                    type: integer
+                  error_message:
+                    type: string
+
+    MixRequest:
+      type: object
+      properties:
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Background music volume (overrides project setting)
+        fade_in_ms:
+          type: integer
+          default: 2000
+          description: Fade in duration for background music
+        fade_out_ms:
+          type: integer
+          default: 3000
+          description: Fade out duration for background music
+
+    MixJobResponse:
+      type: object
+      required:
+        - job_id
+        - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running]
+        message:
+          type: string
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+          enum: [mp3, wav]
+          default: mp3
+        bitrate:
+          type: integer
+          enum: [128, 192, 256, 320]
+          default: 192
+          description: Bitrate for MP3 export (kbps)
+        include_chapters:
+          type: boolean
+          default: true
+          description: Include chapter markers in MP3 ID3 tags
+        metadata:
+          type: object
+          properties:
+            title:
+              type: string
+            artist:
+              type: string
+            album:
+              type: string
+
+    ExportResponse:
+      type: object
+      required:
+        - download_url
+        - format
+        - file_size_bytes
+        - duration_ms
+      properties:
+        download_url:
+          type: string
+          description: URL to download the exported file
+        format:
+          type: string
+          enum: [mp3, wav]
+        file_size_bytes:
+          type: integer
+        duration_ms:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+          description: URL expiration time
+
+    ExportStatusResponse:
+      type: object
+      required:
+        - has_output
+      properties:
+        has_output:
+          type: boolean
+        output_audio_url:
+          type: string
+          nullable: true
+        output_duration_ms:
+          type: integer
+          nullable: true
+        last_generated_at:
+          type: string
+          format: date-time
+          nullable: true
+        has_background_music:
+          type: boolean
+        is_mixed:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "GENERATION_IN_PROGRESS"
+        message:
+          type: string
+          example: "A generation job is already running for this project"
+        details:
+          type: object

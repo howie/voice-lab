@@ -121,12 +121,19 @@ class RealtimeModeFactory:
             return {
                 "name": "gemini",
                 "display_name": "Google Gemini Live API",
-                "models": ["gemini-2.0-flash-exp"],
+                "models": [
+                    "gemini-2.5-flash-preview-native-audio-dialog",
+                    "gemini-2.5-pro-preview-native-audio-dialog",
+                    "gemini-2.5-flash",
+                    "gemini-2.0-flash-exp",
+                ],
                 "voices": ["Puck", "Charon", "Kore", "Fenrir", "Aoede"],
                 "features": [
                     "voice-to-voice",
                     "multimodal",
                     "function-calling",
+                    "native-audio",
+                    "24-languages",
                 ],
                 "audio_formats": ["pcm16"],
                 "sample_rate": 16000,

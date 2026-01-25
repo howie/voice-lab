@@ -59,16 +59,28 @@ interface ModelInfo {
 
 const GEMINI_MODELS: ModelInfo[] = [
   {
-    id: 'gemini-2.0-flash-exp',
-    label: 'Gemini 2.0 Flash',
-    description: '當前預設，2026年3月退役',
-    status: 'deprecated',
-  },
-  {
     id: 'gemini-2.5-flash-preview-native-audio-dialog',
     label: 'Gemini 2.5 Flash (Native Audio)',
-    description: '30種HD語音，24種語言，更自然的對話',
+    description: '30種HD語音，24種語言，更自然的對話（推薦）',
     status: 'preview',
+  },
+  {
+    id: 'gemini-2.5-pro-preview-native-audio-dialog',
+    label: 'Gemini 2.5 Pro (Native Audio)',
+    description: '更強的推理能力，適合複雜對話',
+    status: 'preview',
+  },
+  {
+    id: 'gemini-2.5-flash',
+    label: 'Gemini 2.5 Flash',
+    description: '穩定版本，標準語音',
+    status: 'stable',
+  },
+  {
+    id: 'gemini-2.0-flash-exp',
+    label: 'Gemini 2.0 Flash (Legacy)',
+    description: '舊版，2026年3月退役',
+    status: 'deprecated',
   },
 ]
 

@@ -122,8 +122,9 @@ class RealtimeModeFactory:
                 "name": "gemini",
                 "display_name": "Google Gemini Live API",
                 "models": [
-                    "gemini-2.5-flash-native-audio-preview-09-2025",  # Native audio with Chinese
-                    "gemini-2.0-flash-exp",  # Legacy, English only
+                    "gemini-2.0-flash-live-001",
+                    "gemini-2.5-flash-native-audio-preview",
+                    "gemini-2.0-flash-exp",
                 ],
                 "voices": ["Puck", "Charon", "Kore", "Fenrir", "Aoede"],
                 "features": [

@@ -31,13 +31,15 @@ GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generati
 
 # Available models for Gemini Live API (must support bidiGenerateContent)
 # See: https://ai.google.dev/gemini-api/docs/models
+# See: https://ai.google.dev/gemini-api/docs/live
 AVAILABLE_MODELS = [
-    "gemini-2.5-flash-native-audio-preview-09-2025",  # Native audio with Chinese support
-    "gemini-2.0-flash-exp",  # Legacy, English only
+    "gemini-2.0-flash-live-001",  # Gemini 2.0 Flash Live stable
+    "gemini-2.5-flash-native-audio-preview",  # Native audio with 30 HD voices, 24 languages
+    "gemini-2.0-flash-exp",  # Legacy, retiring March 2026
 ]
 
-# Default configuration - use 2.5 for multilingual support
-DEFAULT_MODEL = "gemini-2.5-flash-native-audio-preview-09-2025"
+# Default configuration - use 2.0 flash live for stability
+DEFAULT_MODEL = "gemini-2.0-flash-live-001"
 DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 
@@ -134,7 +136,7 @@ class GeminiRealtimeService(InteractionModeService):
     ) -> None:
         """Send setup message to Gemini.
 
-        Supports both gemini-2.0-flash-exp and gemini-2.5-flash-preview-native-audio-dialog.
+        Supports gemini-2.0-flash-live-001 and gemini-2.5-flash-native-audio-preview.
         The 2.5 model provides native audio with 30 HD voices in 24 languages.
         """
         # Get model from config, fallback to settings, then default
@@ -152,7 +154,6 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Note: Native audio models auto-detect language from conversation context
         # Language is controlled via system_prompt instead of language_code parameter
-        # The Google AI API (ai.google.dev) doesn't support cmn-Hant-TW for native audio
         setup_message: dict[str, Any] = {
             "setup": {
                 "model": f"models/{model}",
@@ -170,11 +171,18 @@ class GeminiRealtimeService(InteractionModeService):
             }
         }
 
+        # Log the setup message for debugging
+        logger.info(f"Gemini setup message: {setup_message}")
+
         # Add system instruction if provided
         if system_prompt:
-            setup_message["setup"]["system_instruction"] = {"parts": [{"text": system_prompt}]}
+            setup_message["setup"]["system_instruction"] = {
+                "parts": [{"text": system_prompt}]
+            }
 
-        print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
+        print(
+            f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}..."
+        )
 
         print(f"[Gemini] Sending setup: model={model}, voice={voice}")
         logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
@@ -216,7 +224,9 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Send realtime input
         message = {
-            "realtime_input": {"media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]}
+            "realtime_input": {
+                "media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]
+            }
         }
         await self._send_message(message)
 
@@ -435,4 +445,6 @@ class GeminiRealtimeService(InteractionModeService):
 
         else:
             # Log all unhandled events for debugging
-            logger.info(f"Unhandled Gemini event: {list(event.keys())}, data: {str(event)[:500]}")
+            logger.info(
+                f"Unhandled Gemini event: {list(event.keys())}, data: {str(event)[:500]}"
+            )

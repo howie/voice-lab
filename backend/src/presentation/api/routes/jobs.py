@@ -8,7 +8,7 @@ import os
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,12 +19,12 @@ from src.application.services.job_service import (
     JobNotFoundError,
     JobService,
 )
-from src.config import get_settings
 from src.domain.entities.job import JobStatus, JobType
 from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.job_repository_impl import JobRepositoryImpl
 from src.infrastructure.persistence.models import AudioFileModel
 from src.infrastructure.storage.local_storage import LocalStorage
+from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.api.schemas.job_schemas import (
     CreateJobRequest,
     JobDetailResponse,
@@ -33,40 +33,6 @@ from src.presentation.api.schemas.job_schemas import (
 )
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
-
-# Development user ID for DISABLE_AUTH mode
-DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
-
-async def get_current_user_id(request: Request) -> uuid.UUID:
-    """Get the current user ID from the request.
-
-    In production, this would come from JWT token validation.
-    """
-    settings = get_settings()
-
-    # Development mode: return dev user ID
-    if settings.disable_auth:
-        return DEV_USER_ID
-
-    # Check if there's a user_id in request state (set by auth middleware)
-    user_id = getattr(request.state, "user_id", None)
-    if user_id is None:
-        # For development/testing, allow a header-based user ID
-        user_id_header = request.headers.get("X-User-Id")
-        if user_id_header:
-            try:
-                return uuid.UUID(user_id_header)
-            except ValueError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid user ID format",
-                ) from e
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-    return user_id
 
 
 def _get_job_service(session: AsyncSession) -> JobService:
@@ -84,7 +50,7 @@ def _get_job_service(session: AsyncSession) -> JobService:
 )
 async def create_job(
     request: CreateJobRequest,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> JobResponse:
     """Create a new TTS synthesis job.
@@ -112,6 +78,8 @@ async def create_job(
         "gap_ms": request.gap_ms,
         "crossfade_ms": request.crossfade_ms,
     }
+
+    user_id = uuid.UUID(current_user.id)
 
     try:
         job = await job_service.create_job(
@@ -149,7 +117,7 @@ async def create_job(
     description="取得使用者的所有工作列表，支援依狀態篩選和分頁。",
 )
 async def list_jobs(
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     status_filter: Annotated[
         JobStatus | None,
@@ -167,7 +135,7 @@ async def list_jobs(
     """List jobs for the current user.
 
     Args:
-        user_id: Current user ID
+        current_user: Current authenticated user
         session: Database session
         status_filter: Optional status filter
         limit: Maximum number of jobs to return
@@ -177,6 +145,7 @@ async def list_jobs(
         Paginated job list response
     """
     job_service = _get_job_service(session)
+    user_id = uuid.UUID(current_user.id)
 
     jobs, total = await job_service.list_jobs(
         user_id=user_id,
@@ -212,14 +181,14 @@ async def list_jobs(
 )
 async def get_job(
     job_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> JobDetailResponse:
     """Get job details by ID.
 
     Args:
         job_id: Job ID
-        user_id: Current user ID
+        current_user: Current authenticated user
         session: Database session
 
     Returns:
@@ -229,6 +198,7 @@ async def get_job(
         HTTPException: 404 if job not found
     """
     job_service = _get_job_service(session)
+    user_id = uuid.UUID(current_user.id)
 
     try:
         job = await job_service.get_job(job_id, user_id)
@@ -263,14 +233,14 @@ async def get_job(
 )
 async def cancel_job(
     job_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> JobResponse:
     """Cancel a pending job.
 
     Args:
         job_id: Job ID to cancel
-        user_id: Current user ID
+        current_user: Current authenticated user
         session: Database session
 
     Returns:
@@ -280,6 +250,7 @@ async def cancel_job(
         HTTPException: 404 if job not found, 409 if cannot cancel
     """
     job_service = _get_job_service(session)
+    user_id = uuid.UUID(current_user.id)
 
     try:
         job = await job_service.cancel_job(job_id, user_id)
@@ -377,14 +348,14 @@ async def get_audio_file_content(
 )
 async def download_job_audio(
     job_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Response:
     """Download audio file for a completed job.
 
     Args:
         job_id: Job ID
-        user_id: Current user ID
+        current_user: Current authenticated user
         session: Database session
 
     Returns:
@@ -395,6 +366,7 @@ async def download_job_audio(
                        not completed, or has no audio file
     """
     job_service = _get_job_service(session)
+    user_id = uuid.UUID(current_user.id)
 
     try:
         job = await job_service.get_job(job_id, user_id)

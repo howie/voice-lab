@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.infrastructure.persistence.database import Base
+from src.infrastructure.persistence.database import Base, get_database_url
 
 # Import models to register them with Base.metadata
 from src.infrastructure.persistence.models import (  # noqa: F401
@@ -27,6 +27,9 @@ from src.infrastructure.persistence.models import (  # noqa: F401
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override sqlalchemy.url with environment variable if available
+config.set_main_option("sqlalchemy.url", get_database_url())
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

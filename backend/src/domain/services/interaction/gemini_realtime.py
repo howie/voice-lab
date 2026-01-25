@@ -31,15 +31,16 @@ GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generati
 
 # Available models for Gemini Live API
 # See: https://ai.google.dev/gemini-api/docs/models
+# See: https://ai.google.dev/gemini-api/docs/live
 AVAILABLE_MODELS = [
     "gemini-2.0-flash-exp",  # Legacy, retiring March 2026
-    "gemini-2.5-flash-preview-native-audio-dialog",  # Native audio with 30 HD voices, 24 languages
-    "gemini-2.5-flash",  # Gemini 2.5 Flash stable
-    "gemini-2.5-pro-preview-native-audio-dialog",  # Gemini 2.5 Pro with native audio
+    "gemini-2.0-flash-live-001",  # Gemini 2.0 Flash Live stable
+    "gemini-2.5-flash-preview-native-audio-dialog",  # Native audio preview (older name)
+    "gemini-2.5-flash-native-audio-preview",  # Native audio with 30 HD voices, 24 languages
 ]
 
-# Default configuration - uses 2.5 for better multilingual support
-DEFAULT_MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
+# Default configuration - uses 2.0 flash live for stability
+DEFAULT_MODEL = "gemini-2.0-flash-live-001"
 DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 
@@ -147,9 +148,6 @@ class GeminiRealtimeService(InteractionModeService):
 
         voice = config.get("voice", DEFAULT_VOICE)
 
-        # Get language from config, default to zh-TW for Chinese
-        language = config.get("language", "zh-TW")
-
         setup_message: dict[str, Any] = {
             "setup": {
                 "model": f"models/{model}",
@@ -160,20 +158,11 @@ class GeminiRealtimeService(InteractionModeService):
                     # Include both TEXT and AUDIO to get AI response text for display
                     "response_modalities": ["TEXT", "AUDIO"],
                 },
-                # Enable input audio transcription to get user speech text
-                "realtime_input_config": {
-                    "automatic_activity_detection": {
-                        "disabled": False,
-                    },
-                    # Specify language for transcription
-                    "speech_config": {
-                        "language_code": language,
-                    },
-                },
-                # Request input transcription (user speech -> text)
-                "input_audio_transcription": {},
             }
         }
+
+        # Log the setup message for debugging
+        logger.info(f"Gemini setup message: {setup_message}")
 
         # Add system instruction if provided
         if system_prompt:
@@ -280,6 +269,9 @@ class GeminiRealtimeService(InteractionModeService):
             async for message in self._ws:
                 if isinstance(message, bytes):
                     message = message.decode()
+
+                # Log all incoming messages for debugging
+                logger.info(f"Gemini message received: {message[:500]}")
 
                 try:
                     event = json.loads(message)

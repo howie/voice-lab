@@ -10,15 +10,9 @@ import { LoginButton } from '@/components/auth/LoginButton'
 import { useLoginRedirect } from '@/hooks/useLoginRedirect'
 
 export function LoginPage() {
-  const { isAuthenticated, error, clearError, continueAsGuest } = useAuthStore()
+  const { isAuthenticated, error, clearError } = useAuthStore()
   const navigate = useNavigate()
   const redirectPath = useLoginRedirect()
-
-  // Handle guest login
-  const handleGuestLogin = () => {
-    continueAsGuest()
-    navigate(redirectPath, { replace: true })
-  }
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -63,33 +57,12 @@ export function LoginPage() {
           {/* Google login button */}
           <LoginButton className="w-full justify-center" />
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">或</span>
-            </div>
-          </div>
-
-          {/* Guest access info */}
+          {/* Domain restriction notice */}
           <div className="rounded-lg bg-muted/50 p-4 text-sm">
-            <p className="font-medium">訪客模式</p>
+            <p className="font-medium">登入限制</p>
             <p className="mt-1 text-muted-foreground">
-              部分功能需要登入才能使用，包括：
+              本系統僅限 <strong>heyuai.com.tw</strong> 網域帳號登入使用。
             </p>
-            <ul className="mt-2 list-inside list-disc text-muted-foreground">
-              <li>語音合成紀錄查詢</li>
-              <li>自訂設定儲存</li>
-              <li>API 金鑰管理</li>
-            </ul>
-            <button
-              onClick={handleGuestLogin}
-              className="mt-3 w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              以訪客身份繼續
-            </button>
           </div>
         </div>
 

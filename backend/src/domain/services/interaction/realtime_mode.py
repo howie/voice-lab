@@ -122,9 +122,8 @@ class RealtimeModeFactory:
                 "name": "gemini",
                 "display_name": "Google Gemini Live API",
                 "models": [
-                    "gemini-2.0-flash-live-001",
-                    "gemini-2.5-flash-native-audio-preview",
-                    "gemini-2.0-flash-exp",
+                    "gemini-2.5-flash-native-audio-preview-09-2025",  # Native audio with Chinese
+                    "gemini-2.0-flash-exp",  # Legacy, English only
                 ],
                 "voices": ["Puck", "Charon", "Kore", "Fenrir", "Aoede"],
                 "features": [
@@ -133,7 +132,7 @@ class RealtimeModeFactory:
                     "function-calling",
                 ],
                 "audio_formats": ["pcm16"],
-                "sample_rate": 16000,
+                "sample_rate": 24000,  # Gemini 2.5 returns audio at 24000 Hz
                 "env_var": "GOOGLE_AI_API_KEY",
             }
 

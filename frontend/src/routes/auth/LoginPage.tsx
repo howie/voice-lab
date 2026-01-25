@@ -10,9 +10,15 @@ import { LoginButton } from '@/components/auth/LoginButton'
 import { useLoginRedirect } from '@/hooks/useLoginRedirect'
 
 export function LoginPage() {
-  const { isAuthenticated, error, clearError } = useAuthStore()
+  const { isAuthenticated, error, clearError, continueAsGuest } = useAuthStore()
   const navigate = useNavigate()
   const redirectPath = useLoginRedirect()
+
+  // Handle guest login
+  const handleGuestLogin = () => {
+    continueAsGuest()
+    navigate(redirectPath, { replace: true })
+  }
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -78,6 +84,12 @@ export function LoginPage() {
               <li>自訂設定儲存</li>
               <li>API 金鑰管理</li>
             </ul>
+            <button
+              onClick={handleGuestLogin}
+              className="mt-3 w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              以訪客身份繼續
+            </button>
           </div>
         </div>
 

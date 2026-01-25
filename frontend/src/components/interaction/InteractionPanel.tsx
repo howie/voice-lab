@@ -195,6 +195,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws/${options.mode}?user_id=${userId}`
 
   // Audio playback hook - must be before handleMessage which uses queueAudioChunk
+  // Note: Both OpenAI and Gemini 2.5 return audio at 24000 Hz (default)
   const { queueAudioChunk, stop: stopAudio } = useAudioPlayback({
     onPlaybackEnd: () => {
       // Audio playback ended - state already managed by response_ended message

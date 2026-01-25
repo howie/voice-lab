@@ -36,7 +36,7 @@ export function ProviderSettings() {
       setCredentials(credentialsData)
     } catch (err) {
       console.error('Failed to load data:', err)
-      setError('Failed to load provider information. Please try again.')
+      setError('載入 Provider 資訊失敗，請重試。')
     } finally {
       setIsLoading(false)
     }
@@ -138,10 +138,10 @@ export function ProviderSettings() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <Key className="h-6 w-6" />
-            Provider Settings
+            API 金鑰設定
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your TTS/STT provider API keys
+            管理您的 TTS/STT 服務 API 金鑰
           </p>
         </div>
 
@@ -151,19 +151,18 @@ export function ProviderSettings() {
           className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-2 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
+          重新整理
         </button>
       </div>
 
       {/* Info Banner */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
         <h3 className="font-medium text-blue-900">
-          Bring Your Own License (BYOL)
+          自備金鑰 (BYOL)
         </h3>
         <p className="mt-1 text-sm text-blue-800">
-          Add your own API keys to use your preferred TTS/STT providers. Your
-          keys are encrypted and stored securely. When configured, your keys
-          take priority over system-level keys.
+          新增您自己的 API 金鑰來使用偏好的 TTS/STT 服務。您的金鑰會經過加密安全儲存。
+          設定後，您的金鑰將優先於系統預設金鑰使用。
         </p>
       </div>
 
@@ -172,7 +171,7 @@ export function ProviderSettings() {
         <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
           <div>
-            <p className="font-medium text-destructive">Error</p>
+            <p className="font-medium text-destructive">錯誤</p>
             <p className="text-sm text-destructive/80">{error}</p>
           </div>
         </div>
@@ -183,7 +182,7 @@ export function ProviderSettings() {
         {providers.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <p className="text-muted-foreground">
-              No providers available. Please check your connection.
+              沒有可用的 Provider，請檢查網路連線。
             </p>
           </div>
         ) : (
@@ -205,7 +204,7 @@ export function ProviderSettings() {
 
       {/* Help Section */}
       <div className="rounded-lg border bg-muted/50 p-4">
-        <h3 className="font-medium">Getting API Keys</h3>
+        <h3 className="font-medium">如何取得 API 金鑰</h3>
         <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
           <li>
             <strong>ElevenLabs:</strong>{' '}

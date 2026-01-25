@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.presentation.api.routes import (
+    admin_voices,
     auth,
     compare,
     credentials,
@@ -38,5 +39,6 @@ api_router.include_router(history.router, prefix="/history", tags=["History"])
 api_router.include_router(credentials.providers_router)  # Providers (credential management) routes
 api_router.include_router(credentials.router)  # Credentials routes have their own prefix
 api_router.include_router(jobs.router)  # Jobs routes (async job management)
+api_router.include_router(admin_voices.router)  # Admin voice sync routes
 
 __all__ = ["api_router"]

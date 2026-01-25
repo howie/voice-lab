@@ -77,6 +77,10 @@ export interface VoiceProfile {
   provider: string
   language: string
   gender?: string
+  age_group?: 'child' | 'young' | 'adult' | 'senior'
+  description?: string
+  sample_url?: string
+  supported_styles?: string[]
 }
 
 export interface ProviderInfo {
@@ -120,15 +124,23 @@ export const ttsApi = {
     ),
 
   // Get voices for a provider
-  getVoices: (provider: string, language?: string) =>
+  getVoices: (
+    provider: string,
+    filters?: { language?: string; gender?: string; age_group?: string; style?: string }
+  ) =>
     api.get<VoiceProfile[]>(`/voices/${provider}`, {
-      params: language ? { language } : undefined,
+      params: filters,
     }),
 
   // Get all voices
-  getAllVoices: (language?: string) =>
+  getAllVoices: (filters?: {
+    language?: string
+    gender?: string
+    age_group?: string
+    style?: string
+  }) =>
     api.get<VoiceProfile[]>('/voices', {
-      params: language ? { language } : undefined,
+      params: filters,
     }),
 
   // Synthesize speech (batch mode - returns base64)
@@ -216,8 +228,10 @@ export const historyApi = {
 
 // Voices API
 export const voicesApi = {
-  list: (params?: { language?: string; gender?: string }) =>
+  list: (params?: { language?: string; gender?: string; age_group?: string; style?: string }) =>
     api.get('/voices', { params }),
-  listByProvider: (provider: string, params?: { language?: string }) =>
-    api.get(`/voices/${provider}`, { params }),
+  listByProvider: (
+    provider: string,
+    params?: { language?: string; gender?: string; age_group?: string; style?: string }
+  ) => api.get(`/voices/${provider}`, { params }),
 }

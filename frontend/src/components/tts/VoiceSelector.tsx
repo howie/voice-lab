@@ -7,33 +7,65 @@ import { useEffect, useState } from 'react'
 import { ttsApi, VoiceProfile } from '@/lib/api'
 import { Spinner } from './LoadingIndicator'
 
+export type AgeGroup = 'child' | 'young' | 'adult' | 'senior'
+
+// Common voice styles
+export const COMMON_STYLES = [
+  'news',
+  'conversation',
+  'cheerful',
+  'narration',
+  'assistant',
+  'customerservice',
+] as const
+
+export type VoiceStyle = (typeof COMMON_STYLES)[number]
+
 interface VoiceSelectorProps {
   provider: string
   language?: string
+  gender?: string
+  ageGroup?: AgeGroup
+  style?: string
   value: string
   onChange: (voiceId: string) => void
   disabled?: boolean
+  showAgeFilter?: boolean
+  showStyleFilter?: boolean
 }
 
 export function VoiceSelector({
   provider,
   language,
+  gender,
+  ageGroup,
+  style,
   value,
   onChange,
   disabled = false,
+  showAgeFilter = false,
+  showStyleFilter = false,
 }: VoiceSelectorProps) {
   const [voices, setVoices] = useState<VoiceProfile[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroup | undefined>(ageGroup)
+  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(style)
 
-  // Load voices when provider or language changes
+  // Load voices when filters change
   useEffect(() => {
     const loadVoices = async () => {
       setIsLoading(true)
       setError(null)
 
       try {
-        const response = await ttsApi.getVoices(provider, language)
+        const filters: { language?: string; gender?: string; age_group?: string; style?: string } = {}
+        if (language) filters.language = language
+        if (gender) filters.gender = gender
+        if (selectedAgeGroup) filters.age_group = selectedAgeGroup
+        if (selectedStyle) filters.style = selectedStyle
+
+        const response = await ttsApi.getVoices(provider, filters)
         setVoices(response.data)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load voices'
@@ -47,7 +79,7 @@ export function VoiceSelector({
     if (provider) {
       loadVoices()
     }
-  }, [provider, language])
+  }, [provider, language, gender, selectedAgeGroup, selectedStyle])
 
   // Auto-select first voice if current selection is invalid
   useEffect(() => {
@@ -75,9 +107,71 @@ export function VoiceSelector({
     other: '其他',
   }
 
+  const ageGroupLabels: Record<AgeGroup | 'all', string> = {
+    all: '全部年齡',
+    child: '兒童',
+    young: '青年',
+    adult: '成人',
+    senior: '長者',
+  }
+
+  const styleLabels: Record<string, string> = {
+    all: '全部風格',
+    news: '新聞播報',
+    conversation: '對話',
+    cheerful: '愉快',
+    narration: '旁白',
+    assistant: '助手',
+    customerservice: '客服',
+  }
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">語音角色</label>
+
+      {/* Filters row */}
+      {(showAgeFilter || showStyleFilter) && (
+        <div className="flex gap-2 flex-wrap">
+          {/* Age group filter */}
+          {showAgeFilter && (
+            <select
+              value={selectedAgeGroup || 'all'}
+              onChange={(e) =>
+                setSelectedAgeGroup(
+                  e.target.value === 'all' ? undefined : (e.target.value as AgeGroup)
+                )
+              }
+              disabled={disabled || isLoading}
+              className="rounded-lg border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="all">{ageGroupLabels.all}</option>
+              <option value="child">{ageGroupLabels.child}</option>
+              <option value="young">{ageGroupLabels.young}</option>
+              <option value="adult">{ageGroupLabels.adult}</option>
+              <option value="senior">{ageGroupLabels.senior}</option>
+            </select>
+          )}
+
+          {/* Style filter */}
+          {showStyleFilter && (
+            <select
+              value={selectedStyle || 'all'}
+              onChange={(e) =>
+                setSelectedStyle(e.target.value === 'all' ? undefined : e.target.value)
+              }
+              disabled={disabled || isLoading}
+              className="rounded-lg border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="all">{styleLabels.all}</option>
+              {COMMON_STYLES.map((s) => (
+                <option key={s} value={s}>
+                  {styleLabels[s] || s}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       <div className="relative">
         <select
@@ -90,11 +184,12 @@ export function VoiceSelector({
             <option value="">選擇語音...</option>
           )}
 
-          {Object.entries(groupedVoices).map(([gender, genderVoices]) => (
-            <optgroup key={gender} label={genderLabels[gender] || gender}>
+          {Object.entries(groupedVoices).map(([genderKey, genderVoices]) => (
+            <optgroup key={genderKey} label={genderLabels[genderKey] || genderKey}>
               {genderVoices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
                   {voice.name}
+                  {voice.age_group && ` (${ageGroupLabels[voice.age_group]})`}
                 </option>
               ))}
             </optgroup>
@@ -108,9 +203,7 @@ export function VoiceSelector({
         )}
       </div>
 
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       {/* Voice count */}
       {!isLoading && voices.length > 0 && (

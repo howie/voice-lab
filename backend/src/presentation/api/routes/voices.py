@@ -19,11 +19,21 @@ router = APIRouter(prefix="/voices", tags=["voices"])
 VALID_PROVIDERS = {"azure", "gcp", "elevenlabs", "voai"}
 
 
+# Valid age groups
+VALID_AGE_GROUPS = {"child", "young", "adult", "senior"}
+
+
 @router.get("", response_model=list[dict])
 async def list_voices(
     provider: str | None = Query(None, description="Filter by provider"),
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
+    age_group: str | None = Query(
+        None, description="Filter by age group (child, young, adult, senior)"
+    ),
+    style: str | None = Query(
+        None, description="Filter by style (e.g., news, conversation, cheerful)"
+    ),
     search: str | None = Query(None, description="Search by name or description"),
     limit: int | None = Query(None, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Results offset"),
@@ -39,10 +49,19 @@ async def list_voices(
             detail=f"Invalid provider. Must be one of: {', '.join(VALID_PROVIDERS)}",
         )
 
+    # Validate age_group if specified
+    if age_group and age_group not in VALID_AGE_GROUPS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid age_group. Must be one of: {', '.join(VALID_AGE_GROUPS)}",
+        )
+
     filter = VoiceFilter(
         provider=provider,
         language=language,
         gender=gender,
+        age_group=age_group,
+        style=style,
         search=search,
     )
 
@@ -60,6 +79,12 @@ async def list_voices_by_provider(
     provider: str,
     language: str | None = Query(None, description="Filter by language code"),
     gender: str | None = Query(None, description="Filter by gender"),
+    age_group: str | None = Query(
+        None, description="Filter by age group (child, young, adult, senior)"
+    ),
+    style: str | None = Query(
+        None, description="Filter by style (e.g., news, conversation, cheerful)"
+    ),
 ) -> list[dict]:
     """List voices for a specific provider.
 
@@ -67,6 +92,8 @@ async def list_voices_by_provider(
         provider: TTS provider name (azure, gcp, elevenlabs, voai)
         language: Optional language filter
         gender: Optional gender filter
+        age_group: Optional age group filter (child, young, adult, senior)
+        style: Optional style filter (e.g., news, conversation, cheerful)
 
     Returns:
         List of voice profiles for the provider
@@ -77,10 +104,19 @@ async def list_voices_by_provider(
             detail=f"Provider '{provider}' not found. Valid providers: {', '.join(VALID_PROVIDERS)}",
         )
 
+    # Validate age_group if specified
+    if age_group and age_group not in VALID_AGE_GROUPS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid age_group. Must be one of: {', '.join(VALID_AGE_GROUPS)}",
+        )
+
     filter = VoiceFilter(
         provider=provider,
         language=language,
         gender=gender,
+        age_group=age_group,
+        style=style,
     )
 
     voices = await list_voices_use_case.execute(filter=filter)
@@ -137,6 +173,9 @@ def _voice_to_dict(voice: VoiceProfile) -> dict:
 
     if voice.gender:
         result["gender"] = voice.gender
+
+    if voice.age_group:
+        result["age_group"] = voice.age_group
 
     if voice.description:
         result["description"] = voice.description

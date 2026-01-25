@@ -192,6 +192,10 @@ omit = [
     # Also omit infrastructure adapters - tested via integration tests
     "*/infrastructure/adapters/*",
     "*/infrastructure/websocket/*",
+    # Omit persistence layer - requires database for integration tests
+    "*/infrastructure/persistence/*",
+    # Omit provider implementations - require external API keys for integration tests
+    "*/infrastructure/providers/*",
 ]
 
 [tool.coverage.report]

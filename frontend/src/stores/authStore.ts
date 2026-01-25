@@ -18,6 +18,14 @@ const DEV_USER = {
   picture_url: undefined,
 }
 
+// Guest user for limited access
+const GUEST_USER = {
+  id: '00000000-0000-0000-0000-000000000002',
+  email: 'guest@voicelab',
+  name: '訪客',
+  picture_url: undefined,
+}
+
 interface User {
   id: string
   email: string
@@ -29,6 +37,7 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  isGuest: boolean
   isLoading: boolean
   error: string | null
 
@@ -38,6 +47,7 @@ interface AuthState {
   login: () => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
+  continueAsGuest: () => void
   clearError: () => void
 }
 
@@ -47,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      isGuest: false,
       isLoading: true, // Start with loading to prevent redirect race condition
       error: null,
 
@@ -86,9 +97,20 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            isGuest: false,
             isLoading: false,
           })
         }
+      },
+
+      continueAsGuest: () => {
+        set({
+          user: GUEST_USER,
+          token: 'guest-token',
+          isAuthenticated: true,
+          isGuest: true,
+          isLoading: false,
+        })
       },
 
       checkAuth: async () => {
@@ -98,6 +120,7 @@ export const useAuthStore = create<AuthState>()(
             user: DEV_USER,
             token: 'dev-token',
             isAuthenticated: true,
+            isGuest: false,
             isLoading: false,
           })
           return
@@ -105,8 +128,21 @@ export const useAuthStore = create<AuthState>()(
 
         const token = localStorage.getItem('auth_token')
 
+        // Check if user is a guest (from persisted state)
+        const persistedState = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+        if (persistedState.state?.isGuest) {
+          set({
+            user: GUEST_USER,
+            token: 'guest-token',
+            isAuthenticated: true,
+            isGuest: true,
+            isLoading: false,
+          })
+          return
+        }
+
         if (!token) {
-          set({ isAuthenticated: false, user: null, isLoading: false })
+          set({ isAuthenticated: false, isGuest: false, user: null, isLoading: false })
           return
         }
 
@@ -118,6 +154,7 @@ export const useAuthStore = create<AuthState>()(
             user: response.data,
             token,
             isAuthenticated: true,
+            isGuest: false,
             isLoading: false,
           })
         } catch {
@@ -126,6 +163,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            isGuest: false,
             isLoading: false,
           })
         }
@@ -137,6 +175,7 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       partialize: (state) => ({
         token: state.token,
+        isGuest: state.isGuest,
       }),
     }
   )

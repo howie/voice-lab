@@ -171,9 +171,6 @@ class GeminiRealtimeService(InteractionModeService):
             }
         }
 
-        # Log the setup message for debugging
-        logger.info(f"Gemini setup message: {setup_message}")
-
         # Add system instruction if provided
         if system_prompt:
             setup_message["setup"]["system_instruction"] = {

@@ -125,7 +125,7 @@ const defaultOptions: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
     provider: 'gemini',
-    model: 'gemini-2.0-flash-live-001', // 穩定版本
+    model: 'gemini-2.5-flash-native-audio-preview-09-2025', // 支援中文的模型
     voice: 'Kore', // 女性語音，較適合幼教老師角色
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,

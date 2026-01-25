@@ -233,7 +233,11 @@ export const useInteractionStore = create<InteractionStoreState>()(
             // Reset provider config when mode changes
             providerConfig:
               mode === 'realtime'
-                ? { provider: 'gemini', voice: 'Kore' }
+                ? {
+                    provider: 'gemini',
+                    model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                    voice: 'Kore',
+                  }
                 : {
                     stt_provider: 'azure',
                     llm_provider: 'openai',

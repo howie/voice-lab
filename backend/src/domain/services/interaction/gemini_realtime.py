@@ -150,14 +150,17 @@ class GeminiRealtimeService(InteractionModeService):
 
         voice = config.get("voice", DEFAULT_VOICE)
 
-        # Note: Native audio models (gemini-2.5-flash-native-audio) don't support language_code
-        # Language should be controlled via system prompt instead
+        # Get language from config (default to cmn-Hant-TW for Traditional Chinese Taiwan)
+        # Gemini 2.5 native audio supports: cmn-Hant-TW (Traditional), cmn-Hans-CN (Simplified)
+        language = config.get("language", "cmn-Hant-TW")
+
         setup_message: dict[str, Any] = {
             "setup": {
                 "model": f"models/{model}",
                 "generation_config": {
                     "speech_config": {
-                        "voice_config": {"prebuilt_voice_config": {"voice_name": voice}}
+                        "voice_config": {"prebuilt_voice_config": {"voice_name": voice}},
+                        "language_code": language,
                     },
                     "response_modalities": ["AUDIO"],
                 },
@@ -173,8 +176,8 @@ class GeminiRealtimeService(InteractionModeService):
 
         print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
 
-        print(f"[Gemini] Sending setup: model={model}, voice={voice}")
-        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
+        print(f"[Gemini] Sending setup: model={model}, voice={voice}, language={language}")
+        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}, language: {language}")
         await self._send_message(setup_message)
         print("[Gemini] Setup message sent")
 

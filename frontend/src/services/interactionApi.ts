@@ -157,7 +157,7 @@ export function buildWebSocketUrl(mode: InteractionMode, userId: string): string
   // Try dedicated WS URL first, then derive from API URL
   const wsUrl = getWsUrl()
   if (wsUrl) {
-    return `${wsUrl}/api/interaction/ws/${mode}?user_id=${userId}`
+    return `${wsUrl}/api/v1/interaction/ws/${mode}?user_id=${userId}`
   }
 
   const baseUrl = getApiBaseUrl() || window.location.origin
@@ -165,7 +165,7 @@ export function buildWebSocketUrl(mode: InteractionMode, userId: string): string
   // Remove /api/v1 suffix if present, then remove protocol
   const host = baseUrl.replace(/\/api\/v1$/, '').replace(/^https?:\/\//, '')
 
-  return `${wsProtocol}://${host}/api/interaction/ws/${mode}?user_id=${userId}`
+  return `${wsProtocol}://${host}/api/v1/interaction/ws/${mode}?user_id=${userId}`
 }
 
 // =============================================================================

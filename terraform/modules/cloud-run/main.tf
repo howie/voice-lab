@@ -110,7 +110,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       # OAuth secrets from Secret Manager
       env {
-        name = "GOOGLE_CLIENT_ID"
+        name = "GOOGLE_OAUTH_CLIENT_ID"
         value_source {
           secret_key_ref {
             secret  = var.oauth_client_id_secret
@@ -120,7 +120,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       env {
-        name = "GOOGLE_CLIENT_SECRET"
+        name = "GOOGLE_OAUTH_CLIENT_SECRET"
         value_source {
           secret_key_ref {
             secret  = var.oauth_client_secret_secret

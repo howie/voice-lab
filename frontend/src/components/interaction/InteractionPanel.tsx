@@ -157,6 +157,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSpeakingTimeRef = useRef<number>(Date.now())
   const hasSentEndTurnRef = useRef(false)
+  const hasUserSpokenRef = useRef(false) // Track if user has spoken in current turn (prevents immediate end_turn on turn start)
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
   const SILENCE_THRESHOLD = 0.08 // Volume below this is considered silence (background noise is ~0.04-0.06)
   const SILENCE_DURATION_MS = 1200 // Auto send end_turn after 1.2s of silence
@@ -412,7 +413,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       const currentState = interactionStateRef.current
       if (wsStatus === 'connected' && currentState === 'listening') {
         if (vol > SILENCE_THRESHOLD) {
-          // User is speaking - reset timer and flag
+          // User is speaking - mark that user has spoken and reset timer
+          hasUserSpokenRef.current = true
           lastSpeakingTimeRef.current = Date.now()
           // Only reset hasSentEndTurnRef if we're still in listening state
           if (!hasSentEndTurnRef.current) {
@@ -422,18 +424,24 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
               silenceTimerRef.current = null
             }
           }
-        } else if (!hasSentEndTurnRef.current && !silenceTimerRef.current) {
-          // Silence detected - start timer (only if we haven't sent end_turn yet)
+        } else if (
+          hasUserSpokenRef.current && // Only detect silence AFTER user has spoken
+          !hasSentEndTurnRef.current &&
+          !silenceTimerRef.current
+        ) {
+          // Silence detected - start timer (only if user has spoken and we haven't sent end_turn yet)
           silenceTimerRef.current = setTimeout(() => {
             const silenceDuration = Date.now() - lastSpeakingTimeRef.current
             // Double-check all conditions before sending
             if (
               silenceDuration >= SILENCE_DURATION_MS &&
               !hasSentEndTurnRef.current &&
+              hasUserSpokenRef.current &&
               interactionStateRef.current === 'listening'
             ) {
               console.log(`[VAD] Silence detected for ${silenceDuration}ms, sending end_turn`)
               hasSentEndTurnRef.current = true // Set flag BEFORE sending to prevent race
+              stopRecording()
               sendMessage('end_turn', {})
               setInteractionState('processing')
             }
@@ -452,9 +460,10 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Sync interactionState to ref for use in closures (avoids stale state)
   useEffect(() => {
     interactionStateRef.current = interactionState
-    // Reset hasSentEndTurnRef when returning to listening state
+    // Reset flags when returning to listening state for next turn
     if (interactionState === 'listening') {
       hasSentEndTurnRef.current = false
+      hasUserSpokenRef.current = false // Wait for user to speak before enabling silence detection
     }
   }, [interactionState])
 
@@ -528,6 +537,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
 
   // Handle manual end of user speech (backup for when VAD doesn't detect silence)
   const handleEndTurn = () => {
+    stopRecording()
     sendMessage('end_turn', {})
     setInteractionState('processing')
   }

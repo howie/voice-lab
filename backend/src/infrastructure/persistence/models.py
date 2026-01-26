@@ -19,6 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -541,8 +542,24 @@ class JobModel(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    # Use PostgreSQL ENUM to match migration schema
+    job_type: Mapped[str] = mapped_column(
+        PgEnum("multi_role_tts", name="job_type", create_type=False),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        PgEnum(
+            "pending",
+            "processing",
+            "completed",
+            "failed",
+            "cancelled",
+            name="job_status",
+            create_type=False,
+        ),
+        nullable=False,
+        default="pending",
+    )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     input_params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     audio_file_id: Mapped[uuid.UUID | None] = mapped_column(

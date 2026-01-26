@@ -21,8 +21,11 @@ load_dotenv()
 security = HTTPBearer(auto_error=False)
 
 # Google OAuth Configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+# Note: Terraform sets GOOGLE_OAUTH_CLIENT_ID/SECRET, support both for compatibility
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID") or os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or os.getenv(
+    "GOOGLE_CLIENT_SECRET", ""
+)
 
 # Development mode: disable authentication (ONLY for local development)
 DISABLE_AUTH = os.getenv("DISABLE_AUTH", "false").lower() == "true"

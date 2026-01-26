@@ -150,6 +150,9 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Ref for turn counter
   const turnCounterRef = useRef(0)
 
+  // Ref to avoid spamming sample rate log
+  const audioSampleRateLoggedRef = useRef(false)
+
   // Store state
   const {
     connectionStatus,
@@ -368,17 +371,25 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     stopRecording,
     error: micError,
   } = useMicrophone({
-    onAudioChunk: (chunk: Float32Array) => {
+    onAudioChunk: (chunk: Float32Array, actualSampleRate: number) => {
       if (wsStatus === 'connected') {
+        // Debug: Log sample rate on first chunk to help diagnose audio issues
+        if (!audioSampleRateLoggedRef.current) {
+          console.log(`[Audio] Actual sample rate from AudioContext: ${actualSampleRate}Hz`)
+          audioSampleRateLoggedRef.current = true
+        }
+
         // Convert Float32 to PCM16 and send as base64-encoded JSON
         const pcm16Buffer = float32ToPCM16(chunk)
         const base64Audio = btoa(
           String.fromCharCode(...new Uint8Array(pcm16Buffer))
         )
+        // Use actual sample rate from AudioContext, not hardcoded value
+        // This is critical for Gemini VAD to work correctly
         sendMessage('audio_chunk', {
           audio: base64Audio,
           format: 'pcm16',
-          sample_rate: 16000,
+          sample_rate: actualSampleRate,
         })
       }
     },
@@ -454,6 +465,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const handleInterrupt = () => {
     sendMessage('interrupt', {})
     stopAudio()
+  }
+
+  // Handle manual end of user speech (backup for when VAD doesn't detect silence)
+  const handleEndTurn = () => {
+    sendMessage('end_turn', {})
+    setInteractionState('processing')
   }
 
   // T076: Handle template selection - fill role/scenario from template
@@ -592,15 +609,27 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
             <span className="text-sm text-muted-foreground">允許打斷 AI 回應</span>
           </label>
 
-          {/* Interrupt Button - only shown when AI is speaking and barge-in enabled */}
-          {interactionState === 'speaking' && options.bargeInEnabled && (
-            <button
-              onClick={handleInterrupt}
-              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
-            >
-              打斷回應
-            </button>
-          )}
+          <div className="flex gap-2">
+            {/* End Turn Button - manually signal end of speech when VAD doesn't detect silence */}
+            {interactionState === 'listening' && isRecording && (
+              <button
+                onClick={handleEndTurn}
+                className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+              >
+                結束發言
+              </button>
+            )}
+
+            {/* Interrupt Button - only shown when AI is speaking and barge-in enabled */}
+            {interactionState === 'speaking' && options.bargeInEnabled && (
+              <button
+                onClick={handleInterrupt}
+                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+              >
+                打斷回應
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

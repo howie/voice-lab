@@ -68,7 +68,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "ALLOWED_DOMAINS"
-        value = jsonencode(var.allowed_domains)
+        value = join(",", var.allowed_domains)
       }
 
       env {
@@ -90,7 +90,7 @@ resource "google_cloud_run_v2_service" "backend" {
       # CORS origins - custom domain, additional origins, and localhost for development
       env {
         name  = "CORS_ORIGINS"
-        value = jsonencode(concat(
+        value = join(",", concat(
           var.custom_domain != "" ? ["https://${var.custom_domain}"] : [],
           var.additional_cors_origins,
           ["http://localhost:5173", "http://localhost:3000"]

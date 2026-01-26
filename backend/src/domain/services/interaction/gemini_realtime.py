@@ -217,9 +217,14 @@ class GeminiRealtimeService(InteractionModeService):
         # Encode audio as base64
         audio_b64 = base64.b64encode(audio.data).decode()
 
+        # Include sample rate in MIME type for correct resampling by Gemini
+        # Gemini natively supports 16kHz but can resample other rates if specified
+        # See: https://ai.google.dev/gemini-api/docs/live-guide
+        mime_type = f"audio/pcm;rate={audio.sample_rate}"
+
         # Send realtime input
         message = {
-            "realtime_input": {"media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]}
+            "realtime_input": {"media_chunks": [{"mime_type": mime_type, "data": audio_b64}]}
         }
         await self._send_message(message)
 

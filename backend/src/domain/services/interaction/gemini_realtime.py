@@ -189,9 +189,9 @@ class GeminiRealtimeService(InteractionModeService):
             }
         }
 
-        # Add system instruction if provided
-        if system_prompt:
-            setup_message["setup"]["system_instruction"] = {"parts": [{"text": system_prompt}]}
+        # Add system instruction (use default if not provided)
+        effective_prompt = system_prompt or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。"
+        setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
 
         print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
 

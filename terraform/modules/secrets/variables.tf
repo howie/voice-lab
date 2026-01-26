@@ -54,6 +54,13 @@ variable "elevenlabs_api_key" {
   default     = ""
 }
 
+variable "gemini_api_key" {
+  type        = string
+  description = "Google Gemini API Key"
+  sensitive   = true
+  default     = ""
+}
+
 variable "labels" {
   type        = map(string)
   description = "Labels to apply to resources"

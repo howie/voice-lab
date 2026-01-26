@@ -261,6 +261,13 @@ variable "elevenlabs_api_key" {
   default     = ""
 }
 
+variable "gemini_api_key" {
+  type        = string
+  description = "Google Gemini API Key (optional)"
+  sensitive   = true
+  default     = ""
+}
+
 # -----------------------------------------------------------------------------
 # VPC Configuration
 # -----------------------------------------------------------------------------

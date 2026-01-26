@@ -143,6 +143,20 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
 
+      # Gemini API key (if provided)
+      dynamic "env" {
+        for_each = var.gemini_api_key_secret != null ? [1] : []
+        content {
+          name = "GEMINI_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.gemini_api_key_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+
       # Startup and liveness probes
       startup_probe {
         http_get {

@@ -368,7 +368,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         elif event_type == "transcript":
             if self._current_turn:
                 self._latency_tracker.mark_stt_completed(self._current_turn.id)
-                self._current_turn.set_transcript(data.get("text", ""))
+                self._current_turn.set_user_input(data.get("text", ""))
                 await self._repository.update_turn(self._current_turn)
             # T073b: Include role name in transcript message
             transcript_data = {**data, "role": self._user_role}

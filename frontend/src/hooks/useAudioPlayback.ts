@@ -69,6 +69,8 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null)
   const audioQueueRef = useRef<AudioBuffer[]>([])
   const isProcessingQueueRef = useRef(false)
+  // Track next scheduled playback time for gapless audio
+  const nextPlayTimeRef = useRef<number>(0)
 
   // Initialize audio context
   const getAudioContext = useCallback(() => {
@@ -145,7 +147,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     [getAudioContext]
   )
 
-  // Process audio queue
+  // Process audio queue with gapless scheduling
   const processQueue = useCallback(async () => {
     if (isProcessingQueueRef.current || audioQueueRef.current.length === 0) {
       return
@@ -155,17 +157,50 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     setIsPlaying(true)
     onPlaybackStart?.()
 
+    const audioContext = getAudioContext()
+
+    // Resume if suspended
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
+
+    // Initialize next play time to current time if not set or in the past
+    if (nextPlayTimeRef.current < audioContext.currentTime) {
+      nextPlayTimeRef.current = audioContext.currentTime
+    }
+
     while (audioQueueRef.current.length > 0) {
       const buffer = audioQueueRef.current.shift()!
       setHasQueuedAudio(audioQueueRef.current.length > 0)
-      await playBuffer(buffer)
+
+      // Schedule playback at the next available time (gapless)
+      const source = audioContext.createBufferSource()
+      source.buffer = buffer
+      source.connect(gainNodeRef.current!)
+      currentSourceRef.current = source
+
+      // Start at the scheduled time for gapless playback
+      source.start(nextPlayTimeRef.current)
+
+      // Update next play time to when this buffer ends
+      nextPlayTimeRef.current += buffer.duration
+
+      // If this is the last chunk, wait for it to finish
+      if (audioQueueRef.current.length === 0) {
+        await new Promise<void>((resolve) => {
+          source.onended = () => {
+            currentSourceRef.current = null
+            resolve()
+          }
+        })
+      }
     }
 
     isProcessingQueueRef.current = false
     setIsPlaying(false)
     setHasQueuedAudio(false)
     onPlaybackEnd?.()
-  }, [playBuffer, onPlaybackStart, onPlaybackEnd])
+  }, [getAudioContext, onPlaybackStart, onPlaybackEnd])
 
   // Play audio from ArrayBuffer
   const playAudio = useCallback(
@@ -223,6 +258,8 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
 
     isProcessingQueueRef.current = false
     audioQueueRef.current = []
+    // Reset scheduled play time for next session
+    nextPlayTimeRef.current = 0
     setIsPlaying(false)
     setHasQueuedAudio(false)
     onPlaybackInterrupt?.()

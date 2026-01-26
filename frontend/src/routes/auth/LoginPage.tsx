@@ -57,27 +57,12 @@ export function LoginPage() {
           {/* Google login button */}
           <LoginButton className="w-full justify-center" />
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">或</span>
-            </div>
-          </div>
-
-          {/* Guest access info */}
+          {/* Domain restriction notice */}
           <div className="rounded-lg bg-muted/50 p-4 text-sm">
-            <p className="font-medium">訪客模式</p>
+            <p className="font-medium">登入限制</p>
             <p className="mt-1 text-muted-foreground">
-              部分功能需要登入才能使用，包括：
+              本系統僅限 <strong>heyuai.com.tw</strong> 網域帳號登入使用。
             </p>
-            <ul className="mt-2 list-inside list-disc text-muted-foreground">
-              <li>語音合成紀錄查詢</li>
-              <li>自訂設定儲存</li>
-              <li>API 金鑰管理</li>
-            </ul>
           </div>
         </div>
 

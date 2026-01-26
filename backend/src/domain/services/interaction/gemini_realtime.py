@@ -173,13 +173,9 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Add system instruction if provided
         if system_prompt:
-            setup_message["setup"]["system_instruction"] = {
-                "parts": [{"text": system_prompt}]
-            }
+            setup_message["setup"]["system_instruction"] = {"parts": [{"text": system_prompt}]}
 
-        print(
-            f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}..."
-        )
+        print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
 
         print(f"[Gemini] Sending setup: model={model}, voice={voice}")
         logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
@@ -221,9 +217,7 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Send realtime input
         message = {
-            "realtime_input": {
-                "media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]
-            }
+            "realtime_input": {"media_chunks": [{"mime_type": "audio/pcm", "data": audio_b64}]}
         }
         await self._send_message(message)
 
@@ -442,6 +436,4 @@ class GeminiRealtimeService(InteractionModeService):
 
         else:
             # Log all unhandled events for debugging
-            logger.info(
-                f"Unhandled Gemini event: {list(event.keys())}, data: {str(event)[:500]}"
-            )
+            logger.info(f"Unhandled Gemini event: {list(event.keys())}, data: {str(event)[:500]}")

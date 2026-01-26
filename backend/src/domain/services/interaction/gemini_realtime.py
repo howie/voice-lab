@@ -12,6 +12,8 @@ import contextlib
 import json
 import logging
 from collections.abc import AsyncIterator
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -25,6 +27,17 @@ from src.domain.services.interaction.base import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Debug file logger for Gemini messages
+_debug_log_path = Path("logs/gemini_debug.log")
+_debug_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _log_to_file(message: str) -> None:
+    """Write debug message to file for analysis."""
+    timestamp = datetime.now().isoformat()
+    with open(_debug_log_path, "a", encoding="utf-8") as f:
+        f.write(f"[{timestamp}] {message}\n")
 
 # Gemini Live API endpoint
 GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
@@ -69,6 +82,9 @@ class GeminiRealtimeService(InteractionModeService):
         self._receive_task: asyncio.Task[None] | None = None
         self._config: dict[str, Any] = {}
         self._system_prompt = ""
+        # Track accumulated transcripts to avoid duplicates
+        self._accumulated_input_transcript = ""
+        self._accumulated_output_transcript = ""
         self._setup_complete = False
 
     @property
@@ -217,27 +233,42 @@ class GeminiRealtimeService(InteractionModeService):
         # Encode audio as base64
         audio_b64 = base64.b64encode(audio.data).decode()
 
-        # Include sample rate in MIME type for correct resampling by Gemini
-        # Gemini natively supports 16kHz but can resample other rates if specified
-        # See: https://ai.google.dev/gemini-api/docs/live-guide
-        mime_type = f"audio/pcm;rate={audio.sample_rate}"
+        # Send realtime input with PCM audio
+        # IMPORTANT: MIME type must include sample rate for Gemini VAD to work correctly
+        # Per Gemini Live API docs: "audio/pcm;rate=16000"
+        sample_rate = audio.sample_rate or 16000
+        mime_type = f"audio/pcm;rate={sample_rate}"
 
-        # Send realtime input
+        # Track audio chunks sent (log every 50 chunks to avoid spam)
+        self._audio_chunk_count = getattr(self, "_audio_chunk_count", 0) + 1
+        if self._audio_chunk_count == 1:
+            _log_to_file(f"AUDIO_START: first chunk, rate={sample_rate}, size={len(audio.data)} bytes")
+        elif self._audio_chunk_count % 50 == 0:
+            _log_to_file(f"AUDIO_PROGRESS: {self._audio_chunk_count} chunks sent")
+
         message = {
-            "realtime_input": {"media_chunks": [{"mime_type": mime_type, "data": audio_b64}]}
+            "realtime_input": {
+                "media_chunks": [{"mime_type": mime_type, "data": audio_b64}]
+            }
         }
         await self._send_message(message)
 
     async def end_turn(self) -> None:
         """Signal end of user speech.
 
-        Gemini uses turn-based conversation, so we send an end-of-turn signal.
+        For Gemini Live API with realtime audio, we send an audio_stream_end
+        signal to indicate the user has finished speaking.
         """
         if not self._connected or not self._ws:
             return
 
-        # Send client content with turn complete
-        message = {"client_content": {"turns": [], "turn_complete": True}}
+        # Send empty realtime_input to signal end of audio stream
+        # This tells Gemini to process accumulated audio and generate response
+        chunk_count = getattr(self, "_audio_chunk_count", 0)
+        message = {"realtime_input": {"audio_stream_end": True}}
+        _log_to_file(f"SEND: end_turn after {chunk_count} audio chunks - {message}")
+        print(f"[Gemini] Sending audio_stream_end signal (after {chunk_count} chunks)")
+        self._audio_chunk_count = 0  # Reset counter for next turn
         await self._send_message(message)
 
     async def interrupt(self) -> None:
@@ -290,7 +321,8 @@ class GeminiRealtimeService(InteractionModeService):
                 if isinstance(message, bytes):
                     message = message.decode()
 
-                # Log all incoming messages for debugging
+                # Log all incoming messages for debugging (file + console)
+                _log_to_file(f"RECV: {message}")
                 print(f"[Gemini] Message received: {message[:300]}")
                 logger.info(f"Gemini message received: {message[:500]}")
 
@@ -302,10 +334,12 @@ class GeminiRealtimeService(InteractionModeService):
                     logger.error(f"Failed to decode message: {message[:100]}")
 
         except websockets.ConnectionClosed as e:
+            _log_to_file(f"WEBSOCKET_CLOSED: code={e.code}, reason={e.reason}")
             print(f"[Gemini] WebSocket closed: {e}")
             logger.info("WebSocket connection closed")
             self._connected = False
         except Exception as e:
+            _log_to_file(f"ERROR: {type(e).__name__}: {e}")
             print(f"[Gemini] Error in receive: {e}")
             logger.error(f"Error receiving messages: {e}")
             self._connected = False
@@ -330,9 +364,16 @@ class GeminiRealtimeService(InteractionModeService):
             server_content = event["serverContent"]
 
             # Handle input transcription (user speech -> text)
+            # Gemini sends incremental transcription with duplicates, so we accumulate
+            # and only send truly new content to the frontend
             if "inputTranscription" in server_content:
                 text = server_content["inputTranscription"].get("text", "")
-                if text:
+                _log_to_file(f"INPUT_TRANSCRIPT_RAW: '{text}'")
+                # Check if this text is already part of accumulated transcript
+                # If not, it's new content - append and send only the new part
+                if text and text not in self._accumulated_input_transcript:
+                    self._accumulated_input_transcript += text
+                    _log_to_file(f"INPUT_TRANSCRIPT_NEW: '{text}' -> total: '{self._accumulated_input_transcript}'")
                     await self._event_queue.put(
                         ResponseEvent(
                             type="transcript",
@@ -341,9 +382,14 @@ class GeminiRealtimeService(InteractionModeService):
                     )
 
             # Handle output transcription (AI speech -> text)
+            # Same deduplication logic for AI responses
             if "outputTranscription" in server_content:
                 text = server_content["outputTranscription"].get("text", "")
-                if text:
+                _log_to_file(f"OUTPUT_TRANSCRIPT_RAW: '{text}'")
+                # Same deduplication logic for AI responses
+                if text and text not in self._accumulated_output_transcript:
+                    self._accumulated_output_transcript += text
+                    _log_to_file(f"OUTPUT_TRANSCRIPT_NEW: '{text}'")
                     await self._event_queue.put(
                         ResponseEvent(
                             type="text_delta",
@@ -353,6 +399,10 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for turn complete
             if server_content.get("turnComplete"):
+                # Reset accumulated transcripts for next turn
+                _log_to_file(f"TURN_COMPLETE: resetting transcripts (input: '{self._accumulated_input_transcript}', output len: {len(self._accumulated_output_transcript)})")
+                self._accumulated_input_transcript = ""
+                self._accumulated_output_transcript = ""
                 await self._event_queue.put(
                     ResponseEvent(
                         type="response_ended",
@@ -362,6 +412,9 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for interruption
             if server_content.get("interrupted"):
+                # Reset accumulated transcripts on interruption
+                self._accumulated_input_transcript = ""
+                self._accumulated_output_transcript = ""
                 await self._event_queue.put(
                     ResponseEvent(
                         type="interrupted",

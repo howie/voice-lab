@@ -202,11 +202,13 @@ export const useInteractionStore = create<InteractionStoreState>()(
       setOutputVolume: (volume) => set({ outputVolume: Math.max(0, Math.min(1, volume)) }),
 
       // Transcript actions
+      // Note: Gemini sends delta (incremental) transcription, so we append instead of replace
       setUserTranscript: (transcript, isFinal = false) =>
-        set({
-          userTranscript: transcript,
+        set((state) => ({
+          // Append new transcript text to existing (Gemini sends delta, not cumulative)
+          userTranscript: state.userTranscript + transcript,
           isTranscriptFinal: isFinal,
-        }),
+        })),
 
       appendAIResponse: (text) =>
         set((state) => ({

@@ -153,6 +153,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Ref to avoid spamming sample rate log
   const audioSampleRateLoggedRef = useRef(false)
 
+  // Silence detection for auto end_turn
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSpeakingTimeRef = useRef<number>(Date.now())
+  const hasSentEndTurnRef = useRef(false)
+  const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
+  const SILENCE_THRESHOLD = 0.08 // Volume below this is considered silence (background noise is ~0.04-0.06)
+  const SILENCE_DURATION_MS = 1200 // Auto send end_turn after 1.2s of silence
+
   // Store state
   const {
     connectionStatus,
@@ -299,6 +307,10 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           clearTranscripts()
           setInteractionState('listening')
 
+          // Reset silence detection for next turn
+          hasSentEndTurnRef.current = false
+          lastSpeakingTimeRef.current = Date.now()
+
           // T065: Parse detailed latency data from response_ended message
           const latencyData = data.latency as TurnLatencyData | undefined
           if (latencyData) {
@@ -366,7 +378,6 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Microphone hook
   const {
     isRecording: micRecording,
-    volume,
     startRecording,
     stopRecording,
     error: micError,
@@ -393,7 +404,44 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         })
       }
     },
-    onVolumeChange: setInputVolume,
+    onVolumeChange: (vol: number) => {
+      setInputVolume(vol)
+
+      // Silence detection: auto send end_turn when user stops speaking
+      // Use ref for interactionState to avoid stale closure
+      const currentState = interactionStateRef.current
+      if (wsStatus === 'connected' && currentState === 'listening') {
+        if (vol > SILENCE_THRESHOLD) {
+          // User is speaking - reset timer and flag
+          lastSpeakingTimeRef.current = Date.now()
+          // Only reset hasSentEndTurnRef if we're still in listening state
+          if (!hasSentEndTurnRef.current) {
+            // User is actively speaking, clear any pending timer
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current)
+              silenceTimerRef.current = null
+            }
+          }
+        } else if (!hasSentEndTurnRef.current && !silenceTimerRef.current) {
+          // Silence detected - start timer (only if we haven't sent end_turn yet)
+          silenceTimerRef.current = setTimeout(() => {
+            const silenceDuration = Date.now() - lastSpeakingTimeRef.current
+            // Double-check all conditions before sending
+            if (
+              silenceDuration >= SILENCE_DURATION_MS &&
+              !hasSentEndTurnRef.current &&
+              interactionStateRef.current === 'listening'
+            ) {
+              console.log(`[VAD] Silence detected for ${silenceDuration}ms, sending end_turn`)
+              hasSentEndTurnRef.current = true // Set flag BEFORE sending to prevent race
+              sendMessage('end_turn', {})
+              setInteractionState('processing')
+            }
+            silenceTimerRef.current = null
+          }, SILENCE_DURATION_MS)
+        }
+      }
+    },
   })
 
   // Sync microphone state with store
@@ -401,10 +449,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setIsRecording(micRecording)
   }, [micRecording, setIsRecording])
 
-  // Update volume in store
+  // Sync interactionState to ref for use in closures (avoids stale state)
   useEffect(() => {
-    setInputVolume(volume)
-  }, [volume, setInputVolume])
+    interactionStateRef.current = interactionState
+    // Reset hasSentEndTurnRef when returning to listening state
+    if (interactionState === 'listening') {
+      hasSentEndTurnRef.current = false
+    }
+  }, [interactionState])
 
   // Handle connection
   const handleConnect = async () => {
@@ -453,6 +505,13 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
 
   // Handle disconnect
   const handleDisconnect = () => {
+    // Clear silence detection timer
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+    }
+    hasSentEndTurnRef.current = false
+
     stopRecording()
     stopAudio()
     wsDisconnect()

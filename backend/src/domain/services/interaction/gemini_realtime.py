@@ -39,6 +39,7 @@ def _log_to_file(message: str) -> None:
     with open(_debug_log_path, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {message}\n")
 
+
 # Gemini Live API endpoint
 GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
 
@@ -190,7 +191,10 @@ class GeminiRealtimeService(InteractionModeService):
         }
 
         # Add system instruction (use default if not provided)
-        effective_prompt = system_prompt or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。"
+        effective_prompt = (
+            system_prompt
+            or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。"
+        )
         setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
 
         print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
@@ -242,14 +246,14 @@ class GeminiRealtimeService(InteractionModeService):
         # Track audio chunks sent (log every 50 chunks to avoid spam)
         self._audio_chunk_count = getattr(self, "_audio_chunk_count", 0) + 1
         if self._audio_chunk_count == 1:
-            _log_to_file(f"AUDIO_START: first chunk, rate={sample_rate}, size={len(audio.data)} bytes")
+            _log_to_file(
+                f"AUDIO_START: first chunk, rate={sample_rate}, size={len(audio.data)} bytes"
+            )
         elif self._audio_chunk_count % 50 == 0:
             _log_to_file(f"AUDIO_PROGRESS: {self._audio_chunk_count} chunks sent")
 
         message = {
-            "realtime_input": {
-                "media_chunks": [{"mime_type": mime_type, "data": audio_b64}]
-            }
+            "realtime_input": {"media_chunks": [{"mime_type": mime_type, "data": audio_b64}]}
         }
         await self._send_message(message)
 
@@ -373,7 +377,9 @@ class GeminiRealtimeService(InteractionModeService):
                 # If not, it's new content - append and send only the new part
                 if text and text not in self._accumulated_input_transcript:
                     self._accumulated_input_transcript += text
-                    _log_to_file(f"INPUT_TRANSCRIPT_NEW: '{text}' -> total: '{self._accumulated_input_transcript}'")
+                    _log_to_file(
+                        f"INPUT_TRANSCRIPT_NEW: '{text}' -> total: '{self._accumulated_input_transcript}'"
+                    )
                     await self._event_queue.put(
                         ResponseEvent(
                             type="transcript",
@@ -400,7 +406,9 @@ class GeminiRealtimeService(InteractionModeService):
             # Check for turn complete
             if server_content.get("turnComplete"):
                 # Reset accumulated transcripts for next turn
-                _log_to_file(f"TURN_COMPLETE: resetting transcripts (input: '{self._accumulated_input_transcript}', output len: {len(self._accumulated_output_transcript)})")
+                _log_to_file(
+                    f"TURN_COMPLETE: resetting transcripts (input: '{self._accumulated_input_transcript}', output len: {len(self._accumulated_output_transcript)})"
+                )
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
                 await self._event_queue.put(

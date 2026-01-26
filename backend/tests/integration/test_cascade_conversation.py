@@ -151,7 +151,12 @@ class TestCascadeConversationFlow:
             },
             {
                 "type": "audio",
-                "data": {"audio": "base64data", "format": "pcm16", "is_first": True, "is_final": False},
+                "data": {
+                    "audio": "base64data",
+                    "format": "pcm16",
+                    "is_first": True,
+                    "is_final": False,
+                },
             },
             {"type": "response_ended", "data": {"text": "Hi there!"}},
         ]

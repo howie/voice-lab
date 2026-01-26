@@ -146,9 +146,7 @@ class TestCascadeModeServiceInit:
 class TestCascadeModeServiceInterface:
     """Tests for CascadeModeService interface compliance."""
 
-    def test_implements_interaction_mode_service(
-        self, cascade_service: CascadeModeService
-    ) -> None:
+    def test_implements_interaction_mode_service(self, cascade_service: CascadeModeService) -> None:
         """Verify CascadeModeService implements InteractionModeService."""
         assert isinstance(cascade_service, InteractionModeService)
 
@@ -176,9 +174,7 @@ class TestCascadeModeServiceConnect:
     """Tests for CascadeModeService connect method."""
 
     @pytest.mark.asyncio
-    async def test_connect_sets_connected_state(
-        self, cascade_service: CascadeModeService
-    ) -> None:
+    async def test_connect_sets_connected_state(self, cascade_service: CascadeModeService) -> None:
         """Verify connect sets service to connected state."""
         session_id = uuid4()
         config = {"tts_voice": "zh-TW-HsiaoChenNeural"}
@@ -188,9 +184,7 @@ class TestCascadeModeServiceConnect:
         assert cascade_service.is_connected() is True
 
     @pytest.mark.asyncio
-    async def test_connect_stores_session_id(
-        self, cascade_service: CascadeModeService
-    ) -> None:
+    async def test_connect_stores_session_id(self, cascade_service: CascadeModeService) -> None:
         """Verify connect stores session ID."""
         session_id = uuid4()
         config = {}
@@ -200,9 +194,7 @@ class TestCascadeModeServiceConnect:
         assert cascade_service._session_id == session_id
 
     @pytest.mark.asyncio
-    async def test_connect_stores_system_prompt(
-        self, cascade_service: CascadeModeService
-    ) -> None:
+    async def test_connect_stores_system_prompt(self, cascade_service: CascadeModeService) -> None:
         """Verify connect stores system prompt."""
         session_id = uuid4()
         system_prompt = "You are a helpful Chinese teacher."
@@ -231,9 +223,7 @@ class TestCascadeModeServiceDisconnect:
         assert cascade_service.is_connected() is False
 
     @pytest.mark.asyncio
-    async def test_disconnect_clears_session_id(
-        self, cascade_service: CascadeModeService
-    ) -> None:
+    async def test_disconnect_clears_session_id(self, cascade_service: CascadeModeService) -> None:
         """Verify disconnect clears session ID."""
         await cascade_service.connect(uuid4(), {})
         await cascade_service.disconnect()
@@ -395,9 +385,7 @@ class TestCascadeModeFactoryCreate:
         assert isinstance(service, CascadeModeService)
 
     @patch("src.domain.services.interaction.cascade_mode_factory.STTProviderFactory")
-    def test_create_raises_on_invalid_stt_provider(
-        self, mock_stt_factory: MagicMock
-    ) -> None:
+    def test_create_raises_on_invalid_stt_provider(self, mock_stt_factory: MagicMock) -> None:
         """Verify create raises ValueError for invalid STT provider."""
         mock_stt_factory.create.side_effect = ValueError("Unknown provider")
 

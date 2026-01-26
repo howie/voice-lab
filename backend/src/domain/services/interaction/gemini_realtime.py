@@ -161,6 +161,8 @@ class GeminiRealtimeService(InteractionModeService):
                         "voice_config": {"prebuilt_voice_config": {"voice_name": voice}}
                     },
                     "response_modalities": ["AUDIO"],
+                    # Disable thinking for faster response (no internal reasoning delay)
+                    "thinking_config": {"thinking_budget": 0},
                 },
                 # Enable transcription for both input (user) and output (AI)
                 "input_audio_transcription": {},

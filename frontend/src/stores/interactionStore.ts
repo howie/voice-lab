@@ -112,11 +112,14 @@ interface InteractionStoreState {
 // =============================================================================
 
 // Default system prompt for Chinese kindergarten teacher persona
+// Note: Speech pace instruction helps control Gemini's output speed
 const DEFAULT_SYSTEM_PROMPT = `你是一個講中文台灣腔調的幼教老師。
 當小朋友有問題時，你會用 3~6 歲小朋友聽得懂的方式對話和解說。
 請用溫柔、有耐心的語氣，並且使用簡單易懂的詞彙。
 回答要簡短、清楚，適合小朋友的注意力。
-請一律使用繁體中文回覆。`
+請一律使用繁體中文回覆。
+
+[語音指示] 請用正常偏快的語速說話，發音要清楚流暢，不要停頓太久。`
 
 const defaultOptions: InteractionOptions = {
   mode: 'realtime',
@@ -324,13 +327,23 @@ export const useInteractionStore = create<InteractionStoreState>()(
       // Merge persisted options with defaults to handle schema migrations
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<InteractionStoreState>
+        const persistedOptions = (persisted.options || {}) as Partial<InteractionOptions>
+
+        // Preserve systemPrompt from defaults if persisted one is empty
+        // This ensures the Chinese kindergarten teacher prompt is not lost
+        const systemPrompt =
+          persistedOptions.systemPrompt && persistedOptions.systemPrompt.trim()
+            ? persistedOptions.systemPrompt
+            : defaultOptions.systemPrompt
+
         return {
           ...currentState,
           ...persisted,
           // Ensure options always have all default fields
           options: {
             ...defaultOptions,
-            ...(persisted.options || {}),
+            ...persistedOptions,
+            systemPrompt,
           },
         }
       },

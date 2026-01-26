@@ -104,8 +104,8 @@ class Settings(BaseSettings):
     v2v_skip_latency_tracking: bool = False
 
     # Gemini model configuration
-    # Options: gemini-2.0-flash-exp, gemini-2.5-flash-preview-native-audio-dialog
-    gemini_live_model: str = "gemini-2.0-flash-exp"
+    # Options: gemini-2.5-flash-native-audio-preview-12-2025 (Chinese), gemini-2.0-flash-exp (English only)
+    gemini_live_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
 
     # Google AI API Key (for Gemini)
     google_ai_api_key: str = ""

@@ -33,8 +33,8 @@ GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generati
 # See: https://ai.google.dev/gemini-api/docs/models
 # See: https://ai.google.dev/gemini-api/docs/live
 AVAILABLE_MODELS = [
+    "gemini-2.5-flash-native-audio-preview-12-2025",  # Latest native audio, Chinese support
     "gemini-2.0-flash-live-001",  # Gemini 2.0 Flash Live stable
-    "gemini-2.5-flash-native-audio-preview",  # Native audio with 30 HD voices, 24 languages
     "gemini-2.0-flash-exp",  # Legacy, retiring March 2026
 ]
 
@@ -140,7 +140,9 @@ class GeminiRealtimeService(InteractionModeService):
         The 2.5 model provides native audio with 30 HD voices in 24 languages.
         """
         # Get model from config, fallback to settings, then default
+        print(f"[Gemini] Config received: {config}")
         model = config.get("model")
+        print(f"[Gemini] Model from config: {model}")
         if not model:
             try:
                 from src.config import get_settings

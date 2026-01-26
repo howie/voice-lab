@@ -59,7 +59,7 @@ interface ModelInfo {
 
 const GEMINI_MODELS: ModelInfo[] = [
   {
-    id: 'gemini-2.5-flash-native-audio-preview-09-2025',
+    id: 'gemini-2.5-flash-native-audio-preview-12-2025',
     label: 'Gemini 2.5 Flash (Native Audio)',
     description: '支援中文，30種HD語音，推薦使用',
     status: 'stable',

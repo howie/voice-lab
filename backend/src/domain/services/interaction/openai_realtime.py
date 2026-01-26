@@ -130,7 +130,8 @@ class OpenAIRealtimeService(InteractionModeService):
         """Send session configuration to OpenAI."""
         session_data: dict[str, Any] = {
             "modalities": ["text", "audio"],
-            "instructions": system_prompt or "You are a helpful assistant.",
+            "instructions": system_prompt
+            or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。",
             "voice": config.get("voice", DEFAULT_VOICE),
             "input_audio_format": "pcm16",
             "output_audio_format": "pcm16",

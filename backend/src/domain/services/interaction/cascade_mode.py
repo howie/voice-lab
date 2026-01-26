@@ -242,7 +242,6 @@ class CascadeModeService(InteractionModeService):
             format=AudioFormat.PCM,
             sample_rate=self._sample_rate,
             channels=1,
-            bits_per_sample=16,
         )
 
         # Create STT request

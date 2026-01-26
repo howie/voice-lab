@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.domain.entities.job import Job, JobStatus, JobType
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 
 # =============================================================================
 # Fixtures
@@ -23,6 +24,18 @@ from src.main import app
 def mock_user_id() -> uuid.UUID:
     """Generate a mock user ID for testing."""
     return uuid.UUID("12345678-1234-5678-1234-567812345678")
+
+
+@pytest.fixture
+def mock_current_user(mock_user_id: uuid.UUID) -> CurrentUser:
+    """Create a mock current user for authentication."""
+    return CurrentUser(
+        id=str(mock_user_id),
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="test-google-id",
+    )
 
 
 @pytest.fixture
@@ -71,6 +84,7 @@ class TestCreateJobEndpoint:
     async def test_create_job_success(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_create_job_request: dict,
         sample_job: Job,
     ):
@@ -82,8 +96,8 @@ class TestCreateJobEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
@@ -91,7 +105,7 @@ class TestCreateJobEndpoint:
         # Import the jobs router module to override its dependencies
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -123,19 +137,20 @@ class TestCreateJobEndpoint:
     async def test_create_job_invalid_request(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T015: Test job creation with invalid request returns 422."""
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -157,15 +172,13 @@ class TestCreateJobEndpoint:
         """T015: Test job creation without authentication returns 401."""
         from fastapi import HTTPException, status
 
-        from src.presentation.api.routes import jobs as jobs_module
-
-        async def override_get_current_user_id():
+        async def override_get_current_user():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
             )
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             transport = ASGITransport(app=app)
@@ -196,6 +209,7 @@ class TestJobConcurrentLimit:
     async def test_create_job_exceeds_limit(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_create_job_request: dict,
     ):
         """T016: Test job creation returns 429 when concurrent limit exceeded."""
@@ -206,15 +220,15 @@ class TestJobConcurrentLimit:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -242,6 +256,7 @@ class TestJobConcurrentLimit:
     async def test_create_job_at_limit_boundary(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_create_job_request: dict,
         sample_job: Job,
     ):
@@ -254,15 +269,15 @@ class TestJobConcurrentLimit:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -296,6 +311,7 @@ class TestListJobsEndpoint:
     async def test_list_jobs_success(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_job: Job,
     ):
         """T030: Test listing jobs returns 200 with pagination."""
@@ -305,15 +321,15 @@ class TestListJobsEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -344,6 +360,7 @@ class TestListJobsEndpoint:
     async def test_list_jobs_with_status_filter(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_job: Job,
     ):
         """T030: Test listing jobs with status filter."""
@@ -353,15 +370,15 @@ class TestListJobsEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -384,6 +401,7 @@ class TestListJobsEndpoint:
     async def test_list_jobs_with_pagination(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T030: Test listing jobs with pagination parameters."""
         mock_job_repo = AsyncMock()
@@ -392,15 +410,15 @@ class TestListJobsEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -435,6 +453,7 @@ class TestGetJobDetailEndpoint:
     async def test_get_job_success(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_job: Job,
     ):
         """T031: Test getting job detail returns 200."""
@@ -443,15 +462,15 @@ class TestGetJobDetailEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -480,6 +499,7 @@ class TestGetJobDetailEndpoint:
     async def test_get_job_not_found(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T031: Test getting non-existent job returns 404."""
         mock_job_repo = AsyncMock()
@@ -487,15 +507,15 @@ class TestGetJobDetailEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -518,6 +538,7 @@ class TestGetJobDetailEndpoint:
     async def test_get_job_wrong_user(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
         sample_job: Job,
     ):
         """T031: Test getting another user's job returns 404."""
@@ -537,15 +558,15 @@ class TestGetJobDetailEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -578,6 +599,7 @@ class TestDownloadJobAudioEndpoint:
     async def test_download_completed_job_success(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T047: Test downloading completed job audio returns 200 with audio stream."""
         # Create a completed job with audio file
@@ -601,15 +623,15 @@ class TestDownloadJobAudioEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -642,6 +664,7 @@ class TestDownloadJobAudioEndpoint:
     async def test_download_job_response_headers(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T047: Test download response includes proper Content-Disposition header."""
         audio_file_id = uuid.uuid4()
@@ -663,15 +686,15 @@ class TestDownloadJobAudioEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -713,6 +736,7 @@ class TestDownloadNonCompletedJob:
     async def test_download_pending_job_returns_404(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T048: Test downloading pending job returns 404."""
         pending_job = Job(
@@ -731,15 +755,15 @@ class TestDownloadNonCompletedJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -764,6 +788,7 @@ class TestDownloadNonCompletedJob:
     async def test_download_processing_job_returns_404(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T048: Test downloading processing job returns 404."""
         processing_job = Job(
@@ -782,15 +807,15 @@ class TestDownloadNonCompletedJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -813,6 +838,7 @@ class TestDownloadNonCompletedJob:
     async def test_download_failed_job_returns_404(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T048: Test downloading failed job returns 404."""
         failed_job = Job(
@@ -832,15 +858,15 @@ class TestDownloadNonCompletedJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -863,6 +889,7 @@ class TestDownloadNonCompletedJob:
     async def test_download_nonexistent_job_returns_404(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T048: Test downloading non-existent job returns 404."""
         mock_job_repo = AsyncMock()
@@ -870,15 +897,15 @@ class TestDownloadNonCompletedJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -910,6 +937,7 @@ class TestCancelJobEndpoint:
     async def test_cancel_pending_job_success(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T056: Test cancelling a pending job returns 200."""
         pending_job = Job(
@@ -941,15 +969,15 @@ class TestCancelJobEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -977,6 +1005,7 @@ class TestCancelJobEndpoint:
     async def test_cancel_job_returns_job_response(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T056: Test cancel response includes correct JobResponse fields."""
         pending_job = Job(
@@ -1007,15 +1036,15 @@ class TestCancelJobEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -1055,6 +1084,7 @@ class TestCancelNonPendingJob:
     async def test_cancel_processing_job_returns_409(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T057: Test cancelling a processing job returns 409 Conflict."""
         processing_job = Job(
@@ -1073,15 +1103,15 @@ class TestCancelNonPendingJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -1106,6 +1136,7 @@ class TestCancelNonPendingJob:
     async def test_cancel_completed_job_returns_409(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T057: Test cancelling a completed job returns 409 Conflict."""
         completed_job = Job(
@@ -1125,15 +1156,15 @@ class TestCancelNonPendingJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -1156,6 +1187,7 @@ class TestCancelNonPendingJob:
     async def test_cancel_failed_job_returns_409(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T057: Test cancelling a failed job returns 409 Conflict."""
         failed_job = Job(
@@ -1175,15 +1207,15 @@ class TestCancelNonPendingJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:
@@ -1206,6 +1238,7 @@ class TestCancelNonPendingJob:
     async def test_cancel_nonexistent_job_returns_404(
         self,
         mock_user_id: uuid.UUID,
+        mock_current_user: CurrentUser,
     ):
         """T057: Test cancelling a non-existent job returns 404."""
         mock_job_repo = AsyncMock()
@@ -1213,15 +1246,15 @@ class TestCancelNonPendingJob:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
         from src.presentation.api.routes import jobs as jobs_module
 
-        app.dependency_overrides[jobs_module.get_current_user_id] = override_get_current_user_id
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[jobs_module.get_db_session] = override_get_db_session
 
         try:

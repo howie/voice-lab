@@ -373,7 +373,9 @@ class GeminiRealtimeService(InteractionModeService):
                         inline_data = part["inlineData"]
                         mime_type = inline_data.get("mimeType", "")
                         data_length = len(inline_data.get("data", ""))
-                        print(f"[Gemini] inlineData: mimeType={mime_type}, data_length={data_length}")
+                        print(
+                            f"[Gemini] inlineData: mimeType={mime_type}, data_length={data_length}"
+                        )
                         if mime_type.startswith("audio/"):
                             await self._event_queue.put(
                                 ResponseEvent(

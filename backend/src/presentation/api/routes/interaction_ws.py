@@ -48,17 +48,17 @@ class InteractionModeFactory:
             from src.domain.services.interaction.cascade_mode import CascadeModeService
             from src.infrastructure.providers.llm.factory import LLMProviderFactory
             from src.infrastructure.providers.stt.factory import STTProviderFactory
-            from src.infrastructure.providers.tts.factory import TTSProviderFactory
+            from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
 
             # Get provider names from config with defaults
             stt_provider_name = config.get("stt_provider", "gcp")
             llm_provider_name = config.get("llm_provider", "gemini")
-            tts_provider_name = config.get("tts_provider", "gcp")
 
             # Create providers using factories with empty credentials (use env vars)
             stt_provider = STTProviderFactory.create(stt_provider_name, {})
             llm_provider = LLMProviderFactory.create_default(llm_provider_name)
-            tts_provider = TTSProviderFactory._create_provider(tts_provider_name)
+            # Use GCPTTSProvider directly (uses default credentials from env)
+            tts_provider = GCPTTSProvider()
 
             return CascadeModeService(
                 stt_provider=stt_provider,

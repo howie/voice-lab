@@ -160,7 +160,9 @@ export function buildWebSocketUrl(mode: InteractionMode, userId: string): string
     return `${wsUrl}/api/v1/interaction/ws/${mode}?user_id=${userId}`
   }
 
-  const baseUrl = getApiBaseUrl() || window.location.origin
+  const apiBaseUrl = getApiBaseUrl()
+  // If API URL is relative (e.g., /api/v1), use window.location.origin
+  const baseUrl = apiBaseUrl && apiBaseUrl.startsWith('http') ? apiBaseUrl : window.location.origin
   const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws'
   // Remove /api/v1 suffix if present, then remove protocol
   const host = baseUrl.replace(/\/api\/v1$/, '').replace(/^https?:\/\//, '')

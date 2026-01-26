@@ -125,7 +125,7 @@ const defaultOptions: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-native-audio-preview-09-2025', // 支援中文的模型
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025', // 支援中文的模型 (最新版本)
     voice: 'Kore', // 女性語音，較適合幼教老師角色
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
@@ -238,7 +238,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
               mode === 'realtime'
                 ? {
                     provider: 'gemini',
-                    model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                     voice: 'Kore',
                   }
                 : {

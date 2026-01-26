@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     # Application
@@ -65,13 +66,16 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins_str: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        alias="cors_origins",
+    )
 
     # OAuth Domain Restriction
     # Comma-separated list of allowed email domains for Google OAuth login
     # e.g., "heyuai.com.tw,example.com"
     # Empty string or "*" means allow all domains
-    allowed_domains: list[str] = []
+    allowed_domains_str: str = Field(default="", alias="allowed_domains")
 
     # Google OAuth
     google_oauth_client_id: str = ""
@@ -106,24 +110,18 @@ class Settings(BaseSettings):
     # Google AI API Key (for Gemini)
     google_ai_api_key: str = ""
 
-    @field_validator("allowed_domains", mode="before")
-    @classmethod
-    def parse_allowed_domains(cls, v):
-        """Parse allowed domains from string or list."""
-        if isinstance(v, str):
-            if not v or v == "*":
-                return []
-            return [domain.strip().lower() for domain in v.split(",") if domain.strip()]
-        return [d.lower() for d in v] if v else []
+    @property
+    def allowed_domains(self) -> list[str]:
+        """Parse allowed domains from comma-separated string."""
+        v = self.allowed_domains_str
+        if not v or v == "*":
+            return []
+        return [domain.strip().lower() for domain in v.split(",") if domain.strip()]
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse CORS origins from string or list."""
-        if isinstance(v, str):
-            # Split by comma and strip whitespace
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def cors_origins(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [origin.strip() for origin in self.cors_origins_str.split(",") if origin.strip()]
 
     @property
     def is_production(self) -> bool:

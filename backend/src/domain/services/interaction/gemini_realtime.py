@@ -150,17 +150,15 @@ class GeminiRealtimeService(InteractionModeService):
 
         voice = config.get("voice", DEFAULT_VOICE)
 
-        # Get language from config (default to cmn-Hant-TW for Traditional Chinese Taiwan)
-        # Gemini 2.5 native audio supports: cmn-Hant-TW (Traditional), cmn-Hans-CN (Simplified)
-        language = config.get("language", "cmn-Hant-TW")
-
+        # Note: Native audio models auto-detect language from conversation context
+        # Language is controlled via system_prompt instead of language_code parameter
+        # The Google AI API (ai.google.dev) doesn't support cmn-Hant-TW for native audio
         setup_message: dict[str, Any] = {
             "setup": {
                 "model": f"models/{model}",
                 "generation_config": {
                     "speech_config": {
-                        "voice_config": {"prebuilt_voice_config": {"voice_name": voice}},
-                        "language_code": language,
+                        "voice_config": {"prebuilt_voice_config": {"voice_name": voice}}
                     },
                     "response_modalities": ["AUDIO"],
                 },
@@ -176,8 +174,8 @@ class GeminiRealtimeService(InteractionModeService):
 
         print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
 
-        print(f"[Gemini] Sending setup: model={model}, voice={voice}, language={language}")
-        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}, language: {language}")
+        print(f"[Gemini] Sending setup: model={model}, voice={voice}")
+        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
         await self._send_message(setup_message)
         print("[Gemini] Setup message sent")
 

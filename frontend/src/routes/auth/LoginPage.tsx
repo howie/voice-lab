@@ -61,7 +61,7 @@ export function LoginPage() {
           <div className="rounded-lg bg-muted/50 p-4 text-sm">
             <p className="font-medium">登入限制</p>
             <p className="mt-1 text-muted-foreground">
-              本系統僅限 <strong>heyuai.com.tw</strong> 網域帳號登入使用。
+              本系統僅限授權的網域帳號登入使用。
             </p>
           </div>
         </div>

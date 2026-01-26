@@ -21,6 +21,7 @@ import type { ScenarioTemplate, TurnLatencyData } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { useAudioPlayback } from '@/hooks/useAudioPlayback'
+import { buildWebSocketUrl } from '@/services/interactionApi'
 import type { ConnectionStatus, InteractionState, WSMessage } from '@/types/interaction'
 
 interface InteractionPanelProps {
@@ -190,9 +191,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   } = useInteractionStore()
 
   // Determine WebSocket URL (must include user_id query parameter)
-  const resolvedWsUrl =
-    wsUrl ||
-    `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws/${options.mode}?user_id=${userId}`
+  // Use buildWebSocketUrl to get the correct backend API URL (not frontend domain)
+  const resolvedWsUrl = wsUrl || buildWebSocketUrl(options.mode, userId)
 
   // Audio playback hook - must be before handleMessage which uses queueAudioChunk
   // Note: Both OpenAI and Gemini 2.5 return audio at 24000 Hz (default)

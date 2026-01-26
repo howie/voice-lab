@@ -17,14 +17,18 @@ export function ProtectedRoute({
   children,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
+  // Use individual selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isLoading = useAuthStore((state) => state.isLoading)
+  const checkAuth = useAuthStore((state) => state.checkAuth)
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Check auth on mount
+  // Check auth only on mount - empty dependency array ensures single execution
   useEffect(() => {
     checkAuth()
-  }, [checkAuth])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Redirect if not authenticated after loading
   useEffect(() => {

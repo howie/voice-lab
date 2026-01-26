@@ -272,6 +272,118 @@ describe('AuthStore', () => {
   })
 })
 
+describe('Regression: checkAuth should not unmount children', () => {
+  // These tests verify the fix for the bug where calling checkAuth() on an
+  // already-authenticated user would set isLoading=true, causing ProtectedRoute
+  // to unmount children (e.g., WebSocket connections would be disconnected)
+
+  beforeEach(() => {
+    vi.stubEnv('VITE_DISABLE_AUTH', 'false')
+    localStorageMock.clear()
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  it('should NOT set isLoading=true when user is already authenticated', async () => {
+    // Setup: User is already authenticated
+    localStorageMock.store['auth_token'] = 'valid-token'
+
+    const { authApi } = await import('@/lib/api')
+    vi.mocked(authApi.getCurrentUser).mockResolvedValue({
+      data: { id: 'user-123', email: 'test@example.com' },
+    } as never)
+
+    const { useAuthStore } = await import('../authStore')
+
+    // First checkAuth - establishes authenticated state
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().user).not.toBeNull()
+
+    // Track isLoading changes
+    const loadingStates: boolean[] = []
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      loadingStates.push(state.isLoading)
+    })
+
+    // Second checkAuth - should NOT set isLoading=true
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    unsubscribe()
+
+    // isLoading should never have become true during the second checkAuth
+    // This is critical because isLoading=true causes children to unmount
+    expect(loadingStates).not.toContain(true)
+    expect(useAuthStore.getState().isLoading).toBe(false)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('should skip API call when user is already authenticated with same token', async () => {
+    localStorageMock.store['auth_token'] = 'valid-token'
+
+    const { authApi } = await import('@/lib/api')
+    vi.mocked(authApi.getCurrentUser).mockResolvedValue({
+      data: { id: 'user-123', email: 'test@example.com' },
+    } as never)
+
+    const { useAuthStore } = await import('../authStore')
+
+    // First checkAuth
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    expect(authApi.getCurrentUser).toHaveBeenCalledTimes(1)
+
+    // Second checkAuth - should skip API call since user is already authenticated
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    // API should NOT be called again
+    expect(authApi.getCurrentUser).toHaveBeenCalledTimes(1)
+  })
+
+  it('should re-fetch user when token changes', async () => {
+    localStorageMock.store['auth_token'] = 'token-1'
+
+    const { authApi } = await import('@/lib/api')
+    vi.mocked(authApi.getCurrentUser).mockResolvedValue({
+      data: { id: 'user-123', email: 'test@example.com' },
+    } as never)
+
+    const { useAuthStore } = await import('../authStore')
+
+    // First checkAuth with token-1
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    expect(authApi.getCurrentUser).toHaveBeenCalledTimes(1)
+
+    // Change token in localStorage (simulates re-login)
+    localStorageMock.store['auth_token'] = 'token-2'
+
+    // Clear the stored token in state to simulate token mismatch
+    act(() => {
+      useAuthStore.setState({ token: 'token-1' }) // Old token
+    })
+
+    // Second checkAuth with different token - should fetch user again
+    await act(async () => {
+      await useAuthStore.getState().checkAuth()
+    })
+
+    // API should be called again because token changed
+    expect(authApi.getCurrentUser).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('ProtectedRoute behavior', () => {
   // These tests verify the integration between authStore and ProtectedRoute
   // Note: Full component tests would be in a separate file

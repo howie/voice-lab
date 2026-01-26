@@ -43,7 +43,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, _get) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -110,7 +110,19 @@ export const useAuthStore = create<AuthState>()(
           return
         }
 
-        set({ isLoading: true })
+        // If we already have a valid user and token, skip the API call
+        // This prevents unnecessary loading states that unmount children
+        const currentState = get()
+        if (currentState.user && currentState.isAuthenticated && currentState.token === token) {
+          set({ isLoading: false })
+          return
+        }
+
+        // Only set loading if we don't have user data yet
+        // This prevents unmounting children during auth re-checks
+        if (!currentState.user) {
+          set({ isLoading: true })
+        }
 
         try {
           const response = await authApi.getCurrentUser()

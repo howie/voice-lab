@@ -181,4 +181,65 @@ pytest backend/tests -k interaction
 pytest backend/tests --cov=backend/src/domain/services/interaction
 ```
 
+### GCP Deployment (CRITICAL)
+
+#### Docker Build for Cloud Run
+
+**⚠️ 必須指定 platform，否則 ARM 架構的 image 無法在 Cloud Run 上運行**
+
+```bash
+# ✅ CORRECT - 指定 amd64 架構
+docker build --platform linux/amd64 -f backend/Dockerfile -t <image> .
+docker build --platform linux/amd64 -f frontend/Dockerfile -t <image> .
+
+# ❌ WRONG - 預設使用本機架構 (Mac M1/M2 是 ARM)
+docker build -f backend/Dockerfile -t <image> .
+```
+
+**錯誤訊息**: `exec format error` 表示架構不匹配
+
+#### Terraform 環境變數格式
+
+**⚠️ Backend config 預期逗號分隔格式，不是 JSON array**
+
+```hcl
+# ✅ CORRECT - 使用 join() 產生逗號分隔字串
+env {
+  name  = "ALLOWED_DOMAINS"
+  value = join(",", var.allowed_domains)  # 輸出: "heyuai.com.tw,example.com"
+}
+
+# ❌ WRONG - jsonencode() 產生 JSON array
+env {
+  name  = "ALLOWED_DOMAINS"
+  value = jsonencode(var.allowed_domains)  # 輸出: ["heyuai.com.tw","example.com"]
+}
+```
+
+**受影響的環境變數**:
+- `ALLOWED_DOMAINS` - OAuth 允許的 email 網域
+- `CORS_ORIGINS` - CORS 允許的來源
+
+#### 環境變數名稱一致性
+
+**⚠️ Terraform 和 Backend 的環境變數名稱必須匹配**
+
+| Terraform 設定 | Backend 讀取 |
+|---|---|
+| `GOOGLE_OAUTH_CLIENT_ID` | `GOOGLE_OAUTH_CLIENT_ID` 或 `GOOGLE_CLIENT_ID` |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | `GOOGLE_OAUTH_CLIENT_SECRET` 或 `GOOGLE_CLIENT_SECRET` |
+
+**教訓**: 修改環境變數時，必須同時檢查 Terraform 和 Backend 程式碼
+
+#### 部署前檢查清單
+
+```
+- [ ] Docker build 使用 --platform linux/amd64
+- [ ] Terraform 環境變數使用 join() 而非 jsonencode()
+- [ ] 環境變數名稱在 Terraform 和 Backend 中一致
+- [ ] 測試本地 health endpoint: curl localhost:8000/api/v1/health
+- [ ] 部署後測試 production health endpoint
+- [ ] 測試 OAuth 登入流程
+```
+
 <!-- MANUAL ADDITIONS END -->

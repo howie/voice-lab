@@ -1,0 +1,35 @@
+# =============================================================================
+# Azure Speech Services - Example Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and customize the values
+# =============================================================================
+
+# Resource naming
+resource_group_name = "voice-lab-speech-rg"
+speech_service_name = "voice-lab-speech"
+
+# Region (choose closest to your users)
+# Options: eastasia, southeastasia, japaneast, koreacentral, eastus, westus, westeurope
+location = "eastasia"
+
+# SKU: F0 (free tier, dev/test) or S0 (standard, production)
+sku_name = "S0"
+
+# Environment
+environment = "dev"
+
+# Enable custom subdomain (required for private endpoints)
+enable_custom_subdomain = true
+
+# Enable managed identity (for Azure AD authentication)
+enable_managed_identity = true
+
+# IP allowlist (empty = allow all public access)
+# allowed_ip_ranges = ["203.0.113.0/24", "198.51.100.1"]
+allowed_ip_ranges = []
+
+# Tags
+tags = {
+  Project = "voice-lab"
+  Team    = "platform"
+}

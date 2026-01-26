@@ -99,6 +99,7 @@ module "secrets" {
   azure_speech_key       = var.azure_speech_key
   google_tts_credentials = var.google_tts_credentials
   elevenlabs_api_key     = var.elevenlabs_api_key
+  gemini_api_key         = var.gemini_api_key
 
   labels = local.common_labels
 
@@ -159,6 +160,7 @@ module "cloud_run" {
   oauth_client_id_secret     = module.secrets.oauth_client_id_secret_id
   oauth_client_secret_secret = module.secrets.oauth_client_secret_secret_id
   openai_api_key_secret      = module.secrets.openai_api_key_secret_id
+  gemini_api_key_secret      = module.secrets.gemini_api_key_secret_id
 
   # Application config
   allowed_domains         = var.allowed_domains

@@ -130,6 +130,12 @@ variable "openai_api_key_secret" {
   default     = null
 }
 
+variable "gemini_api_key_secret" {
+  type        = string
+  description = "Secret ID for Gemini API Key"
+  default     = null
+}
+
 # Application config
 variable "allowed_domains" {
   type        = list(string)

@@ -31,3 +31,8 @@ output "elevenlabs_api_key_secret_id" {
   description = "Secret ID for ElevenLabs API Key"
   value       = var.elevenlabs_api_key != "" ? google_secret_manager_secret.elevenlabs_api_key[0].secret_id : null
 }
+
+output "gemini_api_key_secret_id" {
+  description = "Secret ID for Gemini API Key"
+  value       = var.gemini_api_key != "" ? google_secret_manager_secret.gemini_api_key[0].secret_id : null
+}

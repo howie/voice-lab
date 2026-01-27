@@ -180,11 +180,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
 
   // VAD Configuration - Tuned for natural conversation with hysteresis
-  const SILENCE_THRESHOLD = 0.10 // Volume below this is considered silence (raised for better noise rejection)
-  const SPEAKING_THRESHOLD = 0.14 // Volume above this confirms speaking (hysteresis - higher than silence)
-  const SILENCE_DURATION_MS = 800 // Auto send end_turn after 0.8s of silence
-  const MIN_SPEAKING_DURATION_MS = 300 // User must speak for at least 300ms before silence detection activates
-  const SPEAKING_FRAMES_REQUIRED = 3 // Require 3 consecutive frames above threshold to confirm speaking
+  // Note: These values should be adjusted based on microphone sensitivity and environment
+  const SILENCE_THRESHOLD = 0.15 // Volume below this is considered silence (raised to reduce false triggers)
+  const SPEAKING_THRESHOLD = 0.22 // Volume above this confirms speaking (needs clear speech signal)
+  const SILENCE_DURATION_MS = 1000 // Auto send end_turn after 1s of silence (allow natural pauses)
+  const MIN_SPEAKING_DURATION_MS = 500 // User must speak for at least 500ms before silence detection activates
+  const SPEAKING_FRAMES_REQUIRED = 4 // Require 4 consecutive frames above threshold to confirm speaking
 
   // Store state
   const {

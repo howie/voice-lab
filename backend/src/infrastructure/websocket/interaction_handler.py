@@ -73,6 +73,9 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         # US5: Barge-in configuration
         self._barge_in_enabled: bool = True
 
+        # Track if response_started has been sent for current turn
+        self._response_started_sent: bool = False
+
         self._event_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
 
@@ -370,6 +373,9 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         if not self._session:
             return
 
+        # Reset response_started flag for new turn
+        self._response_started_sent = False
+
         turn_number = await self._repository.get_next_turn_number(self._session.id)
         self._current_turn = ConversationTurn(
             session_id=self._session.id,
@@ -460,6 +466,19 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                 )
             )
 
+        elif event_type == "response_started":
+            # Send response_started to client for latency tracking
+            if not self._response_started_sent:
+                self._response_started_sent = True
+                await self.send_message(
+                    WebSocketMessage(
+                        type=MessageType.RESPONSE_STARTED,
+                        session_id=self.session_id,
+                        turn_id=self._current_turn.id if self._current_turn else None,
+                        data=data,
+                    )
+                )
+
         elif event_type == "text_delta":
             if self._current_turn and not self._current_turn.ai_response_text:
                 self._latency_tracker.mark_llm_first_token(self._current_turn.id)
@@ -482,6 +501,18 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                 if is_first:
                     self._latency_tracker.mark_tts_first_byte(self._current_turn.id)
                     self._latency_tracker.mark_response_started(self._current_turn.id)
+
+                    # Send response_started if not already sent (fallback for providers like Gemini)
+                    if not self._response_started_sent:
+                        self._response_started_sent = True
+                        await self.send_message(
+                            WebSocketMessage(
+                                type=MessageType.RESPONSE_STARTED,
+                                session_id=self.session_id,
+                                turn_id=self._current_turn.id if self._current_turn else None,
+                                data={"source": "first_audio"},
+                            )
+                        )
 
                 # Store AI audio
                 if audio_data and self._session:

@@ -717,6 +717,71 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         </div>
         <AudioVisualizer level={inputVolume} isActive={isRecording} mode="bars" height={60} showLevel />
 
+        {/* VAD Threshold Debug Display */}
+        {isRecording && (
+          <div className="mt-3 space-y-2">
+            {/* Volume bar with threshold markers */}
+            <div className="relative h-6 rounded bg-gray-700">
+              {/* Current volume bar */}
+              <div
+                className={`absolute left-0 top-0 h-full rounded transition-all duration-75 ${
+                  inputVolume > SPEAKING_THRESHOLD
+                    ? 'bg-green-500'
+                    : inputVolume > SILENCE_THRESHOLD
+                      ? 'bg-yellow-500'
+                      : 'bg-gray-500'
+                }`}
+                style={{ width: `${Math.min(inputVolume * 100 * 2, 100)}%` }}
+              />
+              {/* Silence threshold marker */}
+              <div
+                className="absolute top-0 h-full w-0.5 bg-orange-400"
+                style={{ left: `${SILENCE_THRESHOLD * 100 * 2}%` }}
+                title={`靜音閾值: ${SILENCE_THRESHOLD}`}
+              />
+              {/* Speaking threshold marker */}
+              <div
+                className="absolute top-0 h-full w-0.5 bg-green-400"
+                style={{ left: `${SPEAKING_THRESHOLD * 100 * 2}%` }}
+                title={`說話閾值: ${SPEAKING_THRESHOLD}`}
+              />
+              {/* Labels */}
+              <div className="absolute inset-0 flex items-center justify-between px-2 text-xs text-white">
+                <span>
+                  音量: {(inputVolume * 100).toFixed(1)}%
+                </span>
+                <span
+                  className={`rounded px-1 ${
+                    inputVolume > SPEAKING_THRESHOLD
+                      ? 'bg-green-600'
+                      : inputVolume > SILENCE_THRESHOLD
+                        ? 'bg-yellow-600'
+                        : 'bg-gray-600'
+                  }`}
+                >
+                  {inputVolume > SPEAKING_THRESHOLD
+                    ? '說話中'
+                    : inputVolume > SILENCE_THRESHOLD
+                      ? '過渡區'
+                      : '靜音'}
+                </span>
+              </div>
+            </div>
+            {/* Threshold legend */}
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-400" />
+                靜音閾值: {(SILENCE_THRESHOLD * 100).toFixed(0)}%
+              </span>
+              <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full bg-green-400" />
+                說話閾值: {(SPEAKING_THRESHOLD * 100).toFixed(0)}%
+              </span>
+              <span>靜音時長: {SILENCE_DURATION_MS}ms</span>
+            </div>
+          </div>
+        )}
+
         {/* T086: Barge-in toggle and interrupt button */}
         <div className="mt-4 flex items-center justify-between">
           <label className="flex cursor-pointer items-center gap-2">

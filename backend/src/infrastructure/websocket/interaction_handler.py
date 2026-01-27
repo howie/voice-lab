@@ -468,8 +468,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
         elif event_type == "response_started":
             # Send response_started to client for latency tracking
+            self._logger.debug(f"[response_started] Received from provider, sent={self._response_started_sent}")
             if not self._response_started_sent:
                 self._response_started_sent = True
+                self._logger.info("[response_started] Sending to client")
                 await self.send_message(
                     WebSocketMessage(
                         type=MessageType.RESPONSE_STARTED,
@@ -505,6 +507,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                     # Send response_started if not already sent (fallback for providers like Gemini)
                     if not self._response_started_sent:
                         self._response_started_sent = True
+                        self._logger.info("[response_started] Sending via first_audio fallback")
                         await self.send_message(
                             WebSocketMessage(
                                 type=MessageType.RESPONSE_STARTED,

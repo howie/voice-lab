@@ -246,6 +246,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // Cast data to Record for easier access - actual type checking done per case
       const data = message.data as Record<string, unknown>
 
+      // Debug: log all incoming WebSocket messages
+      if (type !== 'audio') {
+        // Don't spam logs with audio messages
+        console.log(`[WS] Received: ${type}`, data)
+      }
+
       switch (type) {
         case 'connected':
           if (data.session_id) {

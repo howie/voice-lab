@@ -17,7 +17,6 @@ from src.main import app
 from src.presentation.api.dependencies import get_stt_providers
 from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 
-
 # Test user for authentication
 TEST_USER_ID = uuid.UUID("12345678-1234-5678-1234-567812345678")
 TEST_USER = CurrentUser(

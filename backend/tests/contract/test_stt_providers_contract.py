@@ -6,6 +6,7 @@ T024: Contract test for GET /stt/providers endpoint
 Tests the provider listing endpoint returns correct schema and data.
 """
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -14,6 +15,18 @@ from httpx import ASGITransport, AsyncClient
 from src.infrastructure.persistence.database import get_db_session
 from src.main import app
 from src.presentation.api.dependencies import get_stt_providers
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
+
+
+# Test user for authentication
+TEST_USER_ID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+TEST_USER = CurrentUser(
+    id=str(TEST_USER_ID),
+    email="test@example.com",
+    name="Test User",
+    picture_url=None,
+    google_id="google-test-id-12345",
+)
 
 
 class TestListProvidersEndpoint:
@@ -21,15 +34,26 @@ class TestListProvidersEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup_dependencies(self):
-        """Override database and provider dependencies."""
+        """Override database, auth, and provider dependencies."""
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         mock_session.flush = AsyncMock()
 
+        # Mock the execute result to return empty credentials
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
         async def get_mock_session():
             yield mock_session
 
+        async def get_mock_user():
+            return TEST_USER
+
         app.dependency_overrides[get_db_session] = get_mock_session
+        app.dependency_overrides[get_current_user] = get_mock_user
         yield
         app.dependency_overrides.clear()
 

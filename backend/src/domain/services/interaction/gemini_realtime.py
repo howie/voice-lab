@@ -87,6 +87,8 @@ class GeminiRealtimeService(InteractionModeService):
         self._accumulated_input_transcript = ""
         self._accumulated_output_transcript = ""
         self._setup_complete = False
+        # Track first audio in response for latency measurement
+        self._first_audio_sent = False
 
     @property
     def mode_name(self) -> str:
@@ -405,12 +407,13 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for turn complete
             if server_content.get("turnComplete"):
-                # Reset accumulated transcripts for next turn
+                # Reset accumulated transcripts and first audio flag for next turn
                 _log_to_file(
                     f"TURN_COMPLETE: resetting transcripts (input: '{self._accumulated_input_transcript}', output len: {len(self._accumulated_output_transcript)})"
                 )
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
+                self._first_audio_sent = False
                 await self._event_queue.put(
                     ResponseEvent(
                         type="response_ended",
@@ -420,9 +423,10 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for interruption
             if server_content.get("interrupted"):
-                # Reset accumulated transcripts on interruption
+                # Reset accumulated transcripts and first audio flag on interruption
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
+                self._first_audio_sent = False
                 await self._event_queue.put(
                     ResponseEvent(
                         type="interrupted",
@@ -446,12 +450,17 @@ class GeminiRealtimeService(InteractionModeService):
                             f"[Gemini] inlineData: mimeType={mime_type}, data_length={data_length}"
                         )
                         if mime_type.startswith("audio/"):
+                            # Track first audio for latency measurement
+                            is_first = not self._first_audio_sent
+                            if is_first:
+                                self._first_audio_sent = True
                             await self._event_queue.put(
                                 ResponseEvent(
                                     type="audio",
                                     data={
                                         "audio": inline_data.get("data", ""),
                                         "format": "pcm16",
+                                        "is_first": is_first,
                                     },
                                 )
                             )

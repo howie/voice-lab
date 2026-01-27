@@ -153,14 +153,21 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Ref to avoid spamming sample rate log
   const audioSampleRateLoggedRef = useRef(false)
 
-  // Silence detection for auto end_turn
+  // VAD (Voice Activity Detection) state machine for auto end_turn
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSpeakingTimeRef = useRef<number>(Date.now())
+  const speakingStartTimeRef = useRef<number | null>(null) // Track when user started speaking
   const hasSentEndTurnRef = useRef(false)
-  const hasUserSpokenRef = useRef(false) // Track if user has spoken in current turn (prevents immediate end_turn on turn start)
+  const hasUserSpokenRef = useRef(false) // Track if user has spoken in current turn
+  const speakingFrameCountRef = useRef(0) // Hysteresis: count consecutive frames above threshold
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
-  const SILENCE_THRESHOLD = 0.08 // Volume below this is considered silence (background noise is ~0.04-0.06)
-  const SILENCE_DURATION_MS = 600 // Auto send end_turn after 0.6s of silence (optimized from 1.2s)
+
+  // VAD Configuration - Tuned for natural conversation with hysteresis
+  const SILENCE_THRESHOLD = 0.10 // Volume below this is considered silence (raised for better noise rejection)
+  const SPEAKING_THRESHOLD = 0.14 // Volume above this confirms speaking (hysteresis - higher than silence)
+  const SILENCE_DURATION_MS = 800 // Auto send end_turn after 0.8s of silence
+  const MIN_SPEAKING_DURATION_MS = 300 // User must speak for at least 300ms before silence detection activates
+  const SPEAKING_FRAMES_REQUIRED = 3 // Require 3 consecutive frames above threshold to confirm speaking
 
   // Store state
   const {
@@ -413,45 +420,83 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     onVolumeChange: (vol: number) => {
       setInputVolume(vol)
 
-      // Silence detection: auto send end_turn when user stops speaking
+      // VAD state machine: auto send end_turn when user stops speaking
       // Use ref for interactionState to avoid stale closure
       const currentState = interactionStateRef.current
       if (wsStatus === 'connected' && currentState === 'listening') {
-        if (vol > SILENCE_THRESHOLD) {
-          // User is speaking - mark that user has spoken and reset timer
-          hasUserSpokenRef.current = true
-          lastSpeakingTimeRef.current = Date.now()
-          // Only reset hasSentEndTurnRef if we're still in listening state
-          if (!hasSentEndTurnRef.current) {
-            // User is actively speaking, clear any pending timer
+        const now = Date.now()
+
+        // Hysteresis: Use higher threshold to confirm speaking, lower threshold to confirm silence
+        if (vol > SPEAKING_THRESHOLD) {
+          // Volume clearly above speaking threshold
+          speakingFrameCountRef.current++
+
+          // Require consecutive frames above threshold to confirm speaking (debounce)
+          if (speakingFrameCountRef.current >= SPEAKING_FRAMES_REQUIRED) {
+            if (!hasUserSpokenRef.current) {
+              // First time confirming user is speaking
+              hasUserSpokenRef.current = true
+              speakingStartTimeRef.current = now
+              console.log('[VAD] User started speaking')
+            }
+            lastSpeakingTimeRef.current = now
+
+            // Clear any pending silence timer
             if (silenceTimerRef.current) {
               clearTimeout(silenceTimerRef.current)
               silenceTimerRef.current = null
             }
           }
-        } else if (
-          hasUserSpokenRef.current && // Only detect silence AFTER user has spoken
-          !hasSentEndTurnRef.current &&
-          !silenceTimerRef.current
-        ) {
-          // Silence detected - start timer (only if user has spoken and we haven't sent end_turn yet)
-          silenceTimerRef.current = setTimeout(() => {
-            const silenceDuration = Date.now() - lastSpeakingTimeRef.current
-            // Double-check all conditions before sending
-            if (
-              silenceDuration >= SILENCE_DURATION_MS &&
-              !hasSentEndTurnRef.current &&
-              hasUserSpokenRef.current &&
-              interactionStateRef.current === 'listening'
-            ) {
-              console.log(`[VAD] Silence detected for ${silenceDuration}ms, sending end_turn`)
-              hasSentEndTurnRef.current = true // Set flag BEFORE sending to prevent race
-              stopRecording()
-              sendMessage('end_turn', {})
-              setInteractionState('processing')
-            }
-            silenceTimerRef.current = null
-          }, SILENCE_DURATION_MS)
+        } else if (vol > SILENCE_THRESHOLD) {
+          // In the hysteresis zone - maintain current state but update speaking time if already speaking
+          if (hasUserSpokenRef.current) {
+            lastSpeakingTimeRef.current = now
+            // Don't reset frame count - allow small dips during speech
+          }
+        } else {
+          // Volume below silence threshold
+          speakingFrameCountRef.current = 0 // Reset hysteresis counter
+
+          // Only start silence detection if:
+          // 1. User has spoken (hasUserSpokenRef)
+          // 2. User has spoken for minimum duration (MIN_SPEAKING_DURATION_MS)
+          // 3. We haven't already sent end_turn
+          // 4. No timer is already running
+          const speakingDuration = speakingStartTimeRef.current
+            ? now - speakingStartTimeRef.current
+            : 0
+
+          if (
+            hasUserSpokenRef.current &&
+            speakingDuration >= MIN_SPEAKING_DURATION_MS &&
+            !hasSentEndTurnRef.current &&
+            !silenceTimerRef.current
+          ) {
+            // Start silence timer
+            silenceTimerRef.current = setTimeout(() => {
+              const silenceDuration = Date.now() - lastSpeakingTimeRef.current
+
+              // Double-check all conditions before sending
+              if (
+                silenceDuration >= SILENCE_DURATION_MS &&
+                !hasSentEndTurnRef.current &&
+                hasUserSpokenRef.current &&
+                interactionStateRef.current === 'listening'
+              ) {
+                const totalSpeakingDuration = speakingStartTimeRef.current
+                  ? Date.now() - speakingStartTimeRef.current
+                  : 0
+                console.log(
+                  `[VAD] Silence detected for ${silenceDuration}ms after ${totalSpeakingDuration}ms of speaking, sending end_turn`
+                )
+                hasSentEndTurnRef.current = true
+                stopRecording()
+                sendMessage('end_turn', {})
+                setInteractionState('processing')
+              }
+              silenceTimerRef.current = null
+            }, SILENCE_DURATION_MS)
+          }
         }
       }
     },
@@ -465,10 +510,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // Sync interactionState to ref for use in closures (avoids stale state)
   useEffect(() => {
     interactionStateRef.current = interactionState
-    // Reset flags when returning to listening state for next turn
+    // Reset VAD state when returning to listening state for next turn
     if (interactionState === 'listening') {
       hasSentEndTurnRef.current = false
-      hasUserSpokenRef.current = false // Wait for user to speak before enabling silence detection
+      hasUserSpokenRef.current = false
+      speakingStartTimeRef.current = null
+      speakingFrameCountRef.current = 0
     }
   }, [interactionState])
 

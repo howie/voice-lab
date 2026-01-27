@@ -144,6 +144,23 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   // T087: Track when an interruption just occurred for the indicator
   const [wasInterrupted, setWasInterrupted] = useState(false)
 
+  // Turn timing debug info
+  interface TurnTiming {
+    speakingStartedAt: number | null
+    endTurnSentAt: number | null
+    responseStartedAt: number | null
+    firstAudioAt: number | null
+    responseEndedAt: number | null
+  }
+  const [turnTiming, setTurnTiming] = useState<TurnTiming>({
+    speakingStartedAt: null,
+    endTurnSentAt: null,
+    responseStartedAt: null,
+    firstAudioAt: null,
+    responseEndedAt: null,
+  })
+  const firstAudioReceivedRef = useRef(false) // Track if we've received first audio in this turn
+
   // Ref to track if we're in the connecting phase
   const isConnectingRef = useRef(false)
 
@@ -265,6 +282,10 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
 
         case 'response_started':
           setInteractionState('speaking')
+          // Record when AI response started
+          setTurnTiming((prev) => ({ ...prev, responseStartedAt: Date.now() }))
+          firstAudioReceivedRef.current = false
+          console.log('[Turn] Response started')
           break
 
         case 'text_delta':
@@ -275,6 +296,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         case 'audio':
           // Decode base64 audio and queue for playback
           if (data.audio) {
+            // Record first audio timing
+            if (!firstAudioReceivedRef.current) {
+              firstAudioReceivedRef.current = true
+              setTurnTiming((prev) => ({ ...prev, firstAudioAt: Date.now() }))
+              console.log('[Turn] First audio received')
+            }
             try {
               const binaryString = atob(data.audio as string)
               const bytes = new Uint8Array(binaryString.length)
@@ -289,6 +316,11 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           break
 
         case 'response_ended': {
+          // Record response end timing
+          const responseEndedAt = Date.now()
+          setTurnTiming((prev) => ({ ...prev, responseEndedAt }))
+          console.log('[Turn] Response ended')
+
           // Save current turn to history before clearing
           const currentUserTranscript = useInteractionStore.getState().userTranscript
           const currentAIResponse = useInteractionStore.getState().aiResponseText
@@ -315,9 +347,11 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           clearTranscripts()
           setInteractionState('listening')
 
-          // Reset silence detection for next turn
+          // Reset silence detection and timing for next turn
           hasSentEndTurnRef.current = false
           lastSpeakingTimeRef.current = Date.now()
+          firstAudioReceivedRef.current = false
+          // Don't reset turnTiming here - we want to keep it for display until next turn starts
 
           // T065: Parse detailed latency data from response_ended message
           const latencyData = data.latency as TurnLatencyData | undefined
@@ -437,6 +471,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
               // First time confirming user is speaking
               hasUserSpokenRef.current = true
               speakingStartTimeRef.current = now
+              // Record timing for debug display and reset previous turn timing
+              setTurnTiming({
+                speakingStartedAt: now,
+                endTurnSentAt: null,
+                responseStartedAt: null,
+                firstAudioAt: null,
+                responseEndedAt: null,
+              })
               console.log('[VAD] User started speaking')
             }
             lastSpeakingTimeRef.current = now
@@ -483,13 +525,16 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
                 hasUserSpokenRef.current &&
                 interactionStateRef.current === 'listening'
               ) {
+                const endTurnTime = Date.now()
                 const totalSpeakingDuration = speakingStartTimeRef.current
-                  ? Date.now() - speakingStartTimeRef.current
+                  ? endTurnTime - speakingStartTimeRef.current
                   : 0
                 console.log(
                   `[VAD] Silence detected for ${silenceDuration}ms after ${totalSpeakingDuration}ms of speaking, sending end_turn`
                 )
                 hasSentEndTurnRef.current = true
+                // Record end_turn timing
+                setTurnTiming((prev) => ({ ...prev, endTurnSentAt: endTurnTime }))
                 stopRecording()
                 sendMessage('end_turn', {})
                 setInteractionState('processing')
@@ -839,6 +884,113 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         userRoleLabel={options.userRole}
         aiRoleLabel={options.aiRole}
       />
+
+      {/* Turn Timing Debug Display */}
+      {isConnected && turnTiming.speakingStartedAt && (
+        <div className="rounded-lg border border-dashed border-gray-600 bg-gray-900/50 p-4">
+          <div className="mb-2 text-xs font-medium text-gray-400">Turn Timing Debug</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
+            {/* Timeline events */}
+            <div className="text-gray-500">說話開始:</div>
+            <div className="text-gray-300">
+              {new Date(turnTiming.speakingStartedAt).toLocaleTimeString('zh-TW', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
+              .{String(turnTiming.speakingStartedAt % 1000).padStart(3, '0')}
+            </div>
+
+            <div className="text-gray-500">送出 end_turn:</div>
+            <div className="text-gray-300">
+              {turnTiming.endTurnSentAt ? (
+                <>
+                  +{turnTiming.endTurnSentAt - turnTiming.speakingStartedAt}ms
+                  <span className="ml-2 text-yellow-500">
+                    (說話 {turnTiming.endTurnSentAt - turnTiming.speakingStartedAt - SILENCE_DURATION_MS}ms + 靜音 {SILENCE_DURATION_MS}ms)
+                  </span>
+                </>
+              ) : (
+                <span className="text-gray-600">等待中...</span>
+              )}
+            </div>
+
+            <div className="text-gray-500">AI 開始回應:</div>
+            <div className="text-gray-300">
+              {turnTiming.responseStartedAt ? (
+                <>
+                  +{turnTiming.responseStartedAt - turnTiming.speakingStartedAt}ms
+                  {turnTiming.endTurnSentAt && (
+                    <span className="ml-2 text-blue-400">
+                      (等待 {turnTiming.responseStartedAt - turnTiming.endTurnSentAt}ms)
+                    </span>
+                  )}
+                </>
+              ) : turnTiming.endTurnSentAt ? (
+                <span className="animate-pulse text-yellow-500">處理中...</span>
+              ) : (
+                <span className="text-gray-600">-</span>
+              )}
+            </div>
+
+            <div className="text-gray-500">首個音訊:</div>
+            <div className="text-gray-300">
+              {turnTiming.firstAudioAt ? (
+                <>
+                  +{turnTiming.firstAudioAt - turnTiming.speakingStartedAt}ms
+                  {turnTiming.responseStartedAt && (
+                    <span className="ml-2 text-green-400">
+                      (音訊延遲 {turnTiming.firstAudioAt - turnTiming.responseStartedAt}ms)
+                    </span>
+                  )}
+                </>
+              ) : turnTiming.responseStartedAt ? (
+                <span className="animate-pulse text-blue-400">串流中...</span>
+              ) : (
+                <span className="text-gray-600">-</span>
+              )}
+            </div>
+
+            <div className="text-gray-500">回應結束:</div>
+            <div className="text-gray-300">
+              {turnTiming.responseEndedAt ? (
+                <>
+                  +{turnTiming.responseEndedAt - turnTiming.speakingStartedAt}ms
+                  <span className="ml-2 text-purple-400">
+                    (總延遲 {turnTiming.endTurnSentAt ? turnTiming.responseEndedAt - turnTiming.endTurnSentAt : '-'}ms)
+                  </span>
+                </>
+              ) : turnTiming.firstAudioAt ? (
+                <span className="animate-pulse text-green-400">播放中...</span>
+              ) : (
+                <span className="text-gray-600">-</span>
+              )}
+            </div>
+          </div>
+
+          {/* Summary metrics */}
+          {turnTiming.endTurnSentAt && turnTiming.responseStartedAt && (
+            <div className="mt-3 border-t border-gray-700 pt-2">
+              <div className="flex flex-wrap gap-3 text-xs">
+                <span className="rounded bg-yellow-900/50 px-2 py-0.5 text-yellow-400">
+                  API 延遲: {turnTiming.responseStartedAt - turnTiming.endTurnSentAt}ms
+                </span>
+                {turnTiming.firstAudioAt && (
+                  <span className="rounded bg-green-900/50 px-2 py-0.5 text-green-400">
+                    首音延遲: {turnTiming.firstAudioAt - turnTiming.endTurnSentAt}ms
+                  </span>
+                )}
+                {turnTiming.responseEndedAt && (
+                  <span className="rounded bg-purple-900/50 px-2 py-0.5 text-purple-400">
+                    總回應: {turnTiming.responseEndedAt - turnTiming.endTurnSentAt}ms
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

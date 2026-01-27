@@ -12,14 +12,20 @@ import io
 import logging
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydub import AudioSegment
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.interfaces.storage_service import IStorageService
 from src.application.services.stt_service import STTService
 from src.domain.entities.audio_file import AudioFile, AudioFileFormat, AudioSource
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
+from src.infrastructure.persistence.credential_repository import (
+    SQLAlchemyProviderCredentialRepository,
+)
+from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.providers.stt.factory import STTProviderFactory
 from src.presentation.api.dependencies import (
     get_storage_service,
@@ -88,12 +94,38 @@ def _calculate_audio_metadata(audio_bytes: bytes) -> tuple[int, int]:
 
 @router.get("/providers", response_model=STTProvidersListResponse)
 async def list_providers(
+    current_user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
     stt_providers: dict = Depends(get_stt_providers),
 ):
-    """List available STT providers with their capabilities."""
+    """List available STT providers with their capabilities and credential status."""
+    # Get user's credentials
+    user_id = uuid.UUID(current_user.id)
+    credential_repo = SQLAlchemyProviderCredentialRepository(session)
+    credentials = await credential_repo.list_by_user(user_id)
+
+    # Build a map of provider -> credential status
+    credential_status: dict[str, dict] = {}
+    for cred in credentials:
+        credential_status[cred.provider] = {
+            "has_credentials": True,
+            "is_valid": cred.is_valid,
+        }
+
+    # Provider mapping: STT provider -> credential provider
+    # azure -> azure, gcp -> gcp, whisper -> openai
+    stt_mapping = {
+        "azure": "azure",
+        "gcp": "gcp",
+        "whisper": "openai",
+        "speechmatics": "speechmatics",
+    }
+
     providers_info = []
     for provider_name in stt_providers:
         provider_data = STTProviderFactory.get_provider_info(provider_name)
+        cred_provider = stt_mapping.get(provider_name, provider_name)
+        status = credential_status.get(cred_provider, {"has_credentials": False, "is_valid": False})
         providers_info.append(
             STTProviderResponse(
                 name=provider_data["name"],
@@ -104,6 +136,8 @@ async def list_providers(
                 max_file_size_mb=provider_data["max_file_size_mb"],
                 supported_formats=provider_data["supported_formats"],
                 supported_languages=provider_data["supported_languages"],
+                has_credentials=status["has_credentials"],
+                is_valid=status["is_valid"],
             )
         )
 

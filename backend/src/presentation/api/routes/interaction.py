@@ -4,10 +4,12 @@ T020: REST endpoints for interaction session management.
 """
 
 import base64
+import uuid
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,8 +17,12 @@ from src.application.use_cases.voice_interaction import (
     VoiceInteractionInput,
     VoiceInteractionUseCase,
 )
+from src.config import get_settings
 from src.domain.entities import InteractionMode, SessionStatus
 from src.domain.entities.audio import AudioData, AudioFormat
+from src.infrastructure.persistence.credential_repository import (
+    SQLAlchemyProviderCredentialRepository,
+)
 from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.interaction_repository_impl import (
     SQLAlchemyInteractionRepository,
@@ -37,6 +43,35 @@ from src.presentation.schemas.interaction import (
 )
 
 router = APIRouter()
+
+
+# Development user ID for DISABLE_AUTH mode
+DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+async def get_current_user_id(request: Request) -> uuid.UUID:
+    """Get the current user ID from the request."""
+    settings = get_settings()
+
+    if settings.disable_auth:
+        return DEV_USER_ID
+
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        user_id_header = request.headers.get("X-User-Id")
+        if user_id_header:
+            try:
+                return uuid.UUID(user_id_header)
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid user ID format",
+                ) from e
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+        )
+    return user_id
 
 
 @router.post("/voice", response_model=InteractionResponse)
@@ -397,20 +432,73 @@ async def get_scenario_template(
 
 
 @router.get("/providers")
-async def list_providers() -> dict:
-    """List available providers for cascade mode.
+async def list_providers(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict:
+    """List available providers for cascade mode with credential status.
 
     T051 [US2]: GET /api/v1/interaction/providers
-    Returns available STT, LLM, and TTS providers with metadata.
+    Returns available STT, LLM, and TTS providers with metadata and credential status.
     """
     from src.domain.services.interaction.cascade_mode_factory import CascadeModeFactory
 
     provider_info = CascadeModeFactory.get_provider_info()
 
+    # Get user's credentials
+    credential_repo = SQLAlchemyProviderCredentialRepository(session)
+    credentials = await credential_repo.list_by_user(user_id)
+
+    # Build a map of provider -> credential status
+    credential_status: dict[str, dict] = {}
+    for cred in credentials:
+        credential_status[cred.provider] = {
+            "has_credentials": True,
+            "is_valid": cred.is_valid,
+        }
+
+    # Provider name mapping (cascade names -> credential provider names)
+    # STT providers: azure -> azure, gcp -> gcp, whisper -> openai
+    # LLM providers: openai -> openai, anthropic -> anthropic, gemini -> gemini
+    # TTS providers: azure -> azure, gcp -> gcp, elevenlabs -> elevenlabs
+
+    # Add credential status to each provider
+    def add_credential_status(providers: list[dict], provider_mapping: dict) -> list[dict]:
+        result = []
+        for p in providers:
+            provider_name = p.get("name", "")
+            # Map provider name to credential provider name
+            cred_provider = provider_mapping.get(provider_name, provider_name)
+            status = credential_status.get(
+                cred_provider,
+                {
+                    "has_credentials": False,
+                    "is_valid": False,
+                },
+            )
+            result.append(
+                {
+                    **p,
+                    "has_credentials": status["has_credentials"],
+                    "is_valid": status["is_valid"],
+                }
+            )
+        return result
+
+    # Mapping from cascade provider names to credential provider names
+    stt_mapping = {"azure": "azure", "gcp": "gcp", "whisper": "openai"}
+    llm_mapping = {
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "gemini": "gemini",
+        "azure-openai": "azure",
+    }
+    tts_mapping = {"azure": "azure", "gcp": "gcp", "elevenlabs": "elevenlabs", "voai": "voai"}
+
     return {
-        "stt_providers": provider_info["stt"],
-        "llm_providers": provider_info["llm"],
-        "tts_providers": provider_info["tts"],
+        "stt_providers": add_credential_status(provider_info["stt"], stt_mapping),
+        "llm_providers": add_credential_status(provider_info["llm"], llm_mapping),
+        "tts_providers": add_credential_status(provider_info["tts"], tts_mapping),
     }
 
 

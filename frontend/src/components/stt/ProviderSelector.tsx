@@ -88,10 +88,14 @@ interface ProviderCardProps {
 }
 
 function ProviderCard({ provider, selected, disabled, onClick }: ProviderCardProps) {
+  const hasCredentials = provider.has_credentials ?? false
+  const isValid = provider.is_valid ?? false
+  const isDisabled = disabled || !hasCredentials
+
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       className={`
         relative p-4 rounded-lg border-2 transition-all text-left
         ${
@@ -99,7 +103,7 @@ function ProviderCard({ provider, selected, disabled, onClick }: ProviderCardPro
             ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
         }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
     >
       {/* Provider Name */}
@@ -107,8 +111,25 @@ function ProviderCard({ provider, selected, disabled, onClick }: ProviderCardPro
         {provider.display_name}
       </div>
 
+      {/* Credential Status */}
+      {!hasCredentials && (
+        <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+          尚未設定 API Key
+        </div>
+      )}
+      {hasCredentials && !isValid && (
+        <div className="mt-1 text-xs text-red-600 dark:text-red-400">
+          API Key 無效
+        </div>
+      )}
+
       {/* Badges */}
       <div className="mt-2 flex flex-wrap gap-1">
+        {hasCredentials && isValid && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
+            已設定
+          </span>
+        )}
         {provider.supports_child_mode && (
           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
             Child Mode

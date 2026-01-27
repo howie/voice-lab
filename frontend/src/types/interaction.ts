@@ -360,6 +360,10 @@ export interface ProviderInfo {
   description?: string
   default_model?: string
   available_models?: string[]
+  /** Whether the user has configured credentials for this provider */
+  has_credentials?: boolean
+  /** Whether the credentials are valid */
+  is_valid?: boolean
 }
 
 export interface ProvidersResponse {

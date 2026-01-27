@@ -3,9 +3,17 @@
  * Feature: 004-interaction-module
  *
  * T023: Provides microphone access, recording, and audio streaming.
+ *
+ * Uses AudioWorklet for low-latency audio processing when supported,
+ * with automatic fallback to ScriptProcessorNode for older browsers.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+import {
+  createAudioProcessor,
+  type AudioProcessorResult,
+} from '@/lib/audioProcessor'
 
 // =============================================================================
 // Types
@@ -67,7 +75,7 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
-  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const processorRef = useRef<AudioProcessorResult | null>(null)
   const recordedChunksRef = useRef<Float32Array[]>([])
   const animationFrameRef = useRef<number | null>(null)
 
@@ -144,31 +152,24 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
 
       const source = audioContext.createMediaStreamSource(stream)
 
-      // Create analyser for volume metering
+      // Branch A: AnalyserNode for volume metering (stays on main thread)
       const analyser = audioContext.createAnalyser()
       analyser.fftSize = 256
       analyserRef.current = analyser
       source.connect(analyser)
 
-      // Create processor for audio data
-      const bufferSize = 4096
-      const processor = audioContext.createScriptProcessor(bufferSize, channelCount, channelCount)
+      // Branch B: Audio processor for recording (uses AudioWorklet when supported)
+      const processor = await createAudioProcessor({
+        audioContext,
+        source,
+        onAudioChunk: (chunk, chunkSampleRate) => {
+          // Store for later use
+          recordedChunksRef.current.push(chunk)
+          // Notify listener
+          onAudioChunk?.(chunk, chunkSampleRate)
+        },
+      })
       processorRef.current = processor
-
-      processor.onaudioprocess = (event) => {
-        const inputBuffer = event.inputBuffer
-        const audioData = inputBuffer.getChannelData(0)
-
-        // Store for later use
-        const chunk = new Float32Array(audioData)
-        recordedChunksRef.current.push(chunk)
-
-        // Notify listener
-        onAudioChunk?.(chunk, audioContext.sampleRate)
-      }
-
-      source.connect(processor)
-      processor.connect(audioContext.destination)
 
       setIsRecording(true)
 
@@ -196,9 +197,9 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
       animationFrameRef.current = null
     }
 
-    // Disconnect processor
+    // Cleanup processor (handles both AudioWorklet and ScriptProcessor)
     if (processorRef.current) {
-      processorRef.current.disconnect()
+      processorRef.current.cleanup()
       processorRef.current = null
     }
 

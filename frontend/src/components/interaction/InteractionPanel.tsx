@@ -369,6 +369,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     connect: wsConnect,
     disconnect: wsDisconnect,
     sendMessage,
+    sendBinary,
     error: wsError,
   } = useWebSocket({
     url: resolvedWsUrl,
@@ -391,18 +392,22 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           audioSampleRateLoggedRef.current = true
         }
 
-        // Convert Float32 to PCM16 and send as base64-encoded JSON
+        // Convert Float32 to PCM16
         const pcm16Buffer = float32ToPCM16(chunk)
-        const base64Audio = btoa(
-          String.fromCharCode(...new Uint8Array(pcm16Buffer))
-        )
-        // Use actual sample rate from AudioContext, not hardcoded value
-        // This is critical for Gemini VAD to work correctly
-        sendMessage('audio_chunk', {
-          audio: base64Audio,
-          format: 'pcm16',
-          sample_rate: actualSampleRate,
-        })
+
+        // Binary format: [4 bytes sample_rate (uint32 LE)] + [PCM16 audio data]
+        // This is more efficient than Base64 JSON (~33% smaller, no encode/decode overhead)
+        const headerSize = 4
+        const binaryMessage = new ArrayBuffer(headerSize + pcm16Buffer.byteLength)
+        const view = new DataView(binaryMessage)
+
+        // Write sample rate as uint32 little-endian
+        view.setUint32(0, actualSampleRate, true)
+
+        // Copy PCM16 audio data after header
+        new Uint8Array(binaryMessage, headerSize).set(new Uint8Array(pcm16Buffer))
+
+        sendBinary(binaryMessage)
       }
     },
     onVolumeChange: (vol: number) => {

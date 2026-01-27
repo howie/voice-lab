@@ -129,22 +129,101 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._latency_tracker.clear_all()
 
     async def run(self) -> None:
-        """Main handler loop - process messages and events concurrently."""
+        """Main handler loop - process messages and events concurrently.
+
+        Supports both Text (JSON) and Binary messages:
+        - Text: Control messages (config, end_turn, interrupt, ping)
+        - Binary: Audio data with header [4 bytes sample_rate (u32 LE)] + [PCM16 data]
+        """
         await self.start_heartbeat()
 
         # Start event listener for mode service responses
         self._event_task = asyncio.create_task(self._process_mode_events())
 
-        # Process incoming messages
+        # Process incoming messages (both text and binary)
         while self.is_connected:
             try:
-                message = await self.receive_message()
-                if message:
-                    await self.handle_message(message)
+                # Use low-level receive to handle both text and binary
+                ws_message = await self._websocket.receive()
+
+                if ws_message["type"] == "websocket.receive":
+                    if "text" in ws_message:
+                        # JSON control message
+                        message = await self._parse_text_message(ws_message["text"])
+                        if message:
+                            await self.handle_message(message)
+                    elif "bytes" in ws_message:
+                        # Binary audio data
+                        await self._handle_binary_audio(ws_message["bytes"])
+                elif ws_message["type"] == "websocket.disconnect":
+                    break
             except Exception as e:
                 self._logger.error(f"Error processing message: {e}")
                 await self.send_error("MESSAGE_ERROR", str(e))
                 break
+
+    async def _parse_text_message(self, text: str) -> WebSocketMessage | None:
+        """Parse a text message into WebSocketMessage."""
+        import json
+
+        try:
+            data = json.loads(text)
+            msg_type = MessageType(data.get("type", ""))
+            return WebSocketMessage(
+                type=msg_type,
+                data=data.get("data", {}),
+            )
+        except ValueError as e:
+            self._logger.warning(f"Invalid message type: {e}")
+            await self.send_error("INVALID_MESSAGE_TYPE", str(e))
+            return None
+        except json.JSONDecodeError as e:
+            self._logger.warning(f"Invalid JSON: {e}")
+            await self.send_error("INVALID_JSON", str(e))
+            return None
+
+    async def _handle_binary_audio(self, data: bytes) -> None:
+        """Handle binary audio data.
+
+        Binary format: [4 bytes sample_rate (uint32 LE)] + [PCM16 audio data]
+        This is more efficient than Base64 JSON (~33% smaller, no encode/decode overhead).
+        """
+        if not self._session or not self._mode_service.is_connected():
+            await self.send_error("NOT_CONNECTED", "No active session")
+            return
+
+        if len(data) < 4:
+            self._logger.warning("Binary audio data too short (missing header)")
+            return
+
+        # Parse header: sample_rate as uint32 little-endian
+        sample_rate = int.from_bytes(data[:4], byteorder="little")
+        audio_bytes = data[4:]
+
+        if not audio_bytes:
+            return
+
+        # Create turn if needed
+        if not self._current_turn:
+            await self._start_new_turn()
+
+        # Lightweight mode: skip sync storage, forward immediately
+        if not self._lightweight_mode and self._current_turn:
+            await self._audio_storage.append_user_audio(
+                session_id=self._session.id,
+                turn_number=self._current_turn.turn_number,
+                audio_chunk=audio_bytes,
+                format="webm",
+            )
+
+        # Send to mode service immediately (minimal latency path)
+        audio_chunk = AudioChunk(
+            data=audio_bytes,
+            format="pcm16",
+            sample_rate=sample_rate,
+            is_final=False,
+        )
+        await self._mode_service.send_audio(audio_chunk)
 
     async def _handle_config(self, message: WebSocketMessage) -> None:
         """Handle session configuration message."""

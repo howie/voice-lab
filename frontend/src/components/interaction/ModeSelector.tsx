@@ -73,14 +73,8 @@ const GEMINI_MODELS: ModelInfo[] = [
   {
     id: 'gemini-2.5-flash-native-audio-preview-12-2025',
     label: 'Gemini 2.5 Flash (Native Audio)',
-    description: '支援中文，30種HD語音，推薦使用',
+    description: '支援中文，30種HD語音',
     status: 'stable',
-  },
-  {
-    id: 'gemini-2.0-flash-exp',
-    label: 'Gemini 2.0 Flash',
-    description: '僅支援英文語音',
-    status: 'deprecated',
   },
 ]
 
@@ -447,7 +441,7 @@ export function ModeSelector({
                   <div>
                     <label className="mb-2 block text-sm text-muted-foreground">模型版本</label>
                     <select
-                      value={currentRealtimeModel || 'gemini-2.0-flash-exp'}
+                      value={currentRealtimeModel || 'gemini-2.5-flash-native-audio-preview-12-2025'}
                       onChange={(e) =>
                         onProviderChange({
                           ...providerConfig,
@@ -473,7 +467,7 @@ export function ModeSelector({
                       ))}
                     </select>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {GEMINI_MODELS.find((m) => m.id === (currentRealtimeModel || 'gemini-2.0-flash-exp'))
+                      {GEMINI_MODELS.find((m) => m.id === (currentRealtimeModel || 'gemini-2.5-flash-native-audio-preview-12-2025'))
                         ?.description}
                     </p>
                   </div>

@@ -160,7 +160,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const hasUserSpokenRef = useRef(false) // Track if user has spoken in current turn (prevents immediate end_turn on turn start)
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
   const SILENCE_THRESHOLD = 0.08 // Volume below this is considered silence (background noise is ~0.04-0.06)
-  const SILENCE_DURATION_MS = 1200 // Auto send end_turn after 1.2s of silence
+  const SILENCE_DURATION_MS = 600 // Auto send end_turn after 0.6s of silence (optimized from 1.2s)
 
   // Store state
   const {

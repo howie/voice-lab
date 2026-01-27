@@ -15,6 +15,10 @@ export interface STTProvider {
   max_file_size_mb: number
   supported_formats: AudioFormat[]
   supported_languages: string[]
+  /** Whether the user has configured credentials for this provider */
+  has_credentials?: boolean
+  /** Whether the configured credentials are valid */
+  is_valid?: boolean
 }
 
 // Audio types

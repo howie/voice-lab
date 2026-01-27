@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
+import { ttsApi } from '@/lib/api'
 import { listProviders } from '@/services/interactionApi'
 import type {
   CascadeLLMProvider,
@@ -20,6 +21,17 @@ import type {
   ProviderInfo,
   RealtimeProviderConfig,
 } from '@/types/interaction'
+
+// Voice profile from API
+interface VoiceProfile {
+  id: string
+  name: string
+  provider: string
+  language: string
+  gender?: string
+  age_group?: string
+  description?: string
+}
 
 // Voice information with gender and language support
 interface VoiceInfo {
@@ -103,6 +115,12 @@ interface ProvidersState {
   error: string | null
 }
 
+interface VoicesState {
+  voices: VoiceProfile[]
+  loading: boolean
+  error: string | null
+}
+
 export function ModeSelector({
   mode,
   providerConfig,
@@ -116,6 +134,11 @@ export function ModeSelector({
     stt: [],
     llm: [],
     tts: [],
+    loading: false,
+    error: null,
+  })
+  const [ttsVoices, setTtsVoices] = useState<VoicesState>({
+    voices: [],
     loading: false,
     error: null,
   })
@@ -138,6 +161,26 @@ export function ModeSelector({
         ...prev,
         loading: false,
         error: '無法載入提供者清單',
+      }))
+    }
+  }, [])
+
+  // Fetch voices for the selected TTS provider
+  const fetchVoices = useCallback(async (provider: string) => {
+    setTtsVoices((prev) => ({ ...prev, loading: true, error: null }))
+    try {
+      const response = await ttsApi.getVoices(provider, { language: 'zh' })
+      setTtsVoices({
+        voices: response.data,
+        loading: false,
+        error: null,
+      })
+    } catch (err) {
+      console.error('Failed to fetch voices:', err)
+      setTtsVoices((prev) => ({
+        ...prev,
+        loading: false,
+        error: '無法載入語音清單',
       }))
     }
   }, [])
@@ -167,6 +210,16 @@ export function ModeSelector({
   // Get available voices based on Realtime provider
   const availableRealtimeVoices =
     currentRealtimeProvider === 'gemini' ? GEMINI_VOICES : OPENAI_VOICES
+
+  // Fetch voices when TTS provider changes in cascade mode
+  useEffect(() => {
+    if (mode === 'cascade' && isExpanded && currentTTSProvider) {
+      const ttsProvider = providers.tts.find((p) => p.name === currentTTSProvider)
+      if (ttsProvider?.has_credentials && ttsProvider?.is_valid) {
+        fetchVoices(currentTTSProvider)
+      }
+    }
+  }, [mode, isExpanded, currentTTSProvider, providers.tts, fetchVoices])
 
   const handleModeChange = (newMode: InteractionMode) => {
     onModeChange(newMode)
@@ -484,11 +537,22 @@ export function ModeSelector({
                         "
                       >
                         {providers.stt.map((p) => (
-                          <option key={p.name} value={p.name}>
+                          <option
+                            key={p.name}
+                            value={p.name}
+                            disabled={!p.has_credentials}
+                          >
                             {p.display_name}
+                            {!p.has_credentials && ' (尚未設定 API Key)'}
+                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
                           </option>
                         ))}
                       </select>
+                      {providers.stt.find((p) => p.name === currentSTTProvider && !p.has_credentials) && (
+                        <p className="mt-1 text-xs text-amber-500">
+                          請先在設定頁面設定此提供者的 API Key
+                        </p>
+                      )}
                     </div>
 
                     {/* LLM Provider (T054) */}
@@ -509,11 +573,22 @@ export function ModeSelector({
                         "
                       >
                         {providers.llm.map((p) => (
-                          <option key={p.name} value={p.name}>
+                          <option
+                            key={p.name}
+                            value={p.name}
+                            disabled={!p.has_credentials}
+                          >
                             {p.display_name}
+                            {!p.has_credentials && ' (尚未設定 API Key)'}
+                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
                           </option>
                         ))}
                       </select>
+                      {providers.llm.find((p) => p.name === currentLLMProvider && !p.has_credentials) && (
+                        <p className="mt-1 text-xs text-amber-500">
+                          請先在設定頁面設定此提供者的 API Key
+                        </p>
+                      )}
                     </div>
 
                     {/* TTS Provider (T055) */}
@@ -534,31 +609,103 @@ export function ModeSelector({
                         "
                       >
                         {providers.tts.map((p) => (
-                          <option key={p.name} value={p.name}>
+                          <option
+                            key={p.name}
+                            value={p.name}
+                            disabled={!p.has_credentials}
+                          >
                             {p.display_name}
+                            {!p.has_credentials && ' (尚未設定 API Key)'}
+                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
                           </option>
                         ))}
                       </select>
+                      {providers.tts.find((p) => p.name === currentTTSProvider && !p.has_credentials) && (
+                        <p className="mt-1 text-xs text-amber-500">
+                          請先在設定頁面設定此提供者的 API Key
+                        </p>
+                      )}
                     </div>
 
-                    {/* TTS Voice Input */}
+                    {/* TTS Voice Dropdown */}
                     <div>
-                      <label className="mb-2 block text-sm text-muted-foreground">TTS 語音 ID</label>
-                      <input
-                        type="text"
-                        value={currentTTSVoice || DEFAULT_TTS_VOICES[currentTTSProvider] || ''}
-                        onChange={(e) => handleTTSVoiceChange(e.target.value)}
-                        disabled={disabled}
-                        placeholder={DEFAULT_TTS_VOICES[currentTTSProvider] || '輸入語音 ID'}
-                        className="
-                          w-full rounded-lg border bg-background px-3 py-2 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary
-                          disabled:cursor-not-allowed disabled:opacity-50
-                        "
-                      />
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        不同 TTS 提供者支援不同的語音 ID
-                      </p>
+                      <label className="mb-2 block text-sm text-muted-foreground">TTS 語音</label>
+                      {ttsVoices.loading ? (
+                        <div className="flex items-center py-2 text-sm text-muted-foreground">
+                          <svg
+                            className="mr-2 h-4 w-4 animate-spin"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                          載入語音...
+                        </div>
+                      ) : ttsVoices.voices.length > 0 ? (
+                        <select
+                          value={currentTTSVoice || ''}
+                          onChange={(e) => handleTTSVoiceChange(e.target.value)}
+                          disabled={disabled}
+                          className="
+                            w-full rounded-lg border bg-background px-3 py-2 text-sm
+                            focus:outline-none focus:ring-2 focus:ring-primary
+                            disabled:cursor-not-allowed disabled:opacity-50
+                          "
+                        >
+                          <option value="">選擇語音...</option>
+                          {/* Group by gender */}
+                          {['Female', 'Male', undefined].map((gender) => {
+                            const genderVoices = ttsVoices.voices.filter(
+                              (v) => v.gender === gender || (!gender && !v.gender)
+                            )
+                            if (genderVoices.length === 0) return null
+                            const genderLabel = gender === 'Female' ? '女聲' : gender === 'Male' ? '男聲' : '其他'
+                            return (
+                              <optgroup key={gender || 'other'} label={genderLabel}>
+                                {genderVoices.map((voice) => (
+                                  <option key={voice.id} value={voice.id}>
+                                    {voice.name} ({voice.language})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )
+                          })}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={currentTTSVoice || DEFAULT_TTS_VOICES[currentTTSProvider] || ''}
+                          onChange={(e) => handleTTSVoiceChange(e.target.value)}
+                          disabled={disabled}
+                          placeholder={DEFAULT_TTS_VOICES[currentTTSProvider] || '輸入語音 ID'}
+                          className="
+                            w-full rounded-lg border bg-background px-3 py-2 text-sm
+                            focus:outline-none focus:ring-2 focus:ring-primary
+                            disabled:cursor-not-allowed disabled:opacity-50
+                          "
+                        />
+                      )}
+                      {ttsVoices.error && (
+                        <p className="mt-1 text-xs text-destructive">{ttsVoices.error}</p>
+                      )}
+                      {!providers.tts.find((p) => p.name === currentTTSProvider)?.has_credentials && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          設定 API Key 後可選擇更多語音
+                        </p>
+                      )}
                     </div>
                   </>
                 )}

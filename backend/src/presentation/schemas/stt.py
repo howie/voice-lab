@@ -24,6 +24,10 @@ class STTProviderResponse(BaseSchema):
     max_file_size_mb: int = Field(..., description="Maximum file size in MB")
     supported_formats: list[str] = Field(..., description="Supported audio formats")
     supported_languages: list[str] = Field(..., description="Supported language codes")
+    has_credentials: bool = Field(
+        default=False, description="Whether user has credentials configured"
+    )
+    is_valid: bool = Field(default=False, description="Whether configured credentials are valid")
 
 
 class STTProvidersListResponse(BaseSchema):

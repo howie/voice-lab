@@ -1,0 +1,407 @@
+/**
+ * Magic DJ Store
+ * Feature: 010-magic-dj-controller
+ *
+ * T004: Zustand store for Magic DJ state management.
+ * T048: Operation priority queue with debounce logic.
+ */
+
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+import type {
+  DJSettings,
+  MagicDJState,
+  OperationLog,
+  OperationMode,
+  PendingOperation,
+  SessionRecord,
+  Track,
+  TrackPlaybackState,
+} from '@/types/magic-dj'
+import {
+  DEFAULT_DJ_SETTINGS,
+  DEFAULT_TRACKS,
+  OperationPriority,
+} from '@/types/magic-dj'
+
+// =============================================================================
+// Store Interface
+// =============================================================================
+
+interface MagicDJStoreState extends MagicDJState {
+  // === Track Actions ===
+  setTracks: (tracks: Track[]) => void
+  addTrack: (track: Track) => void
+  removeTrack: (trackId: string) => void
+  updateTrack: (trackId: string, updates: Partial<Track>) => void
+  updateTrackState: (trackId: string, state: Partial<TrackPlaybackState>) => void
+  setMasterVolume: (volume: number) => void
+
+  // === Mode Actions ===
+  setMode: (mode: OperationMode) => void
+  setAIConnected: (connected: boolean) => void
+
+  // === Session Timer Actions ===
+  startSession: () => void
+  stopSession: () => void
+  resetSession: () => void
+  updateElapsedTime: (seconds: number) => void
+
+  // === AI Response Timing Actions ===
+  startAIWaiting: () => void
+  stopAIWaiting: () => void
+
+  // === Settings Actions ===
+  updateSettings: (settings: Partial<DJSettings>) => void
+
+  // === Session Record Actions ===
+  logOperation: (action: OperationLog['action'], data?: Record<string, unknown>) => void
+  getCurrentSession: () => SessionRecord | null
+
+  // === Operation Priority Queue Actions (T048) ===
+  queueOperation: (operation: Omit<PendingOperation, 'timestamp'>) => boolean
+  processOperationQueue: () => PendingOperation | null
+  clearOperationQueue: () => void
+
+  // === General Actions ===
+  reset: () => void
+}
+
+// =============================================================================
+// Initial State
+// =============================================================================
+
+const createInitialTrackStates = (tracks: Track[]): Record<string, TrackPlaybackState> => {
+  const states: Record<string, TrackPlaybackState> = {}
+  for (const track of tracks) {
+    states[track.id] = {
+      trackId: track.id,
+      isPlaying: false,
+      isLoaded: false,
+      isLoading: false,
+      error: null,
+      currentTime: 0,
+      volume: 1,
+    }
+  }
+  return states
+}
+
+const initialState: MagicDJState = {
+  tracks: DEFAULT_TRACKS,
+  trackStates: createInitialTrackStates(DEFAULT_TRACKS),
+  masterVolume: 1,
+  currentMode: 'prerecorded',
+  isAIConnected: false,
+  isSessionActive: false,
+  sessionStartTime: null,
+  elapsedTime: 0,
+  aiRequestTime: null,
+  isWaitingForAI: false,
+  settings: DEFAULT_DJ_SETTINGS,
+  currentSession: null,
+  pendingOperations: [],
+  lastOperationTime: 0,
+}
+
+// =============================================================================
+// Debounce Window (100ms for EC-002)
+// =============================================================================
+
+const OPERATION_DEBOUNCE_MS = 100
+
+// =============================================================================
+// Store Implementation
+// =============================================================================
+
+export const useMagicDJStore = create<MagicDJStoreState>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
+
+      // === Track Actions ===
+      setTracks: (tracks) =>
+        set({
+          tracks,
+          trackStates: createInitialTrackStates(tracks),
+        }),
+
+      addTrack: (track) =>
+        set((prev) => ({
+          tracks: [...prev.tracks, track],
+          trackStates: {
+            ...prev.trackStates,
+            [track.id]: {
+              trackId: track.id,
+              isPlaying: false,
+              isLoaded: false,
+              isLoading: false,
+              error: null,
+              currentTime: 0,
+              volume: 1,
+            },
+          },
+        })),
+
+      removeTrack: (trackId) =>
+        set((prev) => {
+          const newTracks = prev.tracks.filter((t) => t.id !== trackId)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [trackId]: _removed, ...newTrackStates } = prev.trackStates
+          return {
+            tracks: newTracks,
+            trackStates: newTrackStates,
+          }
+        }),
+
+      updateTrack: (trackId, updates) =>
+        set((prev) => ({
+          tracks: prev.tracks.map((t) =>
+            t.id === trackId ? { ...t, ...updates } : t
+          ),
+        })),
+
+      updateTrackState: (trackId, state) =>
+        set((prev) => ({
+          trackStates: {
+            ...prev.trackStates,
+            [trackId]: {
+              ...prev.trackStates[trackId],
+              ...state,
+            },
+          },
+        })),
+
+      setMasterVolume: (volume) =>
+        set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
+
+      // === Mode Actions ===
+      setMode: (mode) => {
+        const prev = get()
+        if (prev.currentMode !== mode) {
+          get().logOperation('mode_switch', { from: prev.currentMode, to: mode })
+        }
+        set({ currentMode: mode })
+      },
+
+      setAIConnected: (connected) => set({ isAIConnected: connected }),
+
+      // === Session Timer Actions ===
+      startSession: () => {
+        const now = Date.now()
+        const session: SessionRecord = {
+          id: crypto.randomUUID(),
+          startTime: new Date(now).toISOString(),
+          endTime: null,
+          durationSeconds: 0,
+          operationLogs: [],
+          observations: [],
+          modeSwitchCount: 0,
+          aiInteractionCount: 0,
+        }
+        set({
+          isSessionActive: true,
+          sessionStartTime: now,
+          elapsedTime: 0,
+          currentSession: session,
+        })
+        get().logOperation('session_start')
+      },
+
+      stopSession: () => {
+        const prev = get()
+        get().logOperation('session_end')
+        if (prev.currentSession) {
+          set({
+            isSessionActive: false,
+            currentSession: {
+              ...prev.currentSession,
+              endTime: new Date().toISOString(),
+              durationSeconds: prev.elapsedTime,
+            },
+          })
+        } else {
+          set({ isSessionActive: false })
+        }
+      },
+
+      resetSession: () =>
+        set({
+          isSessionActive: false,
+          sessionStartTime: null,
+          elapsedTime: 0,
+          currentSession: null,
+        }),
+
+      updateElapsedTime: (seconds) => set({ elapsedTime: seconds }),
+
+      // === AI Response Timing Actions ===
+      startAIWaiting: () =>
+        set({
+          aiRequestTime: Date.now(),
+          isWaitingForAI: true,
+        }),
+
+      stopAIWaiting: () =>
+        set({
+          aiRequestTime: null,
+          isWaitingForAI: false,
+        }),
+
+      // === Settings Actions ===
+      updateSettings: (settings) =>
+        set((prev) => ({
+          settings: { ...prev.settings, ...settings },
+        })),
+
+      // === Session Record Actions ===
+      logOperation: (action, data) => {
+        set((prev) => {
+          if (!prev.currentSession) return prev
+
+          const log: OperationLog = {
+            timestamp: new Date().toISOString(),
+            action,
+            data,
+          }
+
+          // Count mode switches and AI interactions
+          let modeSwitchCount = prev.currentSession.modeSwitchCount
+          let aiInteractionCount = prev.currentSession.aiInteractionCount
+
+          if (action === 'mode_switch') {
+            modeSwitchCount++
+          }
+          if (action === 'force_submit') {
+            aiInteractionCount++
+          }
+
+          return {
+            currentSession: {
+              ...prev.currentSession,
+              operationLogs: [...prev.currentSession.operationLogs, log],
+              modeSwitchCount,
+              aiInteractionCount,
+            },
+          }
+        })
+      },
+
+      getCurrentSession: () => get().currentSession,
+
+      // === Operation Priority Queue Actions (T048) ===
+      queueOperation: (operation) => {
+        const now = Date.now()
+        const prev = get()
+
+        // Check if within debounce window
+        if (now - prev.lastOperationTime < OPERATION_DEBOUNCE_MS) {
+          // Within debounce window - add to queue
+          const newOp: PendingOperation = {
+            ...operation,
+            timestamp: now,
+          }
+
+          set((state) => ({
+            pendingOperations: [...state.pendingOperations, newOp],
+          }))
+
+          return false // Operation queued, not executed immediately
+        }
+
+        // Outside debounce window - execute immediately
+        set({ lastOperationTime: now })
+        return true // Operation can be executed immediately
+      },
+
+      processOperationQueue: () => {
+        const prev = get()
+        if (prev.pendingOperations.length === 0) {
+          return null
+        }
+
+        // Sort by priority (lower number = higher priority)
+        const sorted = [...prev.pendingOperations].sort(
+          (a, b) => a.priority - b.priority
+        )
+
+        // Get highest priority operation
+        const highestPriority = sorted[0]
+
+        // Clear queue and update last operation time
+        set({
+          pendingOperations: [],
+          lastOperationTime: Date.now(),
+        })
+
+        return highestPriority
+      },
+
+      clearOperationQueue: () => set({ pendingOperations: [] }),
+
+      // === General Actions ===
+      reset: () => set(initialState),
+    }),
+    {
+      name: 'magic-dj-store',
+      // Only persist user preferences
+      partialize: (state) => ({
+        settings: state.settings,
+        masterVolume: state.masterVolume,
+      }),
+      // Merge persisted settings with defaults
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<MagicDJStoreState>
+        return {
+          ...currentState,
+          settings: {
+            ...DEFAULT_DJ_SETTINGS,
+            ...(persisted.settings || {}),
+          },
+          masterVolume: persisted.masterVolume ?? currentState.masterVolume,
+        }
+      },
+    }
+  )
+)
+
+// =============================================================================
+// Selectors
+// =============================================================================
+
+export const selectIsPlaying = (trackId: string) => (state: MagicDJStoreState) =>
+  state.trackStates[trackId]?.isPlaying ?? false
+
+export const selectIsLoaded = (trackId: string) => (state: MagicDJStoreState) =>
+  state.trackStates[trackId]?.isLoaded ?? false
+
+export const selectTrackError = (trackId: string) => (state: MagicDJStoreState) =>
+  state.trackStates[trackId]?.error ?? null
+
+export const selectAnyTrackPlaying = (state: MagicDJStoreState) =>
+  Object.values(state.trackStates).some((s) => s.isPlaying)
+
+export const selectPlayingTracks = (state: MagicDJStoreState) =>
+  Object.values(state.trackStates).filter((s) => s.isPlaying)
+
+export const selectIsTimeWarning = (state: MagicDJStoreState) =>
+  state.elapsedTime >= state.settings.timeWarningAt
+
+export const selectIsTimeLimit = (state: MagicDJStoreState) =>
+  state.elapsedTime >= state.settings.sessionTimeLimit
+
+export const selectAIWaitingSeconds = (state: MagicDJStoreState) => {
+  if (!state.isWaitingForAI || !state.aiRequestTime) return 0
+  return Math.floor((Date.now() - state.aiRequestTime) / 1000)
+}
+
+export const selectIsAITimeout = (state: MagicDJStoreState) => {
+  const waitingSeconds = selectAIWaitingSeconds(state)
+  return waitingSeconds >= state.settings.aiResponseTimeout
+}
+
+// Export helper for operation priority
+export { OperationPriority }
+
+export default useMagicDJStore

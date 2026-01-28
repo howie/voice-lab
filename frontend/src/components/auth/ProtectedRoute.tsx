@@ -17,6 +17,9 @@ export function ProtectedRoute({
   children,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
+  // TEMPORARY: Bypass auth for local testing
+  const DEV_BYPASS_AUTH = import.meta.env.DEV
+
   // Use individual selectors to prevent unnecessary re-renders
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isLoading = useAuthStore((state) => state.isLoading)
@@ -26,20 +29,27 @@ export function ProtectedRoute({
 
   // Check auth only on mount - empty dependency array ensures single execution
   useEffect(() => {
-    checkAuth()
+    if (!DEV_BYPASS_AUTH) {
+      checkAuth()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Redirect if not authenticated after loading
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!DEV_BYPASS_AUTH && !isLoading && !isAuthenticated) {
       // Save the attempted URL for redirecting after login
       navigate(redirectTo, {
         state: { from: location.pathname },
         replace: true,
       })
     }
-  }, [isAuthenticated, isLoading, navigate, redirectTo, location])
+  }, [DEV_BYPASS_AUTH, isAuthenticated, isLoading, navigate, redirectTo, location])
+
+  // Bypass auth in dev mode
+  if (DEV_BYPASS_AUTH) {
+    return <>{children}</>
+  }
 
   // Show loading state while checking auth
   if (isLoading) {

@@ -9,6 +9,7 @@ import {
   Key,
   Users,
   Briefcase,
+  Disc3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: '背景工作', href: '/jobs', icon: Briefcase },
   { name: 'STT 測試', href: '/stt', icon: Mic },
   { name: '互動測試', href: '/interaction', icon: MessagesSquare },
+  { name: 'Magic DJ', href: '/magic-dj', icon: Disc3 },
   { name: '歷史紀錄', href: '/history', icon: History },
   { name: '進階功能', href: '/advanced', icon: Settings },
   { name: 'API 金鑰', href: '/settings/providers', icon: Key },

@@ -61,22 +61,11 @@ const GEMINI_VOICES: VoiceInfo[] = [
   { id: 'Fenrir', label: 'Fenrir', gender: '男', languages: '多語言（含中文）' },
 ]
 
-// Available Gemini models for V2V
-interface ModelInfo {
-  id: string
-  label: string
-  description: string
-  status: 'stable' | 'preview' | 'deprecated'
+// Gemini 模型顯示資訊（模型由後端控制，前端只顯示）
+const GEMINI_MODEL_LABELS: Record<string, string> = {
+  'gemini-2.5-flash-native-audio-preview-12-2025': 'Gemini 2.5 Flash (Native Audio)',
+  'gemini-2.0-flash-live-001': 'Gemini 2.0 Flash Live',
 }
-
-const GEMINI_MODELS: ModelInfo[] = [
-  {
-    id: 'gemini-2.5-flash-native-audio-preview-12-2025',
-    label: 'Gemini 2.5 Flash (Native Audio)',
-    description: '支援中文，30種HD語音',
-    status: 'stable',
-  },
-]
 
 // Default TTS voices by provider
 const DEFAULT_TTS_VOICES: Record<string, string> = {
@@ -219,6 +208,7 @@ export function ModeSelector({
     onModeChange(newMode)
 
     // Update provider config based on mode
+    // 注意：realtime 模式不設定 model，由後端決定
     if (newMode === 'realtime') {
       onProviderChange({
         provider: 'openai',
@@ -236,6 +226,7 @@ export function ModeSelector({
 
   const handleRealtimeProviderChange = (provider: 'openai' | 'gemini') => {
     // 預設選擇女性語音，較適合中文對話
+    // 注意：不設定 model，由後端決定使用哪個模型
     const defaultVoice = provider === 'gemini' ? 'Kore' : 'shimmer'
     onProviderChange({
       provider,
@@ -436,39 +427,17 @@ export function ModeSelector({
                   </select>
                 </div>
 
-                {/* Model Selection (Gemini only) */}
+                {/* Model Display (Gemini only) - 模型由後端控制 */}
                 {currentRealtimeProvider === 'gemini' && (
                   <div>
                     <label className="mb-2 block text-sm text-muted-foreground">模型版本</label>
-                    <select
-                      value={currentRealtimeModel || 'gemini-2.5-flash-native-audio-preview-12-2025'}
-                      onChange={(e) =>
-                        onProviderChange({
-                          ...providerConfig,
-                          model: e.target.value,
-                        } as ProviderConfig)
-                      }
-                      disabled={disabled}
-                      className="
-                        w-full rounded-lg border bg-background px-3 py-2 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-primary
-                        disabled:cursor-not-allowed disabled:opacity-50
-                      "
-                    >
-                      {GEMINI_MODELS.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.label}{' '}
-                          {model.status === 'preview'
-                            ? '(預覽)'
-                            : model.status === 'deprecated'
-                              ? '(即將退役)'
-                              : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      {currentRealtimeModel
+                        ? GEMINI_MODEL_LABELS[currentRealtimeModel] || currentRealtimeModel
+                        : '由後端決定'}
+                    </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {GEMINI_MODELS.find((m) => m.id === (currentRealtimeModel || 'gemini-2.5-flash-native-audio-preview-12-2025'))
-                        ?.description}
+                      模型由後端設定控制，確保使用支援 Live API 的版本
                     </p>
                   </div>
                 )}

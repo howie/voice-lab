@@ -46,14 +46,15 @@ GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generati
 # Available models for Gemini Live API (must support bidiGenerateContent)
 # See: https://ai.google.dev/gemini-api/docs/models
 # See: https://ai.google.dev/gemini-api/docs/live
+# IMPORTANT: Only these models support Live API (bidiGenerateContent)
+# Models like gemini-2.0-flash-exp or gemini-2.5-flash do NOT support Live API
 AVAILABLE_MODELS = [
     "gemini-2.5-flash-native-audio-preview-12-2025",  # Latest native audio, Chinese support
     "gemini-2.0-flash-live-001",  # Gemini 2.0 Flash Live stable
-    "gemini-2.0-flash-exp",  # Legacy, retiring March 2026
 ]
 
-# Default configuration - use 2.0 flash live for stability
-DEFAULT_MODEL = "gemini-2.0-flash-live-001"
+# Default configuration - use 2.5 flash native audio for Chinese support
+DEFAULT_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 

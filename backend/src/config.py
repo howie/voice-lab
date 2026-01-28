@@ -103,8 +103,12 @@ class Settings(BaseSettings):
     # Trade-off: No latency metrics vs lower overhead
     v2v_skip_latency_tracking: bool = False
 
-    # Gemini model configuration
-    # Options: gemini-2.5-flash-native-audio-preview-12-2025 (Chinese), gemini-2.0-flash-exp (English only)
+    # Gemini model configuration for Live API (V2V)
+    # IMPORTANT: Only models that support bidiGenerateContent can be used
+    # Valid options:
+    #   - gemini-2.5-flash-native-audio-preview-12-2025 (Chinese support, Native Audio)
+    #   - gemini-2.0-flash-live-001 (stable)
+    # Invalid (do NOT use): gemini-2.0-flash-exp, gemini-2.5-flash
     gemini_live_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
 
     # Google AI API Key (for Gemini)

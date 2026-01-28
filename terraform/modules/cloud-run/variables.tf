@@ -136,6 +136,18 @@ variable "gemini_api_key_secret" {
   default     = null
 }
 
+variable "voai_api_key_secret" {
+  type        = string
+  description = "Secret ID for VoAI API Key"
+  default     = null
+}
+
+variable "voai_api_endpoint" {
+  type        = string
+  description = "VoAI API endpoint"
+  default     = "connect.voai.ai"
+}
+
 # Application config
 variable "allowed_domains" {
   type        = list(string)

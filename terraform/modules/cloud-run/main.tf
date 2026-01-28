@@ -157,6 +157,26 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
 
+      # VoAI API key (if provided)
+      dynamic "env" {
+        for_each = var.voai_api_key_secret != null ? [1] : []
+        content {
+          name = "VOAI_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.voai_api_key_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      # VoAI API endpoint
+      env {
+        name  = "VOAI_API_ENDPOINT"
+        value = var.voai_api_endpoint
+      }
+
       # Startup and liveness probes
       startup_probe {
         http_get {

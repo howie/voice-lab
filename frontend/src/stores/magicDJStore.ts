@@ -113,6 +113,57 @@ const initialState: MagicDJState = {
 const OPERATION_DEBOUNCE_MS = 100
 
 // =============================================================================
+// Helper Functions for Audio Persistence
+// =============================================================================
+
+/**
+ * Convert base64 audio data to blob URL
+ */
+const base64ToBlobUrl = (base64: string): string => {
+  try {
+    // Extract mime type and data from data URL or raw base64
+    let mimeType = 'audio/mpeg'
+    let data = base64
+
+    if (base64.startsWith('data:')) {
+      const matches = base64.match(/^data:([^;]+);base64,(.+)$/)
+      if (matches) {
+        mimeType = matches[1]
+        data = matches[2]
+      }
+    }
+
+    const byteCharacters = atob(data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: mimeType })
+    return URL.createObjectURL(blob)
+  } catch (error) {
+    console.error('Failed to convert base64 to blob URL:', error)
+    return ''
+  }
+}
+
+/**
+ * Restore tracks from persisted state, recreating blob URLs for custom tracks
+ */
+const restoreTracks = (persistedTracks: Track[]): Track[] => {
+  return persistedTracks.map((track) => {
+    // If it's a custom track with base64 audio, recreate the blob URL
+    if (track.isCustom && track.audioBase64) {
+      return {
+        ...track,
+        url: base64ToBlobUrl(track.audioBase64),
+      }
+    }
+    return track
+  })
+}
+
+// =============================================================================
 // Store Implementation
 // =============================================================================
 
@@ -360,14 +411,27 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
     }),
     {
       name: 'magic-dj-store',
-      // Only persist user preferences
+      // Persist user preferences and track configuration
       partialize: (state) => ({
         settings: state.settings,
         masterVolume: state.masterVolume,
+        // Persist tracks (order + custom tracks with audio data)
+        tracks: state.tracks.map((track) => ({
+          ...track,
+          // Don't persist blob URLs, they're ephemeral
+          url: track.isCustom ? '' : track.url,
+        })),
       }),
-      // Merge persisted settings with defaults
+      // Merge persisted state with defaults
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<MagicDJStoreState>
+
+        // Restore tracks from persisted state
+        let tracks = currentState.tracks
+        if (persisted.tracks && persisted.tracks.length > 0) {
+          tracks = restoreTracks(persisted.tracks)
+        }
+
         return {
           ...currentState,
           settings: {
@@ -375,6 +439,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             ...(persisted.settings || {}),
           },
           masterVolume: persisted.masterVolume ?? currentState.masterVolume,
+          tracks,
+          trackStates: createInitialTrackStates(tracks),
         }
       },
     }

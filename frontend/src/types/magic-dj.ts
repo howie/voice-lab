@@ -42,6 +42,8 @@ export interface Track {
   isCustom?: boolean
   /** 原始文字內容（用於編輯） */
   textContent?: string
+  /** Base64 編碼的音訊資料（用於 localStorage 持久化） */
+  audioBase64?: string
 }
 
 /**

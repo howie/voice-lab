@@ -256,8 +256,17 @@ export function MagicDJPage() {
 
   const handleSaveTrack = useCallback(
     async (track: Track, audioBlob: Blob) => {
-      // Create blob URL for the audio
+      // Create blob URL for the audio (for immediate playback)
       const blobUrl = URL.createObjectURL(audioBlob)
+
+      // Convert blob to base64 for localStorage persistence
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      let binary = ''
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i])
+      }
+      const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
 
       if (editingTrack) {
         // Update existing track
@@ -265,6 +274,7 @@ export function MagicDJPage() {
           ...track,
           url: blobUrl,
           isCustom: true,
+          audioBase64,
         })
 
         // Reload the track in the player
@@ -272,6 +282,7 @@ export function MagicDJPage() {
           ...track,
           url: blobUrl,
           isCustom: true,
+          audioBase64,
         })
       } else {
         // Add new track
@@ -279,6 +290,7 @@ export function MagicDJPage() {
           ...track,
           url: blobUrl,
           isCustom: true,
+          audioBase64,
         }
         addTrack(newTrack)
 

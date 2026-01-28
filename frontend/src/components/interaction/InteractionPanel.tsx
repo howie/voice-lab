@@ -180,6 +180,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
   const sessionStartTimeRef = useRef<number>(0) // For relative timestamp logging
   const inputVolumeRef = useRef<number>(0) // Track input volume for audio gating
+  const audioGateBlockedCountRef = useRef<number>(0) // Count blocked audio chunks for debugging
 
   // Logging utility with relative timestamps
   const log = useCallback((category: string, message: string, data?: unknown) => {
@@ -464,30 +465,46 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         wsStatus === 'connected' &&
         (currentState === 'listening' || currentVolume > SPEAKING_THRESHOLD)
 
-      if (shouldSend) {
-        // Debug: Log sample rate on first chunk to help diagnose audio issues
-        if (!audioSampleRateLoggedRef.current) {
-          log('AUDIO', `sample_rate=${actualSampleRate}Hz`)
-          audioSampleRateLoggedRef.current = true
+      if (!shouldSend) {
+        // Debug: Log when audio is blocked (rate-limited to avoid spam)
+        audioGateBlockedCountRef.current++
+        if (audioGateBlockedCountRef.current === 1 || audioGateBlockedCountRef.current % 50 === 0) {
+          log(
+            'AUDIO_GATE',
+            `BLOCKED #${audioGateBlockedCountRef.current} (state=${currentState}, vol=${(currentVolume * 100).toFixed(1)}%, ws=${wsStatus})`
+          )
         }
-
-        // Convert Float32 to PCM16
-        const pcm16Buffer = float32ToPCM16(chunk)
-
-        // Binary format: [4 bytes sample_rate (uint32 LE)] + [PCM16 audio data]
-        // This is more efficient than Base64 JSON (~33% smaller, no encode/decode overhead)
-        const headerSize = 4
-        const binaryMessage = new ArrayBuffer(headerSize + pcm16Buffer.byteLength)
-        const view = new DataView(binaryMessage)
-
-        // Write sample rate as uint32 little-endian
-        view.setUint32(0, actualSampleRate, true)
-
-        // Copy PCM16 audio data after header
-        new Uint8Array(binaryMessage, headerSize).set(new Uint8Array(pcm16Buffer))
-
-        sendBinary(binaryMessage)
+        return
       }
+
+      // Reset blocked counter when sending
+      if (audioGateBlockedCountRef.current > 0) {
+        log('AUDIO_GATE', `RESUMED after ${audioGateBlockedCountRef.current} blocked chunks`)
+        audioGateBlockedCountRef.current = 0
+      }
+
+      // Debug: Log sample rate on first chunk to help diagnose audio issues
+      if (!audioSampleRateLoggedRef.current) {
+        log('AUDIO', `sample_rate=${actualSampleRate}Hz`)
+        audioSampleRateLoggedRef.current = true
+      }
+
+      // Convert Float32 to PCM16
+      const pcm16Buffer = float32ToPCM16(chunk)
+
+      // Binary format: [4 bytes sample_rate (uint32 LE)] + [PCM16 audio data]
+      // This is more efficient than Base64 JSON (~33% smaller, no encode/decode overhead)
+      const headerSize = 4
+      const binaryMessage = new ArrayBuffer(headerSize + pcm16Buffer.byteLength)
+      const view = new DataView(binaryMessage)
+
+      // Write sample rate as uint32 little-endian
+      view.setUint32(0, actualSampleRate, true)
+
+      // Copy PCM16 audio data after header
+      new Uint8Array(binaryMessage, headerSize).set(new Uint8Array(pcm16Buffer))
+
+      sendBinary(binaryMessage)
     },
     onVolumeChange: (vol: number) => {
       setInputVolume(vol)

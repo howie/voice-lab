@@ -337,6 +337,10 @@ export const useInteractionStore = create<InteractionStoreState>()(
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<InteractionStoreState>
         const persistedOptions = (persisted.options || {}) as Partial<InteractionOptions>
+        console.log('[InteractionStore] merge() called with cached options:', {
+          aiRole: persistedOptions.aiRole,
+          userRole: persistedOptions.userRole,
+        })
 
         // Preserve systemPrompt from defaults if persisted one is empty
         // This ensures the Chinese kindergarten teacher prompt is not lost
@@ -365,10 +369,24 @@ export const useInteractionStore = create<InteractionStoreState>()(
         }
 
         // 驗證 aiRole，如果是舊的預設值 'AI 助理' 就用新的預設值 '老師'
-        const aiRole =
-          persistedOptions.aiRole && persistedOptions.aiRole !== 'AI 助理'
-            ? persistedOptions.aiRole
-            : defaultOptions.aiRole
+        // 也檢查空值或包含 'AI' 和 '助理' 的變體
+        const cachedAiRole = persistedOptions.aiRole?.trim()
+        const isOldDefault =
+          !cachedAiRole ||
+          cachedAiRole === 'AI 助理' ||
+          cachedAiRole === 'AI助理' ||
+          (cachedAiRole.includes('AI') && cachedAiRole.includes('助理'))
+        const aiRole = isOldDefault ? defaultOptions.aiRole : cachedAiRole
+        if (isOldDefault && cachedAiRole) {
+          console.warn(
+            `[InteractionStore] Migrating aiRole from "${cachedAiRole}" to "${aiRole}"`
+          )
+        }
+
+        // 驗證 userRole，如果是空值就用新的預設值
+        const userRole = persistedOptions.userRole?.trim() || defaultOptions.userRole
+
+        console.log('[InteractionStore] merge() result:', { aiRole, userRole })
 
         return {
           ...currentState,
@@ -380,6 +398,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
             systemPrompt,
             providerConfig,
             aiRole,
+            userRole,
           },
         }
       },

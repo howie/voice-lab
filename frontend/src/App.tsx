@@ -12,6 +12,7 @@ import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
 import { ProviderSettings } from '@/routes/settings/ProviderSettings'
 import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
 import { JobsPage } from '@/routes/jobs'
+import { MagicDJPage } from '@/routes/magic-dj/MagicDJPage'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -67,6 +68,7 @@ function AppContent() {
         <Route path="stt/history" element={<STTHistoryPage />} />
         <Route path="interaction" element={<InteractionPage />} />
         <Route path="interaction/history" element={<InteractionHistoryPage />} />
+        <Route path="magic-dj" element={<MagicDJPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
         <Route path="settings/providers" element={<ProviderSettings />} />

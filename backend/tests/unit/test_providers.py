@@ -397,3 +397,59 @@ class TestProviderVoiceMappings:
                 assert "id" in voice
                 assert "name" in voice
                 assert "gender" in voice
+
+
+class TestTTSProviderFactoryAliases:
+    """Tests for TTSProviderFactory alias functionality for backwards compatibility."""
+
+    def test_gcp_alias_is_supported(self):
+        """Test 'gcp' alias is recognized as supported."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+
+        assert TTSProviderFactory.is_supported("gcp") is True
+        assert TTSProviderFactory.is_supported("GCP") is True
+
+    def test_google_alias_is_supported(self):
+        """Test 'google' alias is recognized as supported."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+
+        assert TTSProviderFactory.is_supported("google") is True
+        assert TTSProviderFactory.is_supported("Google") is True
+
+    def test_gcp_alias_normalizes_to_gemini(self):
+        """Test 'gcp' normalizes to 'gemini'."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+
+        assert TTSProviderFactory._normalize_provider_name("gcp") == "gemini"
+        assert TTSProviderFactory._normalize_provider_name("GCP") == "gemini"
+
+    def test_google_alias_normalizes_to_gemini(self):
+        """Test 'google' normalizes to 'gemini'."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+
+        assert TTSProviderFactory._normalize_provider_name("google") == "gemini"
+        assert TTSProviderFactory._normalize_provider_name("GOOGLE") == "gemini"
+
+    def test_gemini_stays_gemini(self):
+        """Test 'gemini' doesn't get aliased."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+
+        assert TTSProviderFactory._normalize_provider_name("gemini") == "gemini"
+
+    def test_create_default_with_gcp_alias(self):
+        """Test create_default works with 'gcp' alias."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = TTSProviderFactory.create_default("gcp")
+        assert isinstance(provider, GeminiTTSProvider)
+        assert provider.name == "gemini"
+
+    def test_create_with_key_using_google_alias(self):
+        """Test create_with_key works with 'google' alias."""
+        from src.infrastructure.providers.tts.factory import TTSProviderFactory
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = TTSProviderFactory.create_with_key("google", api_key="test-key")
+        assert isinstance(provider, GeminiTTSProvider)
+        assert provider.name == "gemini"

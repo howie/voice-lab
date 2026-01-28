@@ -53,7 +53,6 @@ def _log(event: str, details: str = "") -> None:
     else:
         print(f"[{ts}] [Gemini] {event}")
 
-
 def _log_to_file(message: str) -> None:
     """Write debug message to file for detailed analysis."""
     timestamp = datetime.now().isoformat()
@@ -75,7 +74,7 @@ AVAILABLE_MODELS = [
 ]
 
 # Default configuration - use 2.5 flash native audio for Chinese support
-DEFAULT_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
+DEFAULT_MODEL = "gemini-2.0-flash-live-001"
 DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 

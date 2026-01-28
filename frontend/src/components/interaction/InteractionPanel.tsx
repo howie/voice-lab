@@ -649,7 +649,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // T084: Include barge_in_enabled configuration
       // T089: Include lightweight_mode for lower latency V2V
       // US6: Include auto_greeting to trigger AI-initiated conversation
-      sendMessage('config', {
+      const configPayload = {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
         user_role: options.userRole,
@@ -659,9 +659,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         lightweight_mode: options.lightweightMode ?? true,
         auto_greeting: options.autoGreeting ?? false,
         greeting_prompt: options.greetingPrompt,
-      })
+      }
+      // Debug: Log the config being sent to verify aiRole
+      log('CONFIG', `sending config: user_role="${configPayload.user_role}", ai_role="${configPayload.ai_role}"`)
+      sendMessage('config', configPayload)
     }
-  }, [wsStatus, sendMessage, options])
+  }, [wsStatus, sendMessage, options, log])
 
   // Auto-start recording when session is ready (一鍵開始對話)
   useEffect(() => {

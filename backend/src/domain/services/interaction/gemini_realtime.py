@@ -539,14 +539,16 @@ class GeminiRealtimeService(InteractionModeService):
                                 )
                             )
 
-                    # Handle text data
+                    # Handle text data from modelTurn
+                    # Note: In audio mode, text parts often contain internal
+                    # reasoning/thinking content (e.g., "**Initiating the Story**")
+                    # which should NOT be shown to users. We use outputTranscription
+                    # for the actual speech transcription instead.
                     elif "text" in part:
-                        await self._event_queue.put(
-                            ResponseEvent(
-                                type="text_delta",
-                                data={"text": part["text"]},
-                            )
-                        )
+                        text_content = part["text"]
+                        # Log for debugging but don't send to frontend
+                        # The actual transcription comes from outputTranscription
+                        _log_to_file(f"MODEL_TEXT_PART (ignored): {text_content[:100]}...")
 
             # Log generation complete (but don't spam)
             if server_content.get("generationComplete"):

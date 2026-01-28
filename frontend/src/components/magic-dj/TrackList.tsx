@@ -203,8 +203,20 @@ function SortableTrackItem({
           </button>
         </div>
       ) : (
-        // Not loaded
-        <div className="text-sm text-muted-foreground">未載入</div>
+        // Not loaded - show generate button if no valid audio
+        <div className="flex items-center gap-2">
+          {onEditTrack ? (
+            <button
+              onClick={() => onEditTrack(track)}
+              className="flex items-center gap-1 rounded-md bg-primary/10 px-3 py-1.5 text-sm text-primary hover:bg-primary/20"
+            >
+              <Pencil className="h-3 w-3" />
+              <span>產生音訊</span>
+            </button>
+          ) : (
+            <span className="text-sm text-muted-foreground">未載入</span>
+          )}
+        </div>
       )}
     </div>
   )

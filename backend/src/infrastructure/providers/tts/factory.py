@@ -43,12 +43,6 @@ class TTSProviderFactory:
     # Supported providers
     SUPPORTED_PROVIDERS = ["elevenlabs", "azure", "gemini", "voai"]
 
-    # Provider aliases for backwards compatibility (gcp/google -> gemini)
-    PROVIDER_ALIASES: dict[str, str] = {
-        "gcp": "gemini",
-        "google": "gemini",
-    }
-
     @classmethod
     def get_supported_providers(cls) -> list[str]:
         """Get list of supported provider names.
@@ -57,19 +51,6 @@ class TTSProviderFactory:
             List of supported provider identifiers
         """
         return cls.SUPPORTED_PROVIDERS.copy()
-
-    @classmethod
-    def _normalize_provider_name(cls, provider_name: str) -> str:
-        """Normalize provider name, resolving aliases.
-
-        Args:
-            provider_name: Provider identifier (may be an alias)
-
-        Returns:
-            Normalized provider name
-        """
-        name = provider_name.lower()
-        return cls.PROVIDER_ALIASES.get(name, name)
 
     @classmethod
     def is_supported(cls, provider_name: str) -> bool:
@@ -81,8 +62,7 @@ class TTSProviderFactory:
         Returns:
             True if the provider is supported
         """
-        normalized = cls._normalize_provider_name(provider_name)
-        return normalized in cls.SUPPORTED_PROVIDERS
+        return provider_name.lower() in cls.SUPPORTED_PROVIDERS
 
     @classmethod
     def _create_provider(
@@ -91,14 +71,14 @@ class TTSProviderFactory:
         """Internal method to create provider with given credentials.
 
         Args:
-            provider_name: Name of the provider (may be an alias like 'gcp' or 'google')
+            provider_name: Name of the provider
             api_key: Optional API key override
             **kwargs: Additional provider-specific arguments
 
         Returns:
             ITTSProvider instance
         """
-        provider_name = cls._normalize_provider_name(provider_name)
+        provider_name = provider_name.lower()
 
         if provider_name == "elevenlabs":
             from src.infrastructure.providers.tts.elevenlabs_tts import (
@@ -196,7 +176,7 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
-        provider_name = cls._normalize_provider_name(provider_name)
+        provider_name = provider_name.lower()
 
         if not cls.is_supported(provider_name):
             raise ProviderNotSupportedError(
@@ -230,7 +210,7 @@ class TTSProviderFactory:
         """Create a TTS provider instance with a specific API key.
 
         Args:
-            provider_name: Name of the provider (may be an alias like 'gcp')
+            provider_name: Name of the provider
             api_key: API key to use
             **kwargs: Additional provider-specific arguments
 
@@ -240,11 +220,10 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
-        normalized = cls._normalize_provider_name(provider_name)
-        if not cls.is_supported(normalized):
+        if not cls.is_supported(provider_name):
             raise ProviderNotSupportedError(f"Provider '{provider_name}' is not supported")
 
-        return cls._create_provider(normalized, api_key=api_key, **kwargs)
+        return cls._create_provider(provider_name, api_key=api_key, **kwargs)
 
     @classmethod
     def create_default(cls, provider_name: str, **kwargs: Any) -> ITTSProvider:
@@ -253,7 +232,7 @@ class TTSProviderFactory:
         Uses environment variables for credential lookup.
 
         Args:
-            provider_name: Name of the provider (may be an alias like 'gcp')
+            provider_name: Name of the provider
             **kwargs: Additional provider-specific arguments
 
         Returns:
@@ -262,8 +241,7 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
-        normalized = cls._normalize_provider_name(provider_name)
-        if not cls.is_supported(normalized):
+        if not cls.is_supported(provider_name):
             raise ProviderNotSupportedError(f"Provider '{provider_name}' is not supported")
 
-        return cls._create_provider(normalized, **kwargs)
+        return cls._create_provider(provider_name, **kwargs)

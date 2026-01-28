@@ -49,7 +49,7 @@ class TestCapabilitiesEndpoint:
 
         assert "elevenlabs" in provider_names
         assert "azure" in provider_names
-        assert "gcp" in provider_names
+        assert "gemini" in provider_names
 
     @pytest.mark.asyncio
     async def test_get_capabilities_includes_segmented_providers(self, client: AsyncClient) -> None:

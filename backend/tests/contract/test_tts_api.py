@@ -96,19 +96,19 @@ class TestSynthesizeEndpoint:
             assert len(decoded) > 0
 
     @pytest.mark.asyncio
-    async def test_synthesize_success_gcp(self, mock_tts_result: TTSResult):
-        """T020: Test successful synthesis with GCP provider."""
+    async def test_synthesize_success_gemini(self, mock_tts_result: TTSResult):
+        """T020: Test successful synthesis with Gemini provider."""
         mock_tts_result.request = TTSRequest(
             text="Hello World",
-            voice_id="cmn-TW-Standard-A",
-            provider="gcp",
+            voice_id="Kore",
+            provider="gemini",
             language="zh-TW",
         )
         mock_provider = AsyncMock()
         mock_provider.synthesize.return_value = mock_tts_result
 
         mock_result = ProviderCreationResult(
-            provider=mock_provider, used_user_credential=False, provider_name="gcp"
+            provider=mock_provider, used_user_credential=False, provider_name="gemini"
         )
 
         with patch(
@@ -119,8 +119,8 @@ class TestSynthesizeEndpoint:
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 payload = {
                     "text": "Hello World",
-                    "provider": "gcp",
-                    "voice_id": "cmn-TW-Standard-A",
+                    "provider": "gemini",
+                    "voice_id": "Kore",
                     "language": "zh-TW",
                 }
                 response = await ac.post("/api/v1/tts/synthesize", json=payload)

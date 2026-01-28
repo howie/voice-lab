@@ -183,7 +183,7 @@ class TestCascadeProviderConfiguration:
 
     def test_tts_provider_options(self) -> None:
         """Verify supported TTS providers for cascade mode."""
-        supported_tts = ["azure", "gcp", "elevenlabs", "voai"]
+        supported_tts = ["azure", "gemini", "elevenlabs", "voai"]
         assert "azure" in supported_tts
         assert "elevenlabs" in supported_tts
 

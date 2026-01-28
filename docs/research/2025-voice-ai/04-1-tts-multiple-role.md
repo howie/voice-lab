@@ -164,36 +164,112 @@ result = synthesizer.speak_ssml_async(ssml).get()
 
 ---
 
-### Google Cloud TTS ✅ 支援但有限制
+### Google Cloud TTS (傳統) ❌ 不推薦
 
-**方案 1: Gemini TTS Multi-Speaker**
+> **2025-01 更新**: 傳統 Google Cloud TTS 的台灣中文 (cmn-TW) **不適合多角色對話**。
+
+**台灣中文 (cmn-TW) 可用聲音**:
+
+| Voice | Type | 品質評估 |
+|-------|------|---------|
+| cmn-TW-Standard-A/B/C | Standard | ❌ 機器人感重 |
+| cmn-TW-Wavenet-A/B/C | WaveNet | ⚠️ 稍好但仍不自然 |
+
+**關鍵問題**:
+- **沒有 Neural2、Studio、Journey、Chirp 等高品質聲音**
+- 這些更自然的聲音只支援 cmn-CN（中國大陸普通話），不支援 cmn-TW
+- Standard/WaveNet 聲音聽起來像機器人，不適合對話場景
+
+**建議**: 請改用 **Gemini-TTS**、**Azure** 或 **VoAI**。
+
+---
+
+### Gemini-TTS ✅ 推薦（Google 新一代）
+
+> **2025-01 更新**: Gemini-TTS 是 Google 最新的語音合成服務，支援台灣中文且品質優秀。
+
+**服務架構**:
+```
+存取 Gemini-TTS 的方式：
+├── Cloud TTS API (texttospeech.googleapis.com) - 新版支援 Gemini voices
+├── Vertex AI API (aiplatform.googleapis.com) - 企業級
+└── Google AI API (generativelanguage.googleapis.com) - 開發者友善
+```
+
+**多角色對話支援**: ✅ 原生支援最多 2 人對話
 
 ```python
-from google.cloud import texttospeech
+from google import genai
 
-client = texttospeech.TextToSpeechClient()
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Gemini TTS 支援雙說話者對話
-# 需使用特定的 multi-speaker 設定
+# 多角色對話 - 使用 speaker 標籤
+dialogue = """
+<speaker name="主持人" voice="Kore">
+你好，歡迎來到我們的節目！
+</speaker>
+<speaker name="來賓" voice="Charon">
+謝謝邀請，很高興能參加。
+</speaker>
+<speaker name="主持人" voice="Kore">
+今天我們要討論 AI 語音技術的發展...
+</speaker>
+"""
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash-tts",
+    contents=dialogue,
+    config={
+        "response_modalities": ["AUDIO"],
+        "speech_config": {
+            "multi_speaker_config": {
+                "speaker_voice_configs": [
+                    {"speaker": "主持人", "voice_config": {"prebuilt_voice_config": {"voice_name": "Kore"}}},
+                    {"speaker": "來賓", "voice_config": {"prebuilt_voice_config": {"voice_name": "Charon"}}}
+                ]
+            }
+        }
+    }
+)
 ```
 
-**方案 2: SSML Voice 標籤**
+**風格控制（自然語言）**:
 
-```xml
-<speak>
-    <voice name="zh-TW-Wavenet-A">
-        你好，歡迎來到我們的節目！
-    </voice>
-    <voice name="zh-TW-Wavenet-B">
-        謝謝邀請，很高興能參加。
-    </voice>
-</speak>
+```python
+# 可以用自然語言指定每個角色的說話風格
+dialogue = """
+[主持人用熱情活潑的語氣說]
+你好，歡迎來到我們的節目！
+
+[來賓用謙虛友善的語氣回應]
+謝謝邀請，很高興能參加。
+"""
 ```
 
-**注意**:
-- Studio Voices 支援多說話者
-- Chirp 3: HD voices 不支援 SSML
-- 需選擇相容的聲音類型
+**特效標籤**:
+
+```python
+# 支援情感和效果標籤
+dialogue = """
+主持人: [興奮地] 哇！這真是太棒了！[laughing]
+來賓: [思考中] 嗯...讓我想想...[sigh] 這確實是個好問題。
+"""
+```
+
+**可用聲音** (28 種):
+- 女聲: Aoede, Kore, Leda, Zephyr, Sulafat...
+- 男聲: Charon, Puck, Fenrir, Enceladus, Orus...
+
+**優點**:
+- ✅ 台灣中文 (cmn-tw) 品質優秀
+- ✅ 自然語言控制風格、情感
+- ✅ 原生多角色支援
+- ✅ 豐富的特效標籤
+- ✅ 28 種聲音可選
+
+**限制**:
+- 最多 2 位說話者
+- cmn-tw 目前為 Preview 狀態
 
 ---
 
@@ -308,14 +384,16 @@ from deepgram import DeepgramClient, SpeakOptions
 
 ## 功能比較表
 
-| Provider | 原生多聲音 | 方法 | 中文支援 | 合併難度 |
-|----------|-----------|------|---------|---------|
-| ElevenLabs | ✅✅ | Audio Tags / Studio | ✅ | 無需合併 |
-| Azure | ✅ | SSML `<voice>` | ✅✅ | 無需合併 |
-| Google Cloud | ✅ | SSML / Gemini | ✅ | 視方案 |
-| OpenAI | ❌ | 分段合併 | ✅ | 中等 |
-| Cartesia | ❌ | Context + 合併 | ✅ | 中等 |
-| Deepgram | ❌ | 分段合併 | ⚠️ | 中等 |
+| Provider | 原生多聲音 | 方法 | 台灣中文 | 合併難度 | 備註 |
+|----------|-----------|------|---------|---------|------|
+| ElevenLabs | ✅✅ | Audio Tags / Studio | ✅ | 無需合併 | 品質最佳 |
+| Azure | ✅ | SSML `<voice>` | ✅✅ | 無需合併 | Neural 聲音自然 |
+| **Gemini-TTS** | ✅ | Multi-speaker API | ✅✅ | 無需合併 | **Google 新一代，推薦** |
+| VoAI | ✅ | 分段合併 | ✅✅ | 中等 | 本土化、多風格 |
+| Google Cloud (傳統) | ~~✅~~ | SSML | ❌ | - | **不推薦**: 只有 Standard/WaveNet |
+| OpenAI | ❌ | 分段合併 | ✅ | 中等 | |
+| Cartesia | ❌ | Context + 合併 | ✅ | 中等 | 低延遲 |
+| Deepgram | ❌ | 分段合併 | ⚠️ | 中等 | |
 
 ## 分段合併通用方案
 
@@ -448,9 +526,16 @@ class DialogueGenerator:
 ### 推薦選擇
 
 1. **品質優先**: ElevenLabs Eleven v3 + Audio Tags
-2. **企業/合規**: Azure Speech + SSML
-3. **成本考量**: Azure Speech（$15/1M chars）
-4. **低延遲**: Cartesia + 自行合併
+2. **台灣中文優先**:
+   - **Gemini-TTS** (Google 新一代，原生多角色)
+   - Azure Speech (HsiaoChenNeural, YunJheNeural)
+   - VoAI (本土化)
+3. **企業/合規**: Azure Speech + SSML 或 Vertex AI (Gemini-TTS)
+4. **成本考量**: Azure Speech（$15/1M chars）
+5. **低延遲**: Cartesia + 自行合併
+
+> ⚠️ **不推薦**: 傳統 Google Cloud TTS（台灣中文只有 Standard/WaveNet，聲音不自然）
+> ✅ **推薦**: Gemini-TTS 取代傳統 Google Cloud TTS
 
 ## 參考連結
 
@@ -463,4 +548,6 @@ class DialogueGenerator:
 
 | 日期 | 變更 |
 |------|------|
+| 2025-01-28 | 新增 Gemini-TTS 多角色支援；區分傳統 Cloud TTS 與 Gemini-TTS |
+| 2025-01-28 | 移除傳統 Google Cloud TTS 推薦（台灣中文無高品質聲音） |
 | 2025-01 | 初始版本 |

@@ -127,17 +127,166 @@ response = client.speak.v("1").stream(
 
 ---
 
+### Google 語音服務架構
+
+> **2025-01 更新**: Google 有多種語音合成服務，架構如下：
+
+```
+Google 語音服務
+├── Google Cloud Platform (GCP)
+│   ├── Cloud Text-to-Speech API (texttospeech.googleapis.com)
+│   │   ├── Standard voices (舊，機器人感)
+│   │   ├── WaveNet voices (舊，稍好)
+│   │   ├── Neural2 voices (較新，cmn-TW 沒有)
+│   │   └── Gemini-TTS voices ✅ (最新，支援 cmn-TW)
+│   │
+│   └── Vertex AI API (aiplatform.googleapis.com)
+│       └── Gemini 模型 (gemini-2.5-flash-tts / pro-tts) ✅
+│
+└── Google AI Studio (ai.google.dev)
+    └── Gemini API (generativelanguage.googleapis.com)
+        └── 開發者直接存取 Gemini-TTS ✅
+```
+
+#### 存取方式比較
+
+| 方式 | API Endpoint | SDK | 適合場景 |
+|------|-------------|-----|---------|
+| Cloud TTS API | `texttospeech.googleapis.com` | `google-cloud-texttospeech` | 現有 GCP 用戶 |
+| Vertex AI API | `aiplatform.googleapis.com` | `google-cloud-aiplatform` | 企業級、統一 AI |
+| Google AI | `generativelanguage.googleapis.com` | `google-genai` | 快速開發 |
+
+---
+
+### Google Cloud TTS (傳統)
+
+**狀態**: ⚠️ 台灣中文不推薦
+
+| 項目 | 說明 |
+|------|------|
+| TTFB | ~200-400ms |
+| 音質 | MOS 3.5-4.0 (台灣中文) |
+| 定價 | $4/1M chars (Standard), $16/1M chars (WaveNet) |
+
+**台灣中文 (cmn-TW) 可用聲音**:
+
+| Voice | Type | 品質 |
+|-------|------|------|
+| cmn-TW-Standard-A/B/C | Standard | ❌ 機器人感 |
+| cmn-TW-Wavenet-A/B/C | WaveNet | ⚠️ 不自然 |
+
+**關鍵限制**:
+- **Neural2、Studio、Journey、Chirp 不支援台灣中文**
+- 這些高品質聲音只支援 cmn-CN（中國大陸普通話）
+- 台灣中文只有 Standard 和 WaveNet，聽起來像機器人
+
+**適用場景**: ❌ 不推薦用於台灣中文
+
+---
+
+### Gemini-TTS ✅ 推薦
+
+**狀態**: ✅ 台灣中文推薦（Preview）
+
+| 項目 | 說明 |
+|------|------|
+| TTFB | ~100-200ms |
+| 音質 | MOS 4.3+ |
+| 定價 | 見 [pricing](https://cloud.google.com/text-to-speech/pricing) |
+
+**支援語言**: 68+ 語言，包含 **cmn-tw (繁體中文台灣)** (Preview)
+
+**可用聲音**: 28 種全語言共用聲音
+- 女聲: Aoede, Kore, Leda, Zephyr, Sulafat, Achernar...
+- 男聲: Charon, Puck, Fenrir, Enceladus, Orus, Schedar...
+
+**模型選擇**:
+
+| 模型 | 用途 | 狀態 |
+|------|------|------|
+| `gemini-2.5-flash-tts` | 低延遲、高性價比 | GA |
+| `gemini-2.5-pro-tts` | 高品質、精細控制 | GA |
+| `gemini-2.5-flash-lite-tts` | 單人快速 | Preview |
+
+**核心優勢**:
+- ✅ 自然語言控制風格、語氣、情感
+- ✅ 多角色對話（最多 2 人）
+- ✅ 特效標籤：`[sigh]`、`[laughing]`、`[whispering]`
+- ✅ 台灣中文品質遠優於傳統 Cloud TTS
+
+**API 範例**:
+
+```python
+from google import genai
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash-tts",
+    contents="你好，歡迎來到我們的節目！",
+    config={
+        "response_modalities": ["AUDIO"],
+        "speech_config": {
+            "voice_config": {"prebuilt_voice_config": {"voice_name": "Kore"}}
+        }
+    }
+)
+
+# 取得音訊資料
+audio_data = response.candidates[0].content.parts[0].inline_data.data
+```
+
+**風格控制**:
+
+```python
+# 用自然語言指定風格
+contents = """
+請用溫暖友善的語氣，語速稍慢地說：
+你好，歡迎來到我們的節目！今天我們要聊聊 AI 的發展。
+"""
+
+# 或使用標籤
+contents = "[輕快地] 你好！[笑] 今天天氣真好。"
+```
+
+**適用場景**: 台灣中文內容、需要情感控制、多角色對話
+
+---
+
+### VoAI
+
+**狀態**: ✅ 台灣中文推薦
+
+| 項目 | 說明 |
+|------|------|
+| TTFB | ~150-250ms |
+| 音質 | MOS 4.0+ |
+| 定價 | 依方案 |
+
+**特點**:
+- 專注台灣市場
+- 多種風格（聊天、輕柔、激昂等）
+- 台灣口音自然
+- 支援多角色對話
+
+**可用聲音**:
+- 佑希、雨榛、子墨等多種選擇
+
+**適用場景**: 台灣中文內容、本土化需求、多角色對話
+
+---
+
 ## 功能比較表
 
-| 功能 | Cartesia | ElevenLabs | Deepgram | Azure |
-|------|----------|------------|----------|-------|
-| 串流輸出 | ✅✅ | ✅ | ✅ | ✅ |
-| 中文支援 | ✅ | ✅ | ⚠️ 有限 | ✅✅ |
-| 台語支援 | ❌ | ⚠️ | ❌ | ⚠️ |
-| 聲音複製 | ✅ | ✅✅ | ❌ | ✅ |
-| 情感控制 | ✅ | ✅✅ | ❌ | ✅ |
-| SSML | ⚠️ | ⚠️ | ❌ | ✅✅ |
-| 自部署 | ❌ | ❌ | ❌ | ⚠️ |
+| 功能 | Cartesia | ElevenLabs | Deepgram | Azure | Google Cloud | VoAI |
+|------|----------|------------|----------|-------|--------------|------|
+| 串流輸出 | ✅✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 台灣中文 | ✅ | ✅ | ⚠️ 有限 | ✅✅ | ❌ 不自然 | ✅✅ |
+| 台語支援 | ❌ | ⚠️ | ❌ | ⚠️ | ❌ | ⚠️ |
+| 聲音複製 | ✅ | ✅✅ | ❌ | ✅ | ❌ | ❌ |
+| 情感控制 | ✅ | ✅✅ | ❌ | ✅ | ⚠️ | ✅ |
+| SSML | ⚠️ | ⚠️ | ❌ | ✅✅ | ✅ | ❌ |
+| 多角色對話 | ⚠️ 需合併 | ✅✅ | ⚠️ 需合併 | ✅ | ❌ 不推薦 | ✅ |
 
 ## 延遲分析
 
@@ -223,6 +372,22 @@ TTFB = 網路延遲 + 模型處理 + 音訊編碼
    ┌──────────┐        ┌───────────┐        ┌──────────┐
    │ Cartesia │        │ElevenLabs │        │ Deepgram │
    └──────────┘        └───────────┘        └──────────┘
+
+                    ┌─────────────────┐
+                    │  台灣中文優先？  │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        ▼                    ▼                    ▼
+    企業級需求            本土化需求           多角色對話
+        │                    │                    │
+        ▼                    ▼                    ▼
+   ┌──────────┐        ┌───────────┐        ┌──────────┐
+   │  Azure   │        │   VoAI    │        │  Azure   │
+   │ Neural   │        │           │        │  /VoAI   │
+   └──────────┘        └───────────┘        └──────────┘
+
+   ⚠️ 不推薦：Google Cloud TTS（台灣中文無高品質聲音）
 ```
 
 ## 整合範例
@@ -293,4 +458,6 @@ def get_tts(text):
 
 | 日期 | 變更 |
 |------|------|
+| 2025-01-28 | 新增 Gemini-TTS 完整介紹；區分 Google 語音服務架構（傳統 Cloud TTS vs Gemini-TTS） |
+| 2025-01-28 | 新增 Google Cloud TTS、VoAI 評測；標註傳統 Cloud TTS 台灣中文不推薦 |
 | 2025-01 | 初始版本 |

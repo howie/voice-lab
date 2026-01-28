@@ -27,14 +27,8 @@ PROVIDER_CAPABILITIES: dict[str, ProviderMultiRoleCapability] = {
         advanced_features=["express-as styles"],
         notes="Uses SSML <voice> elements for multi-speaker",
     ),
-    "gcp": ProviderMultiRoleCapability(
-        provider_name="gcp",
-        support_type=MultiRoleSupportType.NATIVE,
-        max_speakers=6,
-        character_limit=5000,
-        advanced_features=[],
-        notes="Uses SSML <voice> tags",
-    ),
+    # GCP removed: cmn-TW only has Standard/WaveNet voices (no Neural2/Studio/Journey)
+    # which sound robotic and unnatural for multi-role dialogue
     "openai": ProviderMultiRoleCapability(
         provider_name="openai",
         support_type=MultiRoleSupportType.SEGMENTED,

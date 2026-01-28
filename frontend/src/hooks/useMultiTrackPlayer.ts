@@ -105,8 +105,13 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       const trackId = track.id
       trackConfigRef.current.set(trackId, track)
 
-      // Skip tracks without URL - they need to be generated via TTS
-      if (!track.url) {
+      // Skip tracks without valid audio:
+      // - No URL
+      // - Placeholder URL (/audio/*.mp3) without audioBase64
+      const isPlaceholderUrl = track.url.startsWith('/audio/')
+      const hasNoAudio = !track.url || (isPlaceholderUrl && !track.audioBase64)
+
+      if (hasNoAudio) {
         updateTrackState(trackId, {
           isLoading: false,
           isLoaded: false,

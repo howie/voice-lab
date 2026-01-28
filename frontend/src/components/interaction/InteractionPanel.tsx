@@ -179,6 +179,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const speakingFrameCountRef = useRef(0) // Hysteresis: count consecutive frames above threshold
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
   const sessionStartTimeRef = useRef<number>(0) // For relative timestamp logging
+  const inputVolumeRef = useRef<number>(0) // Track input volume for audio gating
 
   // Logging utility with relative timestamps
   const log = useCallback((category: string, message: string, data?: unknown) => {
@@ -453,7 +454,17 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     error: micError,
   } = useMicrophone({
     onAudioChunk: (chunk: Float32Array, actualSampleRate: number) => {
-      if (wsStatus === 'connected') {
+      // 只在以下情況發送音訊：
+      // 1. WebSocket 已連線
+      // 2. 狀態為 'listening'（用戶輪次）
+      // 3. 或者音量足夠大（可能是打斷 AI）
+      const currentState = interactionStateRef.current
+      const currentVolume = inputVolumeRef.current
+      const shouldSend =
+        wsStatus === 'connected' &&
+        (currentState === 'listening' || currentVolume > SPEAKING_THRESHOLD)
+
+      if (shouldSend) {
         // Debug: Log sample rate on first chunk to help diagnose audio issues
         if (!audioSampleRateLoggedRef.current) {
           log('AUDIO', `sample_rate=${actualSampleRate}Hz`)
@@ -480,6 +491,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     },
     onVolumeChange: (vol: number) => {
       setInputVolume(vol)
+      inputVolumeRef.current = vol // Update ref for audio gating in onAudioChunk
 
       // VAD state machine: auto send end_turn when user stops speaking
       // Use ref for interactionState to avoid stale closure

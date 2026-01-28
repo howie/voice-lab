@@ -61,6 +61,13 @@ variable "gemini_api_key" {
   default     = ""
 }
 
+variable "voai_api_key" {
+  type        = string
+  description = "VoAI TTS API Key"
+  sensitive   = true
+  default     = ""
+}
+
 variable "labels" {
   type        = map(string)
   description = "Labels to apply to resources"

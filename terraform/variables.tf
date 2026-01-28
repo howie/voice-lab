@@ -268,6 +268,19 @@ variable "gemini_api_key" {
   default     = ""
 }
 
+variable "voai_api_key" {
+  type        = string
+  description = "VoAI TTS API Key (optional)"
+  sensitive   = true
+  default     = ""
+}
+
+variable "voai_api_endpoint" {
+  type        = string
+  description = "VoAI API endpoint (default: connect.voai.ai)"
+  default     = "connect.voai.ai"
+}
+
 # -----------------------------------------------------------------------------
 # VPC Configuration
 # -----------------------------------------------------------------------------

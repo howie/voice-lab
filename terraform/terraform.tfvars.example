@@ -63,6 +63,15 @@ google_tts_credentials = ""
 # ElevenLabs API Key (optional)
 elevenlabs_api_key = ""
 
+# Google Gemini API Key (optional, for V2V interaction)
+gemini_api_key = ""
+
+# VoAI TTS API Key (optional)
+voai_api_key = ""
+
+# VoAI API endpoint (default: connect.voai.ai)
+voai_api_endpoint = "connect.voai.ai"
+
 # -----------------------------------------------------------------------------
 # Optional: Cloud SQL Configuration
 # -----------------------------------------------------------------------------

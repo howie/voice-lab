@@ -148,7 +148,6 @@ temp/
 *.ogg
 *.opus
 !frontend/public/*.mp3
-!frontend/public/audio/*.mp3
 
 # Claude Code
 .claude/settings.local.json

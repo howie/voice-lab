@@ -146,6 +146,23 @@
 
 ---
 
+## Phase 8: Track Management Enhancement
+
+**Purpose**: Enhanced track management with drag-and-drop, editing, and configuration persistence
+
+- [ ] T050 [P] [US2] Add drag-and-drop sorting to TrackList using @dnd-kit/core library
+- [ ] T051 [US2] Implement reorderTracks action in magicDJStore to persist track order
+- [ ] T052 [P] [US2] Update TrackList to allow editing ALL tracks (not just custom), enabling TTS regeneration for default tracks
+- [ ] T053 [US2] Update TrackList to allow deleting ALL tracks (with confirmation for default tracks)
+- [ ] T054 [P] Implement track configuration persistence to localStorage (track order, custom tracks, TTS-generated audio as base64)
+- [ ] T055 Create TrackConfigExport component for exporting track configuration as JSON
+- [ ] T056 Create TrackConfigImport component for importing track configuration from JSON file
+- [ ] T057 Add track config export/import buttons to DJControlPanel or Settings area
+
+**Note**: Storage is **per-browser localStorage**, not global/server-side. Each browser maintains its own track configuration independently.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

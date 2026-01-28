@@ -121,11 +121,18 @@ const DEFAULT_SYSTEM_PROMPT = `你是一個講中文台灣腔調的幼教老師�
 
 [語音指示] 請用正常偏快的語速說話，發音要清楚流暢，不要停頓太久。`
 
+// 有效的 Gemini Live API 模型（必須支援 bidiGenerateContent）
+// 注意：模型由後端控制，前端只顯示
+const VALID_GEMINI_MODELS = [
+  'gemini-2.5-flash-native-audio-preview-12-2025', // 支援中文，Native Audio
+  'gemini-2.0-flash-live-001', // 穩定版
+]
+
 const defaultOptions: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-native-audio-preview-12-2025', // 支援中文的模型 (最新版本)
+    // 不設定 model，由後端決定使用哪個模型
     voice: 'Kore', // 女性語音，較適合幼教老師角色
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
@@ -236,11 +243,11 @@ export const useInteractionStore = create<InteractionStoreState>()(
             ...state.options,
             mode,
             // Reset provider config when mode changes
+            // 注意：realtime 模式不設定 model，由後端決定
             providerConfig:
               mode === 'realtime'
                 ? {
                     provider: 'gemini',
-                    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                     voice: 'Kore',
                   }
                 : {
@@ -338,6 +345,25 @@ export const useInteractionStore = create<InteractionStoreState>()(
             ? persistedOptions.systemPrompt
             : defaultOptions.systemPrompt
 
+        // 驗證並清理 providerConfig 中的模型名稱
+        // 無效的模型會導致 Gemini Live API 連線失敗
+        let providerConfig = persistedOptions.providerConfig || defaultOptions.providerConfig
+        // 驗證並清理 RealtimeProviderConfig 中的模型名稱
+        // 無效的模型會導致 Gemini Live API 連線失敗
+        if (providerConfig && 'provider' in providerConfig && 'model' in providerConfig) {
+          const realtimeConfig = providerConfig as { provider: string; model?: string; voice?: string }
+          if (realtimeConfig.model && !VALID_GEMINI_MODELS.includes(realtimeConfig.model)) {
+            console.warn(
+              `[InteractionStore] Invalid cached model "${realtimeConfig.model}", removing to use backend default`
+            )
+            // 移除無效的 model，讓後端決定使用哪個模型
+            providerConfig = {
+              provider: realtimeConfig.provider,
+              voice: realtimeConfig.voice,
+            } as ProviderConfig
+          }
+        }
+
         return {
           ...currentState,
           ...persisted,
@@ -346,6 +372,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
             ...defaultOptions,
             ...persistedOptions,
             systemPrompt,
+            providerConfig,
           },
         }
       },

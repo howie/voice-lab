@@ -203,9 +203,9 @@ function SortableTrackItem({
           </button>
         </div>
       ) : (
-        // Not loaded - show generate button if no URL
+        // Not loaded - show generate button if no valid audio
         <div className="flex items-center gap-2">
-          {!track.url && onEditTrack ? (
+          {onEditTrack ? (
             <button
               onClick={() => onEditTrack(track)}
               className="flex items-center gap-1 rounded-md bg-primary/10 px-3 py-1.5 text-sm text-primary hover:bg-primary/20"

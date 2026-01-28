@@ -364,6 +364,12 @@ export const useInteractionStore = create<InteractionStoreState>()(
           }
         }
 
+        // 驗證 aiRole，如果是舊的預設值 'AI 助理' 就用新的預設值 '老師'
+        const aiRole =
+          persistedOptions.aiRole && persistedOptions.aiRole !== 'AI 助理'
+            ? persistedOptions.aiRole
+            : defaultOptions.aiRole
+
         return {
           ...currentState,
           ...persisted,
@@ -373,6 +379,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
             ...persistedOptions,
             systemPrompt,
             providerConfig,
+            aiRole,
           },
         }
       },

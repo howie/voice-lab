@@ -183,12 +183,21 @@ class TestGeminiTTSProvider:
             ]
         }
 
-        with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
+        # Mock the PCM conversion to avoid ffmpeg dependency
+        mock_mp3_data = b"mock-mp3-audio-data"
+
+        with (
+            patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post,
+            patch.object(
+                gemini_provider, "_convert_pcm_to_format", new_callable=AsyncMock
+            ) as mock_convert,
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status = MagicMock()
             mock_post.return_value = mock_response
+            mock_convert.return_value = mock_mp3_data
 
             result = await gemini_provider.synthesize(sample_request)
 
@@ -213,12 +222,21 @@ class TestGeminiTTSProvider:
             ]
         }
 
-        with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
+        # Mock the PCM conversion to avoid ffmpeg dependency
+        mock_mp3_data = b"mock-mp3-audio-data"
+
+        with (
+            patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post,
+            patch.object(
+                gemini_provider, "_convert_pcm_to_format", new_callable=AsyncMock
+            ) as mock_convert,
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status = MagicMock()
             mock_post.return_value = mock_response
+            mock_convert.return_value = mock_mp3_data
 
             await gemini_provider.synthesize(sample_request_with_style)
 
@@ -258,12 +276,21 @@ class TestGeminiTTSProvider:
             ]
         }
 
-        with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
+        # Mock the PCM conversion to avoid ffmpeg dependency
+        mock_mp3_data = b"mock-mp3-audio-data"
+
+        with (
+            patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post,
+            patch.object(
+                gemini_provider, "_convert_pcm_to_format", new_callable=AsyncMock
+            ) as mock_convert,
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status = MagicMock()
             mock_post.return_value = mock_response
+            mock_convert.return_value = mock_mp3_data
 
             chunks = []
             async for chunk in gemini_provider.synthesize_stream(sample_request):

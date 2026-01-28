@@ -23,6 +23,7 @@ class TTSRequest:
     volume: float = 1.0  # 0.0 - 2.0
     output_format: AudioFormat = AudioFormat.MP3
     output_mode: OutputMode = OutputMode.BATCH
+    style_prompt: str | None = None  # Gemini TTS style prompt for voice control
 
     def __post_init__(self) -> None:
         """Validate request parameters."""

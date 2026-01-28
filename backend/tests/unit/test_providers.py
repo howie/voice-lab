@@ -1,6 +1,7 @@
 """Unit tests for TTS provider adapters.
 
-T022: Unit tests for provider adapters (Azure, GCP, ElevenLabs, VoAI)
+T022: Unit tests for provider adapters (Azure, ElevenLabs, VoAI)
+Note: Google Cloud TTS has been replaced by Gemini TTS (see test_gemini_tts.py)
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,7 +16,6 @@ from src.infrastructure.providers.tts.elevenlabs import (
     ELEVENLABS_VOICES,
     ElevenLabsTTSProvider,
 )
-from src.infrastructure.providers.tts.google import GOOGLE_VOICES, GoogleTTSProvider
 from src.infrastructure.providers.tts.voai import VOAI_VOICES, VoAITTSProvider
 
 
@@ -166,65 +166,6 @@ class TestAzureTTSProvider:
         provider = AzureTTSProvider(api_key="", region="")
         is_healthy = await provider.health_check()
         assert is_healthy is False
-
-
-class TestGoogleTTSProvider:
-    """Tests for Google Cloud TTS provider."""
-
-    def test_provider_name(self):
-        """Test provider name property."""
-        provider = GoogleTTSProvider(credentials_path="/path/to/creds.json")
-        assert provider.name == "gcp"
-
-    def test_display_name(self):
-        """Test display name property."""
-        provider = GoogleTTSProvider()
-        assert provider.display_name == "Google Cloud TTS"
-
-    def test_supported_formats(self):
-        """Test supported audio formats."""
-        provider = GoogleTTSProvider()
-        formats = provider.supported_formats
-        assert AudioFormat.MP3 in formats
-        assert AudioFormat.WAV in formats
-        assert AudioFormat.OGG in formats
-
-    @pytest.mark.asyncio
-    async def test_list_voices_all(self):
-        """Test listing all voices."""
-        provider = GoogleTTSProvider()
-        voices = await provider.list_voices()
-
-        assert len(voices) > 0
-        assert all(isinstance(v, VoiceProfile) for v in voices)
-
-    @pytest.mark.asyncio
-    async def test_list_voices_by_language(self):
-        """Test listing voices filtered by language."""
-        provider = GoogleTTSProvider()
-        voices = await provider.list_voices(language="ja-JP")
-
-        assert len(voices) > 0
-        assert all(v.language == "ja-JP" for v in voices)
-
-    @pytest.mark.asyncio
-    async def test_get_voice_exists(self):
-        """Test getting a specific voice that exists."""
-        provider = GoogleTTSProvider()
-        voice = await provider.get_voice("cmn-TW-Standard-A")
-
-        assert voice is not None
-        assert voice.id == "cmn-TW-Standard-A"
-
-    def test_get_supported_params(self):
-        """Test getting supported parameter ranges."""
-        provider = GoogleTTSProvider()
-        params = provider.get_supported_params()
-
-        assert "speed" in params
-        assert "pitch" in params
-        assert params["speed"]["min"] == 0.25
-        assert params["speed"]["max"] == 4.0
 
 
 class TestElevenLabsTTSProvider:
@@ -437,14 +378,6 @@ class TestProviderVoiceMappings:
     def test_azure_voices_have_required_fields(self):
         """Test Azure voice mappings have all required fields."""
         for _lang, voices in AZURE_VOICES.items():
-            for voice in voices:
-                assert "id" in voice
-                assert "name" in voice
-                assert "gender" in voice
-
-    def test_google_voices_have_required_fields(self):
-        """Test Google voice mappings have all required fields."""
-        for _lang, voices in GOOGLE_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice

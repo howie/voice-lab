@@ -110,6 +110,11 @@ class Settings(BaseSettings):
     # Google AI API Key (for Gemini)
     google_ai_api_key: str = ""
 
+    # Gemini TTS configuration
+    # Model options: gemini-2.5-pro-preview-tts (high quality), gemini-2.5-flash-preview-tts (low latency)
+    gemini_tts_model: str = "gemini-2.5-pro-preview-tts"
+    gemini_tts_default_voice: str = "Kore"
+
     @property
     def allowed_domains(self) -> list[str]:
         """Parse allowed domains from comma-separated string."""

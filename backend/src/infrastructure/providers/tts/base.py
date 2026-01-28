@@ -39,7 +39,7 @@ class BaseTTSProvider(ITTSProvider):
     def display_name(self) -> str:
         """Get human-readable provider name."""
         display_names = {
-            "gcp": "Google Cloud TTS",
+            "gemini": "Gemini TTS",
             "azure": "Azure Cognitive Services",
             "elevenlabs": "ElevenLabs",
             "voai": "VoAI",

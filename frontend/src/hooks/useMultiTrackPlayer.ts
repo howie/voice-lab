@@ -285,18 +285,30 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     return node?.isPlaying ?? false
   }, [])
 
-  // Get loading progress
+  // Get loading progress (excluding skipped tracks)
   const getLoadingProgress = useCallback((): number => {
     const total = trackConfigRef.current.size
     if (total === 0) return 1
 
     let loaded = 0
-    for (const [trackId] of trackConfigRef.current) {
-      if (tracksRef.current.get(trackId)?.buffer) {
+    let skipped = 0
+    for (const [trackId, track] of trackConfigRef.current) {
+      // Check if track should be skipped (no valid audio)
+      const isPlaceholderUrl = track.url.startsWith('/audio/')
+      const hasNoAudio = !track.url || (isPlaceholderUrl && !track.audioBase64)
+
+      if (hasNoAudio) {
+        skipped++
+      } else if (tracksRef.current.get(trackId)?.buffer) {
         loaded++
       }
     }
-    return loaded / total
+
+    // If all tracks are skipped, consider it complete
+    const tracksToLoad = total - skipped
+    if (tracksToLoad === 0) return 1
+
+    return loaded / tracksToLoad
   }, [])
 
   // Sync master volume from store

@@ -105,9 +105,13 @@ class GeminiRealtimeService(InteractionModeService):
         self._receive_task: asyncio.Task[None] | None = None
         self._config: dict[str, Any] = {}
         self._system_prompt = ""
-        # Track accumulated transcripts to avoid duplicates
+        # Track accumulated transcripts
+        # Note: We only filter exact consecutive duplicates, not substrings
+        # This avoids incorrectly filtering "No No No" or "A cat is a cat"
         self._accumulated_input_transcript = ""
         self._accumulated_output_transcript = ""
+        self._last_input_chunk = ""  # For filtering exact consecutive duplicates
+        self._last_output_chunk = ""  # For filtering exact consecutive duplicates
         self._setup_complete = False
         # Track first audio in response for latency measurement
         self._first_audio_sent = False
@@ -425,14 +429,15 @@ class GeminiRealtimeService(InteractionModeService):
             server_content = event["serverContent"]
 
             # Handle input transcription (user speech -> text)
-            # Gemini sends incremental transcription with duplicates, so we accumulate
-            # and only send truly new content to the frontend
+            # Gemini sends delta (incremental) transcription
+            # Only filter exact consecutive duplicates to avoid incorrectly
+            # filtering legitimate repeated words like "No No No"
             if "inputTranscription" in server_content:
                 text = server_content["inputTranscription"].get("text", "")
                 _log_to_file(f"INPUT_TRANSCRIPT_RAW: '{text}'")
-                # Check if this text is already part of accumulated transcript
-                # If not, it's new content - append and send only the new part
-                if text and text not in self._accumulated_input_transcript:
+                # Only filter exact consecutive duplicates, not substrings
+                if text and text != self._last_input_chunk:
+                    self._last_input_chunk = text
                     self._accumulated_input_transcript += text
                     _log("TRANSCRIPT_USER", f"'{text}'")
                     _log_to_file(
@@ -446,12 +451,13 @@ class GeminiRealtimeService(InteractionModeService):
                     )
 
             # Handle output transcription (AI speech -> text)
-            # Same deduplication logic for AI responses
+            # Same delta handling as input transcription
             if "outputTranscription" in server_content:
                 text = server_content["outputTranscription"].get("text", "")
                 _log_to_file(f"OUTPUT_TRANSCRIPT_RAW: '{text}'")
-                # Same deduplication logic for AI responses
-                if text and text not in self._accumulated_output_transcript:
+                # Only filter exact consecutive duplicates
+                if text and text != self._last_output_chunk:
+                    self._last_output_chunk = text
                     self._accumulated_output_transcript += text
                     _log("TRANSCRIPT_AI", f"'{text}'")
                     _log_to_file(f"OUTPUT_TRANSCRIPT_NEW: '{text}'")
@@ -470,6 +476,8 @@ class GeminiRealtimeService(InteractionModeService):
                 )
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
+                self._last_input_chunk = ""
+                self._last_output_chunk = ""
                 self._first_audio_sent = False
                 await self._event_queue.put(
                     ResponseEvent(
@@ -484,6 +492,8 @@ class GeminiRealtimeService(InteractionModeService):
                 # Reset accumulated transcripts and first audio flag on interruption
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
+                self._last_input_chunk = ""
+                self._last_output_chunk = ""
                 self._first_audio_sent = False
                 await self._event_queue.put(
                     ResponseEvent(

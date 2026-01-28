@@ -217,62 +217,67 @@ export interface MagicDJState {
 // Default Values
 // =============================================================================
 
+/**
+ * Default tracks - no audio files by default.
+ * Users should generate audio via TTS for each track.
+ * textContent provides suggested text for TTS generation.
+ */
 export const DEFAULT_TRACKS: Track[] = [
   {
     id: 'track_01_intro',
     name: '開場',
     type: 'intro',
-    url: '/audio/intro.mp3',
-    hotkey: '1',
+    url: '',
+    textContent: '嗨！歡迎來到魔法世界！今天我們要一起探險喔！',
   },
   {
     id: 'track_02_cleanup',
     name: '收玩具歌',
     type: 'song',
-    url: '/audio/cleanup.mp3',
-    hotkey: '2',
+    url: '',
+    textContent: '收玩具、收玩具，大家一起來收玩具！',
   },
   {
     id: 'track_03_success',
     name: '成功獎勵',
     type: 'effect',
-    url: '/audio/success.mp3',
-    hotkey: '3',
+    url: '',
+    textContent: '太棒了！你做得很好！',
   },
   {
     id: 'track_04_book',
     name: '魔法書過場',
     type: 'transition',
-    url: '/audio/book.mp3',
-    hotkey: '4',
+    url: '',
+    textContent: '讓我們翻開魔法書，看看裡面有什麼故事...',
   },
   {
     id: 'track_05_forest',
     name: '迷霧森林',
     type: 'transition',
-    url: '/audio/forest.mp3',
-    hotkey: '5',
+    url: '',
+    textContent: '我們來到了神秘的迷霧森林...',
   },
   {
     id: 'sound_thinking',
     name: '思考音效',
     type: 'filler',
-    url: '/audio/thinking.mp3',
-    hotkey: 'f',
+    url: '',
+    textContent: '嗯...讓我想一想...',
   },
   {
     id: 'filler_wait',
     name: '等待填補',
     type: 'rescue',
-    url: '/audio/wait.mp3',
-    hotkey: 'w',
+    url: '',
+    textContent: '等我一下下喔，我正在準備一些很棒的東西！',
   },
   {
     id: 'track_end',
     name: '緊急結束',
     type: 'rescue',
-    url: '/audio/end.mp3',
-    hotkey: 'e',
+    url: '',
+    textContent: '好的，今天的冒險就到這裡！下次再見囉！',
   },
 ]
 

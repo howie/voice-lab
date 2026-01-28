@@ -11,6 +11,7 @@ import base64
 import contextlib
 import json
 import logging
+import time
 from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
@@ -28,13 +29,33 @@ from src.domain.services.interaction.base import (
 
 logger = logging.getLogger(__name__)
 
-# Debug file logger for Gemini messages
+# Debug file logger for Gemini messages (detailed logs for analysis)
 _debug_log_path = Path("logs/gemini_debug.log")
 _debug_log_path.parent.mkdir(parents=True, exist_ok=True)
 
+# Session start time for relative timestamps
+_session_start: float = 0.0
+
+
+def _ts() -> str:
+    """Get formatted timestamp with milliseconds relative to session start."""
+    if _session_start == 0.0:
+        return datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    elapsed = time.time() - _session_start
+    return f"+{elapsed:07.3f}s"
+
+
+def _log(event: str, details: str = "") -> None:
+    """Log event to console with timestamp."""
+    ts = _ts()
+    if details:
+        print(f"[{ts}] [Gemini] {event}: {details}")
+    else:
+        print(f"[{ts}] [Gemini] {event}")
+
 
 def _log_to_file(message: str) -> None:
-    """Write debug message to file for analysis."""
+    """Write debug message to file for detailed analysis."""
     timestamp = datetime.now().isoformat()
     with open(_debug_log_path, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {message}\n")
@@ -115,14 +136,18 @@ class GeminiRealtimeService(InteractionModeService):
         # Build WebSocket URL with API key
         url = f"{GEMINI_LIVE_URL}?key={self._api_key}"
 
+        # Reset session timing
+        global _session_start
+        _session_start = time.time()
+
         try:
-            print("[Gemini] Connecting to WebSocket...")
+            _log("CONNECT", "connecting to WebSocket...")
             self._ws = await websockets.connect(
                 url,
                 ping_interval=20,
                 ping_timeout=20,
             )
-            print("[Gemini] WebSocket connected!")
+            _log("CONNECT", "WebSocket connected")
             self._connected = True
 
             # Start receiving messages
@@ -137,11 +162,11 @@ class GeminiRealtimeService(InteractionModeService):
             while not self._setup_complete:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > timeout:
-                    print(f"[Gemini] Setup timeout after {elapsed:.1f}s")
+                    _log("CONNECT", f"setup timeout after {elapsed:.1f}s")
                     raise TimeoutError("Gemini setup timeout")
                 await asyncio.sleep(0.1)
 
-            print("[Gemini] Setup complete!")
+            _log("CONNECT", "setup complete, ready for audio")
             logger.info(f"Connected to Gemini Live API for session {session_id}")
 
         except Exception as e:
@@ -160,9 +185,7 @@ class GeminiRealtimeService(InteractionModeService):
         The 2.5 model provides native audio with 30 HD voices in 24 languages.
         """
         # Get model from config, fallback to settings, then default
-        print(f"[Gemini] Config received: {config}")
         model = config.get("model")
-        print(f"[Gemini] Model from config: {model}")
         if not model:
             try:
                 from src.config import get_settings
@@ -200,12 +223,9 @@ class GeminiRealtimeService(InteractionModeService):
         )
         setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
 
-        print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
-
-        print(f"[Gemini] Sending setup: model={model}, voice={voice}")
+        _log("SETUP", f"model={model}, voice={voice}")
         logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
         await self._send_message(setup_message)
-        print("[Gemini] Setup message sent")
 
     async def disconnect(self) -> None:
         """Disconnect from the API and cleanup resources."""
@@ -246,13 +266,12 @@ class GeminiRealtimeService(InteractionModeService):
         sample_rate = audio.sample_rate or 16000
         mime_type = f"audio/pcm;rate={sample_rate}"
 
-        # Track audio chunks sent (log every 50 chunks to avoid spam)
+        # Track audio chunks sent (log first chunk and every 100 chunks)
         self._audio_chunk_count = getattr(self, "_audio_chunk_count", 0) + 1
         if self._audio_chunk_count == 1:
-            _log_to_file(
-                f"AUDIO_START: first chunk, rate={sample_rate}, size={len(audio.data)} bytes"
-            )
-        elif self._audio_chunk_count % 50 == 0:
+            _log("AUDIO_IN", f"first chunk, rate={sample_rate}Hz, size={len(audio.data)}B")
+            _log_to_file(f"AUDIO_START: rate={sample_rate}, size={len(audio.data)} bytes")
+        elif self._audio_chunk_count % 100 == 0:
             _log_to_file(f"AUDIO_PROGRESS: {self._audio_chunk_count} chunks sent")
 
         message = {
@@ -272,9 +291,11 @@ class GeminiRealtimeService(InteractionModeService):
         # Send empty realtime_input to signal end of audio stream
         # This tells Gemini to process accumulated audio and generate response
         chunk_count = getattr(self, "_audio_chunk_count", 0)
+        # Store end_turn time for latency measurement
+        self._end_turn_time = time.time()
         message = {"realtime_input": {"audio_stream_end": True}}
-        _log_to_file(f"SEND: end_turn after {chunk_count} audio chunks - {message}")
-        print(f"[Gemini] Sending audio_stream_end signal (after {chunk_count} chunks)")
+        _log("END_TURN", f"sent after {chunk_count} audio chunks")
+        _log_to_file(f"END_TURN: after {chunk_count} chunks")
         self._audio_chunk_count = 0  # Reset counter for next turn
         await self._send_message(message)
 
@@ -318,9 +339,8 @@ class GeminiRealtimeService(InteractionModeService):
 
     async def _receive_messages(self) -> None:
         """Background task to receive and process messages from Gemini."""
-        print("[Gemini] _receive_messages task started")
         if not self._ws:
-            print("[Gemini] No WebSocket, exiting receive task")
+            _log("ERROR", "no WebSocket, exiting receive task")
             return
 
         try:
@@ -328,26 +348,24 @@ class GeminiRealtimeService(InteractionModeService):
                 if isinstance(message, bytes):
                     message = message.decode()
 
-                # Log all incoming messages for debugging (file + console)
-                _log_to_file(f"RECV: {message}")
-                print(f"[Gemini] Message received: {message[:300]}")
-                logger.info(f"Gemini message received: {message[:500]}")
+                # Log raw message to file only (for detailed debugging)
+                _log_to_file(f"RECV: {message[:500]}...")
 
                 try:
                     event = json.loads(message)
                     await self._handle_event(event)
                 except json.JSONDecodeError:
-                    print(f"[Gemini] Failed to decode: {message[:100]}")
+                    _log("ERROR", f"failed to decode JSON: {message[:100]}")
                     logger.error(f"Failed to decode message: {message[:100]}")
 
         except websockets.ConnectionClosed as e:
             _log_to_file(f"WEBSOCKET_CLOSED: code={e.code}, reason={e.reason}")
-            print(f"[Gemini] WebSocket closed: {e}")
+            _log("DISCONNECT", f"WebSocket closed: code={e.code}")
             logger.info("WebSocket connection closed")
             self._connected = False
         except Exception as e:
             _log_to_file(f"ERROR: {type(e).__name__}: {e}")
-            print(f"[Gemini] Error in receive: {e}")
+            _log("ERROR", f"{type(e).__name__}: {e}")
             logger.error(f"Error receiving messages: {e}")
             self._connected = False
 
@@ -359,6 +377,7 @@ class GeminiRealtimeService(InteractionModeService):
         # Setup complete event
         if "setupComplete" in event:
             self._setup_complete = True
+            _log("RECV", "setupComplete")
             await self._event_queue.put(
                 ResponseEvent(
                     type="connected",
@@ -380,6 +399,7 @@ class GeminiRealtimeService(InteractionModeService):
                 # If not, it's new content - append and send only the new part
                 if text and text not in self._accumulated_input_transcript:
                     self._accumulated_input_transcript += text
+                    _log("TRANSCRIPT_USER", f"'{text}'")
                     _log_to_file(
                         f"INPUT_TRANSCRIPT_NEW: '{text}' -> total: '{self._accumulated_input_transcript}'"
                     )
@@ -398,6 +418,7 @@ class GeminiRealtimeService(InteractionModeService):
                 # Same deduplication logic for AI responses
                 if text and text not in self._accumulated_output_transcript:
                     self._accumulated_output_transcript += text
+                    _log("TRANSCRIPT_AI", f"'{text}'")
                     _log_to_file(f"OUTPUT_TRANSCRIPT_NEW: '{text}'")
                     await self._event_queue.put(
                         ResponseEvent(
@@ -408,9 +429,9 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for turn complete
             if server_content.get("turnComplete"):
-                # Reset accumulated transcripts and first audio flag for next turn
+                _log("TURN_COMPLETE", f"user='{self._accumulated_input_transcript[:50]}...', ai_len={len(self._accumulated_output_transcript)}")
                 _log_to_file(
-                    f"TURN_COMPLETE: resetting transcripts (input: '{self._accumulated_input_transcript}', output len: {len(self._accumulated_output_transcript)})"
+                    f"TURN_COMPLETE: input='{self._accumulated_input_transcript}', output_len={len(self._accumulated_output_transcript)}"
                 )
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
@@ -424,6 +445,7 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for interruption
             if server_content.get("interrupted"):
+                _log("INTERRUPTED", "user barged in")
                 # Reset accumulated transcripts and first audio flag on interruption
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
@@ -439,27 +461,33 @@ class GeminiRealtimeService(InteractionModeService):
             if "modelTurn" in server_content:
                 model_turn = server_content["modelTurn"]
                 parts = model_turn.get("parts", [])
-                print(f"[Gemini] modelTurn received with {len(parts)} parts")
 
                 for part in parts:
                     # Handle audio data
                     if "inlineData" in part:
                         inline_data = part["inlineData"]
                         mime_type = inline_data.get("mimeType", "")
-                        data_length = len(inline_data.get("data", ""))
-                        print(
-                            f"[Gemini] inlineData: mimeType={mime_type}, data_length={data_length}"
-                        )
+                        # Get base64 data length (not decoded bytes)
+                        data_b64 = inline_data.get("data", "")
+                        data_bytes = len(data_b64) * 3 // 4  # Approximate decoded size
                         if mime_type.startswith("audio/"):
                             # Track first audio for latency measurement
                             is_first = not self._first_audio_sent
                             if is_first:
                                 self._first_audio_sent = True
+                                # Calculate latency from end_turn to first audio
+                                end_turn_time = getattr(self, "_end_turn_time", 0)
+                                if end_turn_time:
+                                    latency_ms = (time.time() - end_turn_time) * 1000
+                                    _log("FIRST_AUDIO", f"latency={latency_ms:.0f}ms, size={data_bytes}B")
+                                else:
+                                    _log("FIRST_AUDIO", f"size={data_bytes}B")
+                            # Don't log every audio chunk - too noisy
                             await self._event_queue.put(
                                 ResponseEvent(
                                     type="audio",
                                     data={
-                                        "audio": inline_data.get("data", ""),
+                                        "audio": data_b64,
                                         "format": "pcm16",
                                         "is_first": is_first,
                                     },
@@ -475,12 +503,17 @@ class GeminiRealtimeService(InteractionModeService):
                             )
                         )
 
+            # Log generation complete (but don't spam)
+            if server_content.get("generationComplete"):
+                _log("GENERATION_COMPLETE", "AI finished generating")
+
         # Input transcription event (user speech -> text)
         elif "inputTranscription" in event:
             transcription = event["inputTranscription"]
             text = transcription.get("text", "")
             is_final = transcription.get("isFinal", True)
             if text:
+                _log("TRANSCRIPT_USER", f"'{text}' (final={is_final})")
                 await self._event_queue.put(
                     ResponseEvent(
                         type="transcript",
@@ -494,6 +527,7 @@ class GeminiRealtimeService(InteractionModeService):
         # Tool call event
         elif "toolCall" in event:
             tool_call = event["toolCall"]
+            _log("TOOL_CALL", f"{len(tool_call.get('functionCalls', []))} functions")
             await self._event_queue.put(
                 ResponseEvent(
                     type="tool_call",
@@ -505,6 +539,7 @@ class GeminiRealtimeService(InteractionModeService):
 
         # Tool call cancellation
         elif "toolCallCancellation" in event:
+            _log("TOOL_CANCELLED", f"ids={event['toolCallCancellation'].get('ids', [])}")
             await self._event_queue.put(
                 ResponseEvent(
                     type="tool_call_cancelled",
@@ -512,6 +547,13 @@ class GeminiRealtimeService(InteractionModeService):
                 )
             )
 
+        # Usage metadata - log token counts
+        elif "usageMetadata" in event:
+            usage = event["usageMetadata"]
+            _log("USAGE", f"prompt={usage.get('promptTokenCount', 0)}, response={usage.get('responseTokenCount', 0)}, total={usage.get('totalTokenCount', 0)}")
+
         else:
-            # Log all unhandled events for debugging
-            logger.info(f"Unhandled Gemini event: {list(event.keys())}, data: {str(event)[:500]}")
+            # Log unhandled events (but not too verbose)
+            keys = list(event.keys())
+            if keys != ["serverContent"]:  # Already handled above
+                _log("RECV_OTHER", f"keys={keys}")

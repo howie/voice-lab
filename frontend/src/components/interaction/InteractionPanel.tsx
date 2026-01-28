@@ -178,6 +178,19 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const hasUserSpokenRef = useRef(false) // Track if user has spoken in current turn
   const speakingFrameCountRef = useRef(0) // Hysteresis: count consecutive frames above threshold
   const interactionStateRef = useRef<InteractionState>('idle') // Track state in ref to avoid stale closure
+  const sessionStartTimeRef = useRef<number>(0) // For relative timestamp logging
+
+  // Logging utility with relative timestamps
+  const log = useCallback((category: string, message: string, data?: unknown) => {
+    const elapsed = sessionStartTimeRef.current
+      ? ((Date.now() - sessionStartTimeRef.current) / 1000).toFixed(3)
+      : '0.000'
+    if (data !== undefined) {
+      console.log(`[+${elapsed}s] [${category}] ${message}`, data)
+    } else {
+      console.log(`[+${elapsed}s] [${category}] ${message}`)
+    }
+  }, [])
 
   // VAD Configuration - Tuned for natural conversation with hysteresis
   // Note: These values should be adjusted based on microphone sensitivity and environment
@@ -246,10 +259,9 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // Cast data to Record for easier access - actual type checking done per case
       const data = message.data as Record<string, unknown>
 
-      // Debug: log all incoming WebSocket messages
-      if (type !== 'audio') {
-        // Don't spam logs with audio messages
-        console.log(`[WS] Received: ${type}`, data)
+      // Debug: log all incoming WebSocket messages (except audio which is too frequent)
+      if (type !== 'audio' && type !== 'pong') {
+        log('WS_RECV', type, data)
       }
 
       switch (type) {
@@ -292,7 +304,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           // Record when AI response started
           setTurnTiming((prev) => ({ ...prev, responseStartedAt: Date.now() }))
           firstAudioReceivedRef.current = false
-          console.log('[Turn] Response started')
+          log('TURN', 'response_started')
           break
 
         case 'text_delta':
@@ -303,11 +315,15 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         case 'audio':
           // Decode base64 audio and queue for playback
           if (data.audio) {
-            // Record first audio timing
+            // Record first audio timing and calculate latency
             if (!firstAudioReceivedRef.current) {
               firstAudioReceivedRef.current = true
-              setTurnTiming((prev) => ({ ...prev, firstAudioAt: Date.now() }))
-              console.log('[Turn] First audio received')
+              const firstAudioAt = Date.now()
+              setTurnTiming((prev) => {
+                const latency = prev.endTurnSentAt ? firstAudioAt - prev.endTurnSentAt : null
+                log('TURN', `first_audio (latency=${latency}ms)`)
+                return { ...prev, firstAudioAt }
+              })
             }
             try {
               const binaryString = atob(data.audio as string)
@@ -325,8 +341,11 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         case 'response_ended': {
           // Record response end timing
           const responseEndedAt = Date.now()
-          setTurnTiming((prev) => ({ ...prev, responseEndedAt }))
-          console.log('[Turn] Response ended')
+          setTurnTiming((prev) => {
+            const totalDuration = prev.speakingStartedAt ? responseEndedAt - prev.speakingStartedAt : null
+            log('TURN', `response_ended (total_turn=${totalDuration}ms)`)
+            return { ...prev, responseEndedAt }
+          })
 
           // Save current turn to history before clearing
           const currentUserTranscript = useInteractionStore.getState().userTranscript
@@ -408,6 +427,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       options.mode,
       options.providerConfig,
       options.systemPrompt,
+      log,
     ]
   )
 
@@ -436,7 +456,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       if (wsStatus === 'connected') {
         // Debug: Log sample rate on first chunk to help diagnose audio issues
         if (!audioSampleRateLoggedRef.current) {
-          console.log(`[Audio] Actual sample rate from AudioContext: ${actualSampleRate}Hz`)
+          log('AUDIO', `sample_rate=${actualSampleRate}Hz`)
           audioSampleRateLoggedRef.current = true
         }
 
@@ -486,7 +506,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
                 firstAudioAt: null,
                 responseEndedAt: null,
               })
-              console.log('[VAD] User started speaking')
+              log('VAD', 'user_started_speaking')
             }
             lastSpeakingTimeRef.current = now
 
@@ -536,9 +556,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
                 const totalSpeakingDuration = speakingStartTimeRef.current
                   ? endTurnTime - speakingStartTimeRef.current
                   : 0
-                console.log(
-                  `[VAD] Silence detected for ${silenceDuration}ms after ${totalSpeakingDuration}ms of speaking, sending end_turn`
-                )
+                log('VAD', `silence=${silenceDuration}ms, spoke=${totalSpeakingDuration}ms → end_turn`)
                 hasSentEndTurnRef.current = true
                 // Record end_turn timing
                 setTurnTiming((prev) => ({ ...prev, endTurnSentAt: endTurnTime }))
@@ -575,6 +593,9 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const handleConnect = async () => {
     setError(null)
     isConnectingRef.current = true
+    // Reset session start time for logging
+    sessionStartTimeRef.current = Date.now()
+    log('SESSION', 'connecting...')
 
     // Request microphone permission first
     try {

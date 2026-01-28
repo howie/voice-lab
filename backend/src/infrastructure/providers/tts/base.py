@@ -26,7 +26,7 @@ class BaseTTSProvider(ITTSProvider):
         """Initialize base provider.
 
         Args:
-            name: Provider identifier (e.g., 'gcp', 'azure')
+            name: Provider identifier (e.g., 'gemini', 'azure')
         """
         self._name = name
 

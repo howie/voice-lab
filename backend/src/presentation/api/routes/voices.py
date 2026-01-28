@@ -16,7 +16,7 @@ router = APIRouter(prefix="/voices", tags=["voices"])
 
 
 # Valid providers
-VALID_PROVIDERS = {"azure", "gcp", "elevenlabs", "voai"}
+VALID_PROVIDERS = {"azure", "gemini", "elevenlabs", "voai"}
 
 
 # Valid age groups

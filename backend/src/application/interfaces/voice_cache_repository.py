@@ -45,7 +45,7 @@ class IVoiceCacheRepository(ABC):
         """Get voices by provider with optional filters.
 
         Args:
-            provider: Provider name (e.g., "azure", "elevenlabs", "gcp")
+            provider: Provider name (e.g., "azure", "elevenlabs", "gemini")
             language: Filter by language code (e.g., "zh-TW")
             gender: Filter by gender ("male", "female", "neutral")
             age_group: Filter by age group

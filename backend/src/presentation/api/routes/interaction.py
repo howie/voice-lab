@@ -493,7 +493,7 @@ async def list_providers(
         "gemini": "gemini",
         "azure-openai": "azure",
     }
-    tts_mapping = {"azure": "azure", "gcp": "gcp", "elevenlabs": "elevenlabs", "voai": "voai"}
+    tts_mapping = {"azure": "azure", "gemini": "gemini", "elevenlabs": "elevenlabs", "voai": "voai"}
 
     return {
         "stt_providers": add_credential_status(provider_info["stt"], stt_mapping),

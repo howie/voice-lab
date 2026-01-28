@@ -303,6 +303,10 @@ export interface InteractionOptions {
   // US5: Barge-in (interrupt) settings
   bargeInEnabled: boolean
 
+  // US6: Auto-greeting - AI initiates conversation
+  autoGreeting: boolean
+  greetingPrompt?: string // Custom prompt to trigger greeting
+
   // Display settings
   showLatencyMetrics: boolean
   showTranscripts: boolean
@@ -329,6 +333,9 @@ export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
   vadSensitivity: 0.5,
   // US5: Barge-in enabled by default
   bargeInEnabled: true,
+  // US6: Auto-greeting disabled by default
+  autoGreeting: false,
+  greetingPrompt: undefined,
   showLatencyMetrics: true,
   showTranscripts: true,
 }

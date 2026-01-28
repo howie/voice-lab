@@ -96,6 +96,8 @@ interface InteractionStoreState {
   setScenarioContext: (context: string) => void
   // US5: Barge-in configuration
   setBargeInEnabled: (enabled: boolean) => void
+  // US6: Auto-greeting configuration
+  setAutoGreeting: (enabled: boolean, prompt?: string) => void
   // Performance optimization
   setLightweightMode: (enabled: boolean) => void
 
@@ -146,6 +148,9 @@ const defaultOptions: InteractionOptions = {
   vadSensitivity: 0.5,
   // US5: Barge-in enabled by default
   bargeInEnabled: true,
+  // US6: Auto-greeting - AI initiates conversation
+  autoGreeting: true, // 預設啟用，讓 AI 主動打招呼
+  greetingPrompt: undefined, // 使用預設提示
   showLatencyMetrics: true,
   showTranscripts: true,
   // Lightweight mode: skip sync audio storage for lower latency
@@ -297,6 +302,16 @@ export const useInteractionStore = create<InteractionStoreState>()(
       setBargeInEnabled: (enabled) =>
         set((state) => ({
           options: { ...state.options, bargeInEnabled: enabled },
+        })),
+
+      // US6: Auto-greeting configuration action
+      setAutoGreeting: (enabled, prompt) =>
+        set((state) => ({
+          options: {
+            ...state.options,
+            autoGreeting: enabled,
+            greetingPrompt: prompt,
+          },
         })),
 
       // Performance optimization action

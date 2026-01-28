@@ -242,6 +242,10 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         # T084 [US5]: Extract barge-in configuration
         barge_in_enabled = data.get("barge_in_enabled", True)
 
+        # Auto-greeting: AI initiates conversation when enabled
+        auto_greeting = data.get("auto_greeting", False)
+        greeting_prompt = data.get("greeting_prompt")
+
         # Lightweight mode configuration (can be set at connection or config time)
         if "lightweight_mode" in data:
             self._lightweight_mode = data.get("lightweight_mode", False)
@@ -295,6 +299,11 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
                 )
             )
             self._logger.info(f"Session {self._session.id} started")
+
+            # Auto-greeting: Trigger AI to start the conversation
+            if auto_greeting:
+                self._logger.info("Auto-greeting enabled, triggering AI greeting")
+                await self._mode_service.trigger_greeting(greeting_prompt)
 
         except Exception as e:
             self._logger.error(f"Failed to start session: {e}")

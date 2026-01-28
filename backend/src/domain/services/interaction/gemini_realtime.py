@@ -208,7 +208,7 @@ class GeminiRealtimeService(InteractionModeService):
                     },
                     "response_modalities": ["AUDIO"],
                     # Disable thinking for faster response (no internal reasoning delay)
-                    "thinking_config": {"thinking_budget": 0},
+                    # "thinking_config": {"thinking_budget": 0},
                 },
                 # Enable transcription for both input (user) and output (AI)
                 "input_audio_transcription": {},
@@ -311,6 +311,41 @@ class GeminiRealtimeService(InteractionModeService):
         message = {"client_content": {"turns": [], "turn_complete": True}}
         await self._send_message(message)
         logger.debug("Sent interrupt signal to Gemini")
+
+    async def trigger_greeting(self, greeting_prompt: str | None = None) -> None:
+        """Trigger AI to start the conversation with a greeting.
+
+        This sends a text-based turn to Gemini asking it to initiate the conversation.
+        Useful for scenarios where the AI should greet the user first.
+
+        Args:
+            greeting_prompt: Optional custom prompt to trigger greeting.
+                           If None, uses a default prompt based on the system_prompt.
+        """
+        if not self._connected or not self._ws:
+            _log("GREETING", "cannot trigger: not connected")
+            return
+
+        # Default greeting prompt if not provided
+        prompt = greeting_prompt or "請用你的角色開始這個對話，主動向用戶打招呼並開始互動。"
+
+        _log("GREETING", f"triggering AI greeting with prompt: {prompt[:50]}...")
+
+        # Send a text-based turn to Gemini to trigger the greeting
+        # This tells Gemini to respond as if the user sent this text
+        message = {
+            "client_content": {
+                "turns": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": prompt}],
+                    }
+                ],
+                "turn_complete": True,
+            }
+        }
+        await self._send_message(message)
+        _log("GREETING", "greeting trigger sent")
 
     async def events(self) -> AsyncIterator[ResponseEvent]:
         """Async iterator for response events from Gemini.

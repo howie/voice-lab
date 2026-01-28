@@ -238,6 +238,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setScenarioContext,
     // US5: Barge-in configuration
     setBargeInEnabled,
+    // US6: Auto-greeting configuration
+    setAutoGreeting,
     // Performance optimization
     setLightweightMode,
   } = useInteractionStore()
@@ -646,6 +648,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // T078: Send config message with role/scenario to start session
       // T084: Include barge_in_enabled configuration
       // T089: Include lightweight_mode for lower latency V2V
+      // US6: Include auto_greeting to trigger AI-initiated conversation
       sendMessage('config', {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
@@ -654,6 +657,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         scenario_context: options.scenarioContext,
         barge_in_enabled: options.bargeInEnabled,
         lightweight_mode: options.lightweightMode ?? true,
+        auto_greeting: options.autoGreeting ?? false,
+        greeting_prompt: options.greetingPrompt,
       })
     }
   }, [wsStatus, sendMessage, options])
@@ -727,6 +732,27 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           onLightweightModeChange={setLightweightMode}
           disabled={isConnected}
         />
+      )}
+
+      {/* US6: Auto-greeting toggle - AI initiates conversation */}
+      {options.mode === 'realtime' && (
+        <div className="rounded-lg border bg-card p-4">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={options.autoGreeting}
+              onChange={(e) => setAutoGreeting(e.target.checked)}
+              disabled={isConnected}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <div>
+              <span className="text-sm font-medium text-foreground">AI 主動打招呼</span>
+              <p className="text-xs text-muted-foreground">
+                開始對話後，AI 會主動用角色身份打招呼並開始互動
+              </p>
+            </div>
+          </label>
+        </div>
       )}
 
       {/* US4: Scenario Template Selector */}

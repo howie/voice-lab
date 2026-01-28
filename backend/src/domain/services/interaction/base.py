@@ -110,3 +110,15 @@ class InteractionModeService(ABC):
     def is_connected(self) -> bool:
         """Check if the service is connected."""
         ...
+
+    async def trigger_greeting(self, greeting_prompt: str | None = None) -> None:
+        """Trigger AI to start the conversation with a greeting.
+
+        Optional method - default implementation does nothing.
+        Subclasses can override to support AI-initiated greetings.
+
+        Args:
+            greeting_prompt: Optional custom prompt to trigger greeting.
+        """
+        # Default: do nothing (not all modes support this)
+        _ = greeting_prompt  # Suppress unused variable warning

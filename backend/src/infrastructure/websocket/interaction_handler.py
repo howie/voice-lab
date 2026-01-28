@@ -255,6 +255,9 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._ai_role = ai_role
         self._barge_in_enabled = barge_in_enabled
 
+        # Debug: Log received role configuration
+        self._logger.info(f"Config received: user_role='{user_role}', ai_role='{ai_role}'")
+
         # T073a: Generate system prompt from role/scenario if not provided
         effective_system_prompt = system_prompt
         if not effective_system_prompt and scenario_context:

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
   Users,
   Briefcase,
   Disc3,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -27,35 +30,68 @@ const navigation = [
 ]
 
 export function Sidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
   return (
-    <aside className="flex w-64 flex-col border-r bg-card">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+    <aside
+      className={cn(
+        'flex flex-col border-r bg-card transition-all duration-300',
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      <div
+        className={cn(
+          'flex h-16 items-center border-b',
+          isCollapsed ? 'justify-center px-2' : 'gap-2 px-6'
+        )}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Mic className="h-4 w-4" />
         </div>
-        <span className="text-lg font-semibold">Voice Lab</span>
+        {!isCollapsed && (
+          <span className="text-lg font-semibold">Voice Lab</span>
+        )}
       </div>
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className={cn('flex-1 space-y-1', isCollapsed ? 'p-2' : 'p-4')}>
         {navigation.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}
+            title={isCollapsed ? item.name : undefined}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center rounded-lg text-sm font-medium transition-colors',
+                isCollapsed
+                  ? 'justify-center p-2'
+                  : 'gap-3 px-3 py-2',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )
             }
           >
-            <item.icon className="h-4 w-4" />
-            {item.name}
+            <item.icon className="h-4 w-4 shrink-0" />
+            {!isCollapsed && item.name}
           </NavLink>
         ))}
       </nav>
-      <div className="border-t p-4">
-        <p className="text-xs text-muted-foreground">Voice Lab v0.1.0</p>
+      <div className="border-t p-2">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex w-full items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          title={isCollapsed ? '展開側邊欄' : '收合側邊欄'}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
+        {!isCollapsed && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Voice Lab v0.1.0
+          </p>
+        )}
       </div>
     </aside>
   )

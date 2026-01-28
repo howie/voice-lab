@@ -120,7 +120,7 @@ export function DJControlPanel({
       {/* Main Control Area */}
       <div className="flex flex-1 gap-4">
         {/* Left: Track List */}
-        <div className="w-1/3 rounded-lg border bg-card p-4">
+        <div className="w-80 shrink-0 rounded-lg border bg-card p-4 overflow-y-auto">
           <h2 className="mb-4 text-lg font-semibold">音軌列表</h2>
           <TrackList
             onPlayTrack={onPlayTrack}

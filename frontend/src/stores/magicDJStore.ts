@@ -36,6 +36,7 @@ interface MagicDJStoreState extends MagicDJState {
   removeTrack: (trackId: string) => void
   updateTrack: (trackId: string, updates: Partial<Track>) => void
   updateTrackState: (trackId: string, state: Partial<TrackPlaybackState>) => void
+  reorderTracks: (activeId: string, overId: string) => void
   setMasterVolume: (volume: number) => void
 
   // === Mode Actions ===
@@ -172,6 +173,20 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             },
           },
         })),
+
+      reorderTracks: (activeId, overId) =>
+        set((prev) => {
+          const oldIndex = prev.tracks.findIndex((t) => t.id === activeId)
+          const newIndex = prev.tracks.findIndex((t) => t.id === overId)
+
+          if (oldIndex === -1 || newIndex === -1) return prev
+
+          const newTracks = [...prev.tracks]
+          const [movedTrack] = newTracks.splice(oldIndex, 1)
+          newTracks.splice(newIndex, 0, movedTrack)
+
+          return { tracks: newTracks }
+        }),
 
       setMasterVolume: (volume) =>
         set({ masterVolume: Math.max(0, Math.min(1, volume)) }),

@@ -105,6 +105,16 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       const trackId = track.id
       trackConfigRef.current.set(trackId, track)
 
+      // Skip tracks without URL - they need to be generated via TTS
+      if (!track.url) {
+        updateTrackState(trackId, {
+          isLoading: false,
+          isLoaded: false,
+          error: null,
+        })
+        return
+      }
+
       // Update state: loading
       updateTrackState(trackId, {
         isLoading: true,

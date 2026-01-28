@@ -99,7 +99,6 @@ class TTSProviderFactory:
             from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
 
             return GCPTTSProvider(
-                project_id=kwargs.get("project_id") or os.getenv("GCP_PROJECT_ID", ""),
                 credentials_path=kwargs.get("credentials_path")
                 or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
             )

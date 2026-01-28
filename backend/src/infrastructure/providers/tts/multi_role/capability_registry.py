@@ -27,13 +27,13 @@ PROVIDER_CAPABILITIES: dict[str, ProviderMultiRoleCapability] = {
         advanced_features=["express-as styles"],
         notes="Uses SSML <voice> elements for multi-speaker",
     ),
-    "gcp": ProviderMultiRoleCapability(
-        provider_name="gcp",
-        support_type=MultiRoleSupportType.NATIVE,
+    "gemini": ProviderMultiRoleCapability(
+        provider_name="gemini",
+        support_type=MultiRoleSupportType.SEGMENTED,
         max_speakers=6,
-        character_limit=5000,
-        advanced_features=[],
-        notes="Uses SSML <voice> tags",
+        character_limit=4000,
+        advanced_features=["style prompts"],
+        notes="Requires segmented synthesis with audio merging",
     ),
     "openai": ProviderMultiRoleCapability(
         provider_name="openai",

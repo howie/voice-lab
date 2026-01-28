@@ -18,7 +18,7 @@ class ITTSProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Get provider name identifier (e.g., 'gcp', 'azure')."""
+        """Get provider name identifier (e.g., 'gemini', 'azure')."""
         pass
 
     @property

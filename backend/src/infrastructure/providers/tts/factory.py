@@ -220,7 +220,7 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
-        if not cls.is_supported(provider_name.lower()):
+        if not cls.is_supported(provider_name):
             raise ProviderNotSupportedError(f"Provider '{provider_name}' is not supported")
 
         return cls._create_provider(provider_name, api_key=api_key, **kwargs)
@@ -241,7 +241,7 @@ class TTSProviderFactory:
         Raises:
             ProviderNotSupportedError: If the provider is not supported
         """
-        if not cls.is_supported(provider_name.lower()):
+        if not cls.is_supported(provider_name):
             raise ProviderNotSupportedError(f"Provider '{provider_name}' is not supported")
 
         return cls._create_provider(provider_name, **kwargs)

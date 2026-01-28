@@ -233,17 +233,17 @@ class ProviderError(ServiceUnavailableError):
     # Default retry delays per provider (in seconds)
     RETRY_DELAYS: dict[str, int] = {
         "azure": 5,
-        "gcp": 5,
+        "gemini": 5,
         "elevenlabs": 10,
         "voai": 5,
     }
 
     # Alternative providers to suggest
     ALTERNATIVES: dict[str, list[str]] = {
-        "azure": ["gcp", "elevenlabs"],
-        "gcp": ["azure", "elevenlabs"],
-        "elevenlabs": ["azure", "gcp"],
-        "voai": ["azure", "gcp"],
+        "azure": ["gemini", "elevenlabs"],
+        "gemini": ["azure", "elevenlabs"],
+        "elevenlabs": ["azure", "gemini"],
+        "voai": ["azure", "gemini"],
     }
 
     def __init__(

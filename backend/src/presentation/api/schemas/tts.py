@@ -17,8 +17,8 @@ class SynthesizeRequest(BaseModel):
     )
     provider: str = Field(
         ...,
-        pattern="^(azure|gcp|elevenlabs|voai)$",
-        description="TTS provider (azure, gcp, elevenlabs, voai)",
+        pattern="^(azure|gemini|elevenlabs|voai)$",
+        description="TTS provider (azure, gemini, elevenlabs, voai)",
     )
     voice_id: str = Field(
         ...,
@@ -78,8 +78,8 @@ class StreamRequest(BaseModel):
     )
     provider: str = Field(
         ...,
-        pattern="^(azure|gcp|elevenlabs|voai)$",
-        description="TTS provider (azure, gcp, elevenlabs, voai)",
+        pattern="^(azure|gemini|elevenlabs|voai)$",
+        description="TTS provider (azure, gemini, elevenlabs, voai)",
     )
     voice_id: str = Field(
         ...,

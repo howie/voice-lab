@@ -145,7 +145,7 @@ class TestSynthesisFlow:
     @pytest.mark.asyncio
     async def test_synthesis_flow_with_all_providers(self, mock_tts_result: TTSResult):
         """Test synthesis flow works with all supported providers."""
-        providers = ["azure", "gcp", "elevenlabs", "voai"]
+        providers = ["azure", "gemini", "elevenlabs", "voai"]
 
         for provider_name in providers:
             mock_provider = AsyncMock()

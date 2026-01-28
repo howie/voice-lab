@@ -112,23 +112,18 @@ class Container:
         """Create TTS provider instances based on configuration."""
         providers: dict[str, ITTSProvider] = {}
 
-        # GCP TTS - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
-        # or running in GCP environment (Cloud Run uses ADC automatically)
-        gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
-        enable_gcp = (
-            gcp_credentials
-            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            or os.getenv("K_SERVICE")  # Cloud Run sets this
-            or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
-            or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
-        )
-        if enable_gcp:
+        # Gemini TTS - Enable if GOOGLE_AI_API_KEY is set
+        google_ai_api_key = os.getenv("GOOGLE_AI_API_KEY")
+        if google_ai_api_key:
             try:
-                from src.infrastructure.providers.tts import GCPTTSProvider
+                from src.infrastructure.providers.tts import GeminiTTSProvider
 
-                providers["gcp"] = GCPTTSProvider(credentials_path=gcp_credentials)
+                providers["gemini"] = GeminiTTSProvider(
+                    api_key=google_ai_api_key,
+                    model=os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-pro-preview-tts"),
+                )
             except Exception as e:
-                print(f"Failed to initialize GCP TTS: {e}")
+                print(f"Failed to initialize Gemini TTS: {e}")
 
         # Azure TTS
         azure_key = os.getenv("AZURE_SPEECH_KEY")

@@ -263,7 +263,7 @@ def create_list_voices_use_case() -> ListVoicesUseCase:
     """
     from src.infrastructure.providers.tts.azure import AzureTTSProvider
     from src.infrastructure.providers.tts.elevenlabs import ElevenLabsTTSProvider
-    from src.infrastructure.providers.tts.google import GoogleTTSProvider
+    from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
     from src.infrastructure.providers.tts.voai import VoAITTSProvider
 
     providers: dict[str, ITTSProvider] = {}
@@ -273,7 +273,7 @@ def create_list_voices_use_case() -> ListVoicesUseCase:
         providers["azure"] = AzureTTSProvider()
 
     with contextlib.suppress(Exception):
-        providers["gcp"] = GoogleTTSProvider()
+        providers["gemini"] = GeminiTTSProvider(api_key="")
 
     with contextlib.suppress(Exception):
         providers["elevenlabs"] = ElevenLabsTTSProvider()

@@ -361,7 +361,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         if self._mode_service.is_connected():
             if self._current_turn:
                 self._latency_tracker.mark_interrupted(self._current_turn.id)
-                self._current_turn.mark_interrupted()
+                self._current_turn.end(interrupted=True)
             await self._mode_service.interrupt()
 
     async def _handle_ping(self, _message: WebSocketMessage) -> None:

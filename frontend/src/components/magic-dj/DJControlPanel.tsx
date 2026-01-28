@@ -16,6 +16,7 @@ import { ModeSwitch } from './ModeSwitch'
 import { RescuePanel } from './RescuePanel'
 import { SessionTimer } from './SessionTimer'
 import { ExportPanel } from './ExportPanel'
+import { TrackConfigPanel } from './TrackConfigPanel'
 import { useMagicDJStore, selectIsAITimeout } from '@/stores/magicDJStore'
 import type { ConnectionStatus } from '@/types/interaction'
 import type { Track } from '@/types/magic-dj'
@@ -198,9 +199,17 @@ export function DJControlPanel({
         </div>
       </div>
 
-      {/* Footer: Export Panel (T045) */}
-      <div className="rounded-lg border bg-card p-4">
-        <ExportPanel />
+      {/* Footer: Export Panels */}
+      <div className="flex flex-col gap-4">
+        {/* Track Config Export/Import (T055-T057) */}
+        <div className="rounded-lg border bg-card p-4">
+          <TrackConfigPanel />
+        </div>
+
+        {/* Session Export Panel (T045) */}
+        <div className="rounded-lg border bg-card p-4">
+          <ExportPanel />
+        </div>
       </div>
     </div>
   )

@@ -115,6 +115,17 @@ class Settings(BaseSettings):
     gemini_tts_model: str = "gemini-2.5-pro-preview-tts"
     gemini_tts_default_voice: str = "Kore"
 
+    # ==========================================================================
+    # Mureka AI Music Generation (Feature 012)
+    # ==========================================================================
+    mureka_api_key: str = ""
+    mureka_api_base_url: str = "https://api.mureka.ai"
+
+    # Music Generation Quota Configuration
+    music_daily_limit_per_user: int = 10
+    music_monthly_limit_per_user: int = 100
+    music_max_concurrent_jobs: int = 3
+
     @property
     def allowed_domains(self) -> list[str]:
         """Parse allowed domains from comma-separated string."""

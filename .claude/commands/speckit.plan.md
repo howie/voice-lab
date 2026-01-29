@@ -10,6 +10,52 @@ handoffs:
     prompt: Create a checklist for the following domain...
 ---
 
+## Cloud Environment Support
+
+This skill supports Claude Code Cloud environments. Before executing, perform environment detection:
+
+### Environment Detection
+
+```bash
+echo $CLAUDE_CODE_REMOTE
+```
+
+- Output `true` indicates Cloud environment
+- Empty output indicates local environment
+
+### Cloud Environment Handling
+
+If running in Cloud environment:
+
+1. **Verify branch**: Run `git branch --show-current` and ensure you're on the target feature branch
+2. **Check state file**: Read `.specify/state/current-feature.json` for existing feature context
+3. **Switch branch if needed**: If state file indicates a different branch, run:
+   ```bash
+   git fetch origin
+   git checkout <feature-branch-from-state>
+   ```
+
+### State Management
+
+After successfully creating the plan, update the feature state by setting phase to "plan":
+
+```bash
+# Source common functions
+source .specify/scripts/bash/common.sh
+
+# Update state phase and path
+update_feature_state "$FEATURE_ID" "$BRANCH" "plan"
+update_feature_path "plan" "$IMPL_PLAN"
+```
+
+On completion, commit and push changes:
+
+```bash
+git add .
+git commit -m "feat($FEATURE_ID): add implementation plan"
+git push
+```
+
 ## User Input
 
 ```text

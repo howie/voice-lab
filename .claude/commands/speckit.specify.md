@@ -10,6 +10,39 @@ handoffs:
     send: true
 ---
 
+## Cloud Environment Support
+
+This skill supports Claude Code Cloud environments. Before executing, perform environment detection:
+
+### Environment Detection
+
+```bash
+echo $CLAUDE_CODE_REMOTE
+```
+
+- Output `true` indicates Cloud environment
+- Empty output indicates local environment
+
+### Cloud Environment Handling
+
+If running in Cloud environment:
+
+1. **Verify branch**: Run `git branch --show-current` and ensure you're on the target feature branch
+2. **Check state file**: Read `.specify/state/current-feature.json` for existing feature context
+3. **On completion**: Update state file and push changes
+
+### State Management
+
+After successfully creating/updating the specification, update the feature state:
+
+```bash
+# Source common functions
+source .specify/scripts/bash/common.sh
+
+# Update state (called automatically by create-new-feature.sh, but verify it exists)
+# The state file tracks: feature_id, branch, phase, paths, environment
+```
+
 ## User Input
 
 ```text

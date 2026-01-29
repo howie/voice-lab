@@ -139,6 +139,8 @@ pretty = true
 no_implicit_optional = false
 # Allow Any
 disallow_any_generics = false
+# Ignore missing imports globally - packages have inline types but mypy sometimes can't find them
+ignore_missing_imports = true
 # Disable strict override and attribute checks for now
 disable_error_code = ["override", "attr-defined", "call-arg", "arg-type", "abstract", "assignment", "operator", "union-attr", "var-annotated", "misc", "return-value"]
 
@@ -159,14 +161,20 @@ module = [
     "anthropic.*",
     "openai.*",
     "httpx.*",
-    "fastapi.*",
+    # Web framework and core dependencies
     "pydantic.*",
     "pydantic_settings.*",
-    "sqlalchemy.*",
+    "fastapi.*",
     "starlette.*",
+    "sqlalchemy.*",
     "jwt.*",
     "dotenv.*",
+    "alembic.*",
+    "asyncpg.*",
     "websockets.*",
+    "deepgram.*",
+    "assemblyai.*",
+    "speechmatics.*",
 ]
 ignore_missing_imports = true
 

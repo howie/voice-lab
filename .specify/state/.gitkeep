@@ -1,0 +1,2 @@
+# This file ensures the state directory is tracked by git
+# Feature state files (current-feature.json) will be created here during development

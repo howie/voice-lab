@@ -2,6 +2,53 @@
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 ---
 
+## Cloud Environment Support
+
+This skill supports Claude Code Cloud environments. Before executing, perform environment detection:
+
+### Environment Detection
+
+```bash
+echo $CLAUDE_CODE_REMOTE
+```
+
+- Output `true` indicates Cloud environment
+- Empty output indicates local environment
+
+### Cloud Environment Handling
+
+If running in Cloud environment:
+
+1. **Verify branch**: Run `git branch --show-current` and ensure you're on the target feature branch
+2. **Check state file**: Read `.specify/state/current-feature.json` for existing feature context
+3. **Switch branch if needed**: If state file indicates a different branch, run:
+   ```bash
+   git fetch origin
+   git checkout <feature-branch-from-state>
+   ```
+
+### State Management
+
+During implementation, update the feature state by setting phase to "implement":
+
+```bash
+# Source common functions
+source .specify/scripts/bash/common.sh
+
+# Update state phase
+update_feature_state "$FEATURE_ID" "$BRANCH" "implement"
+```
+
+Commit progress periodically during implementation:
+
+```bash
+git add .
+git commit -m "feat($FEATURE_ID): implement [phase/task description]"
+git push
+```
+
+On completion, update state to "completed" and push final changes.
+
 ## User Input
 
 ```text

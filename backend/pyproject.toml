@@ -162,19 +162,24 @@ module = [
     "openai.*",
     "httpx.*",
     # Web framework and core dependencies
+    "fastapi.*",
     "pydantic.*",
     "pydantic_settings.*",
-    "fastapi.*",
     "starlette.*",
     "sqlalchemy.*",
-    "jwt.*",
-    "dotenv.*",
     "alembic.*",
     "asyncpg.*",
     "websockets.*",
-    "deepgram.*",
-    "assemblyai.*",
+    # STT providers
     "speechmatics.*",
+    "assemblyai.*",
+    "deepgram.*",
+    # Auth and utils
+    "boto3.*",
+    "botocore.*",
+    "jwt.*",
+    "jose.*",
+    "dotenv.*",
 ]
 ignore_missing_imports = true
 

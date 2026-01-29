@@ -99,7 +99,15 @@ class VoiceCustomization:
         Returns:
             True if all settings are at their default values
         """
+<<<<<<< HEAD
         return self.custom_name is None and not self.is_favorite and not self.is_hidden
+=======
+        return (
+            self.custom_name is None
+            and not self.is_favorite
+            and not self.is_hidden
+        )
+>>>>>>> 581ad96 (feat(voice-mgmt): add TTS voice customization feature (013-tts-role-mgmt))
 
     @classmethod
     def create_default(cls, voice_cache_id: str) -> "VoiceCustomization":

@@ -11,6 +11,10 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (import.meta.env as any).DEV = false
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 581ad96 (feat(voice-mgmt): add TTS voice customization feature (013-tts-role-mgmt))
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'

@@ -13,9 +13,13 @@ class VoiceCustomizationSchema(BaseModel):
     """Schema for a voice customization record."""
 
     id: int = Field(..., description="Database ID")
+<<<<<<< HEAD
     voice_cache_id: str = Field(
         ..., description="Associated voice cache ID", examples=["gemini:Puck"]
     )
+=======
+    voice_cache_id: str = Field(..., description="Associated voice cache ID", examples=["gemini:Puck"])
+>>>>>>> 581ad96 (feat(voice-mgmt): add TTS voice customization feature (013-tts-role-mgmt))
     custom_name: str | None = Field(
         None,
         max_length=50,
@@ -175,6 +179,10 @@ class ValidationErrorSchema(BaseModel):
 class NotFoundErrorSchema(BaseModel):
     """Schema for not found error response."""
 
+<<<<<<< HEAD
     detail: str = Field(
         ..., description="Error message", examples=["Voice not found: gemini:InvalidVoice"]
     )
+=======
+    detail: str = Field(..., description="Error message", examples=["Voice not found: gemini:InvalidVoice"])
+>>>>>>> 581ad96 (feat(voice-mgmt): add TTS voice customization feature (013-tts-role-mgmt))

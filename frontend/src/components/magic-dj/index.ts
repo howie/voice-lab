@@ -19,3 +19,7 @@ export { ExportPanel } from './ExportPanel'
 export { AudioDropzone } from './AudioDropzone'
 export { VolumeSlider } from './VolumeSlider'
 export { PresetSelector } from './PresetSelector'
+
+// 011-magic-dj-audio-features Phase 4 (IndexedDB)
+export { StorageIndicator, StorageWarningToast } from './StorageIndicator'
+export { MigrationDialog } from './MigrationDialog'

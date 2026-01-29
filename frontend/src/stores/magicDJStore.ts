@@ -28,6 +28,12 @@ import {
   OperationPriority,
 } from '@/types/magic-dj'
 import * as djApi from '@/services/djApi'
+import {
+  audioStorage,
+  type StorageQuota,
+  type AudioStorageError,
+  type MigrationResult,
+} from '@/lib/audioStorage'
 
 // =============================================================================
 // Store Interface
@@ -83,6 +89,21 @@ interface MagicDJStoreState extends MagicDJState {
   importToBackend: (presetName: string) => Promise<string>
   switchToLocalStorage: () => void
 
+  // === IndexedDB Storage Actions (011 Phase 4) ===
+  storageQuota: StorageQuota | null
+  storageError: AudioStorageError | null
+  isStorageReady: boolean
+  hasPendingMigration: boolean
+  pendingMigrationCount: number
+  initializeStorage: () => Promise<void>
+  refreshStorageQuota: () => Promise<void>
+  saveAudioToStorage: (trackId: string, blob: Blob) => Promise<void>
+  loadAudioFromStorage: (trackId: string) => Promise<Blob | null>
+  deleteAudioFromStorage: (trackId: string) => Promise<void>
+  checkMigration: () => void
+  completeMigration: (result: MigrationResult) => void
+  clearStorageError: () => void
+
   // === General Actions ===
   reset: () => void
 }
@@ -121,7 +142,13 @@ const migrateTrackData = (track: Partial<Track>): Track => ({
   volume: track.volume ?? 1.0,
 } as Track)
 
-const initialState: MagicDJState = {
+const initialState: MagicDJState & {
+  storageQuota: StorageQuota | null
+  storageError: AudioStorageError | null
+  isStorageReady: boolean
+  hasPendingMigration: boolean
+  pendingMigrationCount: number
+} = {
   tracks: DEFAULT_TRACKS,
   trackStates: createInitialTrackStates(DEFAULT_TRACKS),
   masterVolume: 1,
@@ -143,6 +170,12 @@ const initialState: MagicDJState = {
   isSyncing: false,
   syncError: null,
   isAuthenticated: false,
+  // IndexedDB Storage (011 Phase 4)
+  storageQuota: null,
+  storageError: null,
+  isStorageReady: false,
+  hasPendingMigration: false,
+  pendingMigrationCount: 0,
 }
 
 // =============================================================================
@@ -218,9 +251,16 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           trackStates: createInitialTrackStates(tracks),
         }),
 
-      addTrack: (track) =>
+      addTrack: (track) => {
+        // Add track to state with IndexedDB flag
+        const migratedTrack = {
+          ...migrateTrackData(track),
+          // Mark that audio is stored in IndexedDB, not base64
+          hasLocalAudio: track.source === 'upload',
+        }
+
         set((prev) => ({
-          tracks: [...prev.tracks, migrateTrackData(track)],
+          tracks: [...prev.tracks, migratedTrack],
           trackStates: {
             ...prev.trackStates,
             [track.id]: {
@@ -236,9 +276,24 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
               previousVolume: track.volume ?? 1,
             },
           },
-        })),
+        }))
+      },
 
-      removeTrack: (trackId) =>
+      removeTrack: (trackId) => {
+        const track = get().tracks.find((t) => t.id === trackId)
+
+        // Delete from IndexedDB if it's a local audio track
+        if (track && (track.source === 'upload' || track.hasLocalAudio)) {
+          audioStorage.delete(trackId).catch((err) => {
+            console.error('Failed to delete audio from storage:', err)
+          })
+        }
+
+        // Revoke blob URL if exists
+        if (track?.url && track.url.startsWith('blob:')) {
+          audioStorage.revokeObjectURL(track.url)
+        }
+
         set((prev) => {
           const newTracks = prev.tracks.filter((t) => t.id !== trackId)
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -247,7 +302,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             tracks: newTracks,
             trackStates: newTrackStates,
           }
-        }),
+        })
+      },
 
       updateTrack: (trackId, updates) =>
         set((prev) => ({
@@ -694,6 +750,128 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         })
       },
 
+      // === IndexedDB Storage Actions (011 Phase 4) ===
+      storageQuota: null,
+      storageError: null,
+      isStorageReady: false,
+      hasPendingMigration: false,
+      pendingMigrationCount: 0,
+
+      initializeStorage: async () => {
+        try {
+          await audioStorage.init()
+          const quota = await audioStorage.getQuota()
+          const pendingCount = audioStorage.getPendingMigrationCount()
+
+          set({
+            isStorageReady: true,
+            storageQuota: quota,
+            hasPendingMigration: pendingCount > 0,
+            pendingMigrationCount: pendingCount,
+            storageError: null,
+          })
+
+          // Restore audio URLs for tracks that have local storage
+          const state = get()
+          const tracksToRestore = state.tracks.filter(
+            (t) => t.source === 'upload' || t.hasLocalAudio
+          )
+
+          if (tracksToRestore.length > 0) {
+            const trackIds = tracksToRestore.map((t) => t.id)
+            const blobs = await audioStorage.getMultiple(trackIds)
+
+            const updatedTracks = state.tracks.map((track) => {
+              const blob = blobs.get(track.id)
+              if (blob) {
+                return {
+                  ...track,
+                  url: audioStorage.createObjectURL(blob),
+                }
+              }
+              return track
+            })
+
+            set({ tracks: updatedTracks })
+          }
+        } catch (error) {
+          console.error('Failed to initialize storage:', error)
+          set({
+            storageError: error as AudioStorageError,
+            isStorageReady: false,
+          })
+        }
+      },
+
+      refreshStorageQuota: async () => {
+        try {
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota })
+        } catch (error) {
+          console.error('Failed to refresh storage quota:', error)
+        }
+      },
+
+      saveAudioToStorage: async (trackId, blob) => {
+        try {
+          await audioStorage.save(trackId, blob)
+
+          // Refresh quota after save
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota, storageError: null })
+        } catch (error) {
+          console.error('Failed to save audio:', error)
+          set({ storageError: error as AudioStorageError })
+          throw error
+        }
+      },
+
+      loadAudioFromStorage: async (trackId) => {
+        try {
+          return await audioStorage.get(trackId)
+        } catch (error) {
+          console.error('Failed to load audio:', error)
+          set({ storageError: error as AudioStorageError })
+          return null
+        }
+      },
+
+      deleteAudioFromStorage: async (trackId) => {
+        try {
+          await audioStorage.delete(trackId)
+
+          // Refresh quota after delete
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota })
+        } catch (error) {
+          console.error('Failed to delete audio:', error)
+        }
+      },
+
+      checkMigration: () => {
+        const pendingCount = audioStorage.getPendingMigrationCount()
+        set({
+          hasPendingMigration: pendingCount > 0,
+          pendingMigrationCount: pendingCount,
+        })
+      },
+
+      completeMigration: (result) => {
+        set({
+          hasPendingMigration: false,
+          pendingMigrationCount: 0,
+        })
+
+        // Reload tracks to get fresh blob URLs
+        get().initializeStorage()
+
+        console.log(
+          `Migration complete: ${result.migratedCount} tracks, ${audioStorage.formatBytes(result.totalSizeBytes)}`
+        )
+      },
+
+      clearStorageError: () => set({ storageError: null }),
+
       // === General Actions ===
       reset: () => set(initialState),
     }),
@@ -703,7 +881,7 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
       partialize: (state) => ({
         settings: state.settings,
         masterVolume: state.masterVolume,
-        // Persist tracks (order + custom tracks with audio data, source, volume)
+        // Persist tracks (order + custom tracks metadata, source, volume)
         tracks: state.tracks.map((track) => ({
           ...track,
           // Don't persist blob URLs, they're ephemeral
@@ -711,6 +889,10 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           // Ensure source and volume are persisted (011-T009)
           source: track.source ?? 'tts',
           volume: track.volume ?? 1.0,
+          // Phase 4: Don't persist audioBase64 anymore - use IndexedDB
+          audioBase64: undefined,
+          // Flag to indicate audio is in IndexedDB
+          hasLocalAudio: track.source === 'upload' || !!track.hasLocalAudio,
         })),
       }),
       // Merge persisted state with defaults (011-T006, T009)

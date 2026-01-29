@@ -61,6 +61,10 @@ export interface Track {
   originalFileName?: string
   /** 音量 0.0 ~ 1.0，預設 1.0 (011-T002) */
   volume: number
+
+  // === 011 Phase 4: IndexedDB Storage ===
+  /** 是否有本地音訊儲存在 IndexedDB */
+  hasLocalAudio?: boolean
 }
 
 /**

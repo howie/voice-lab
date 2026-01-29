@@ -15,6 +15,7 @@ import {
   MAX_FILE_SIZE,
   type FileUploadState,
 } from '@/types/magic-dj'
+import { audioStorage, STORAGE_THRESHOLDS } from '@/lib/audioStorage'
 
 // =============================================================================
 // Types
@@ -82,21 +83,6 @@ const validateFile = (file: File): string | null => {
 }
 
 /**
- * Convert File to base64 (T014)
- */
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      resolve(result)
-    }
-    reader.onerror = () => reject(new Error('Failed to read file'))
-    reader.readAsDataURL(file)
-  })
-}
-
-/**
  * Get audio duration (T015)
  */
 const getAudioDuration = (url: string): Promise<number> => {
@@ -111,27 +97,21 @@ const getAudioDuration = (url: string): Promise<number> => {
 }
 
 /**
- * Check localStorage quota (T016)
+ * Check IndexedDB storage quota (T016, Phase 4)
  */
-const checkStorageQuota = async (dataSize: number): Promise<boolean> => {
+const checkStorageQuota = async (dataSize: number): Promise<{ hasSpace: boolean; percentage: number }> => {
   try {
-    // Estimate current usage
-    let currentUsage = 0
-    for (const key of Object.keys(localStorage)) {
-      currentUsage += localStorage.getItem(key)?.length ?? 0
-    }
+    await audioStorage.init()
+    const quota = await audioStorage.getQuota()
 
-    // localStorage limit is typically 5-10MB, use 5MB as conservative estimate
-    const estimatedLimit = 5 * 1024 * 1024
-    const available = estimatedLimit - currentUsage
+    // Calculate if there's space (IndexedDB stores raw blobs, no base64 overhead)
+    const available = quota.total - quota.used
+    const hasSpace = dataSize < available && quota.percentage < STORAGE_THRESHOLDS.CRITICAL
 
-    // Account for base64 encoding overhead (~33%)
-    const requiredSpace = dataSize * 1.4
-
-    return requiredSpace < available
+    return { hasSpace, percentage: quota.percentage }
   } catch {
     // If we can't check, assume it's okay
-    return true
+    return { hasSpace: true, percentage: 0 }
   }
 }
 
@@ -171,17 +151,16 @@ export function AudioDropzone({
           return
         }
 
-        // Check storage quota (T016)
-        const hasSpace = await checkStorageQuota(file.size)
-        if (!hasSpace) {
-          const error = '儲存空間不足，請刪除不需要的音軌後再試'
+        // Check storage quota (T016, Phase 4)
+        const quotaCheck = await checkStorageQuota(file.size)
+        if (!quotaCheck.hasSpace) {
+          const error = quotaCheck.percentage >= STORAGE_THRESHOLDS.CRITICAL
+            ? '儲存空間已滿，請刪除部分音檔或上傳至雲端'
+            : '儲存空間不足，請刪除不需要的音軌後再試'
           setLocalError(error)
           onError?.(error)
           return
         }
-
-        // Convert to base64 (T014)
-        const audioBase64 = await fileToBase64(file)
 
         // Create blob URL for preview
         const audioUrl = URL.createObjectURL(file)
@@ -194,12 +173,13 @@ export function AudioDropzone({
           // Duration is optional, continue without it
         }
 
+        // Phase 4: No longer generate base64, use IndexedDB for blob storage
         const state: FileUploadState = {
-          file,
+          file, // Pass the File (Blob) for IndexedDB storage
           fileName: file.name,
           fileSize: file.size,
           audioUrl,
-          audioBase64,
+          audioBase64: null, // Deprecated in Phase 4
           duration,
           error: null,
           isProcessing: false,

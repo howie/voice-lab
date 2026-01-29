@@ -53,6 +53,7 @@ def _log(event: str, details: str = "") -> None:
     else:
         print(f"[{ts}] [Gemini] {event}")
 
+
 def _log_to_file(message: str) -> None:
     """Write debug message to file for detailed analysis."""
     timestamp = datetime.now().isoformat()
@@ -114,6 +115,8 @@ class GeminiRealtimeService(InteractionModeService):
         self._setup_complete = False
         # Track first audio in response for latency measurement
         self._first_audio_sent = False
+        # VAD mode: "server" (default) or "manual"
+        self._vad_mode = "server"
 
     @property
     def mode_name(self) -> str:
@@ -135,6 +138,7 @@ class GeminiRealtimeService(InteractionModeService):
         self._session_id = session_id
         self._config = config
         self._system_prompt = system_prompt
+        self._vad_mode = config.get("vad_mode", "server")
 
         # Build WebSocket URL with API key
         url = f"{GEMINI_LIVE_URL}?key={self._api_key}"
@@ -219,6 +223,26 @@ class GeminiRealtimeService(InteractionModeService):
             }
         }
 
+        # Configure VAD based on mode
+        # Ref: https://ai.google.dev/api/live#AutomaticActivityDetection
+        if self._vad_mode == "server":
+            # Enable Server VAD with tuned sensitivity for children (slower speech)
+            # Note: Use camelCase for Gemini API, and START_SENSITIVITY_*/END_SENSITIVITY_* enums
+            setup_message["setup"]["realtime_input_config"] = {
+                "automatic_activity_detection": {
+                    # Omit "disabled" to enable automatic VAD (default is enabled)
+                    "startOfSpeechSensitivity": "START_SENSITIVITY_LOW",  # Less sensitive to avoid false starts
+                    "endOfSpeechSensitivity": "END_SENSITIVITY_LOW",  # Low sensitivity to speech = Easier to detect end
+                    "prefixPaddingMs": 300,  # Capture 300ms before speech detected
+                    "silenceDurationMs": 400,  # Aggressive 400ms for faster response
+                }
+            }
+        else:
+            # Manual VAD mode (frontend controlled)
+            setup_message["setup"]["realtime_input_config"] = {
+                "automatic_activity_detection": {"disabled": True}
+            }
+
         # Add system instruction (use default if not provided)
         effective_prompt = (
             system_prompt
@@ -226,8 +250,10 @@ class GeminiRealtimeService(InteractionModeService):
         )
         setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
 
-        _log("SETUP", f"model={model}, voice={voice}")
-        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}")
+        _log("SETUP", f"model={model}, voice={voice}, vad_mode={self._vad_mode}")
+        if self._vad_mode == "server":
+            _log("SETUP", "Server VAD: startSensitivity=HIGH, endSensitivity=HIGH, silenceDuration=500ms")
+        logger.info(f"Connecting to Gemini with model: {model}, voice: {voice}, vad_mode: {self._vad_mode}")
         await self._send_message(setup_message)
 
     async def disconnect(self) -> None:
@@ -270,7 +296,15 @@ class GeminiRealtimeService(InteractionModeService):
         mime_type = f"audio/pcm;rate={sample_rate}"
 
         # Track audio chunks sent (log first chunk and every 100 chunks)
-        self._audio_chunk_count = getattr(self, "_audio_chunk_count", 0) + 1
+        current_count = getattr(self, "_audio_chunk_count", 0)
+
+        # Send activity_start on first chunk (only for Manual VAD)
+        if current_count == 0 and self._vad_mode == "manual":
+            _log("AUDIO_IN", "sending activity_start")
+            await self._send_message({"realtime_input": {"activity_start": {}}})
+
+        self._audio_chunk_count = current_count + 1
+
         if self._audio_chunk_count == 1:
             _log("AUDIO_IN", f"first chunk, rate={sample_rate}Hz, size={len(audio.data)}B")
             _log_to_file(f"AUDIO_START: rate={sample_rate}, size={len(audio.data)} bytes")
@@ -282,38 +316,68 @@ class GeminiRealtimeService(InteractionModeService):
         }
         await self._send_message(message)
 
-    async def end_turn(self) -> None:
+    async def end_turn(self, force: bool = False) -> None:
         """Signal end of user speech.
 
-        For Gemini Live API with realtime audio, we send an audio_stream_end
-        signal to indicate the user has finished speaking.
+        In Manual VAD mode: Send client_content with turn_complete=True.
+        In Server VAD mode: Server handles end-of-speech automatically.
+                           Force Send uses audioStreamEnd to flush cached audio.
+
+        Args:
+            force: If True, send signal even in Server VAD mode (for Force Send button).
+                   If False, only send in Manual VAD mode.
         """
         if not self._connected or not self._ws:
             return
 
-        # Send empty realtime_input to signal end of audio stream
-        # This tells Gemini to process accumulated audio and generate response
         chunk_count = getattr(self, "_audio_chunk_count", 0)
         # Store end_turn time for latency measurement
         self._end_turn_time = time.time()
-        message = {"realtime_input": {"audio_stream_end": True}}
-        _log("END_TURN", f"sent after {chunk_count} audio chunks")
-        _log_to_file(f"END_TURN: after {chunk_count} chunks")
+
+        if self._vad_mode == "server":
+            if not force:
+                # Server VAD automatically detects end-of-speech, skip
+                _log("END_TURN", "skipped (Server VAD mode)")
+                return
+
+            # Force Send in Server VAD mode: use audioStreamEnd to flush cached audio
+            # This signals Gemini to process any buffered audio without conflicting with auto VAD
+            # Ref: https://ai.google.dev/gemini-api/docs/live-guide
+            message = {"realtime_input": {"audio_stream_end": True}}
+            _log("END_TURN", f"sent audioStreamEnd (chunks={chunk_count}, force=True)")
+            _log_to_file(f"END_TURN: audioStreamEnd (chunks={chunk_count}, force=True)")
+        else:
+            # Manual VAD mode: use client_content with turn_complete=True
+            message = {"client_content": {"turns": [], "turn_complete": True}}
+            _log("END_TURN", f"sent client_content.turn_complete=True (chunks={chunk_count})")
+            _log_to_file(f"END_TURN: client_content.turn_complete=True (chunks={chunk_count})")
+
         self._audio_chunk_count = 0  # Reset counter for next turn
         await self._send_message(message)
 
     async def interrupt(self) -> None:
         """Interrupt the current AI response.
 
-        Gemini handles interruption through client content.
+        In Server VAD mode: No explicit message needed - Gemini automatically detects
+        user speech and interrupts. Client should just stop playing audio.
+
+        In Manual VAD mode: Send client_content to signal interruption.
         """
         if not self._connected or not self._ws:
             return
 
-        # Send empty client content to signal interruption
+        if self._vad_mode == "server":
+            # Server VAD mode: Gemini auto-detects interruption from audio input
+            # Sending explicit client_content with empty turns can cause "Invalid Argument" errors
+            # if sent concurrently with audio or if Gemini expects valid content.
+            # We rely on the audio stream (Barge-in) to trigger interruption.
+            _log("INTERRUPT", "Server VAD mode - skipping explicit msg (audio handles it)")
+            return
+
+        # Manual VAD mode: Send empty client content to signal interruption
         message = {"client_content": {"turns": [], "turn_complete": True}}
         await self._send_message(message)
-        logger.debug("Sent interrupt signal to Gemini")
+        _log("INTERRUPT", "sent client_content (manual VAD mode)")
 
     async def trigger_greeting(self, greeting_prompt: str | None = None) -> None:
         """Trigger AI to start the conversation with a greeting.
@@ -426,6 +490,9 @@ class GeminiRealtimeService(InteractionModeService):
         # Server content event (contains audio, text, transcription, or turn completion)
         elif "serverContent" in event:
             server_content = event["serverContent"]
+            # Debug: log what fields are present in serverContent
+            fields = [k for k in server_content.keys()]
+            _log("SERVER_CONTENT", f"fields={fields}")
 
             # Handle input transcription (user speech -> text)
             # Gemini sends delta (incremental) transcription
@@ -469,7 +536,10 @@ class GeminiRealtimeService(InteractionModeService):
 
             # Check for turn complete
             if server_content.get("turnComplete"):
-                _log("TURN_COMPLETE", f"user='{self._accumulated_input_transcript[:50]}...', ai_len={len(self._accumulated_output_transcript)}")
+                _log(
+                    "TURN_COMPLETE",
+                    f"user='{self._accumulated_input_transcript[:50]}...', ai_len={len(self._accumulated_output_transcript)}",
+                )
                 _log_to_file(
                     f"TURN_COMPLETE: input='{self._accumulated_input_transcript}', output_len={len(self._accumulated_output_transcript)}"
                 )
@@ -523,7 +593,10 @@ class GeminiRealtimeService(InteractionModeService):
                                 end_turn_time = getattr(self, "_end_turn_time", 0)
                                 if end_turn_time:
                                     latency_ms = (time.time() - end_turn_time) * 1000
-                                    _log("FIRST_AUDIO", f"latency={latency_ms:.0f}ms, size={data_bytes}B")
+                                    _log(
+                                        "FIRST_AUDIO",
+                                        f"latency={latency_ms:.0f}ms, size={data_bytes}B",
+                                    )
                                 else:
                                     _log("FIRST_AUDIO", f"size={data_bytes}B")
                             # Don't log every audio chunk - too noisy
@@ -596,7 +669,10 @@ class GeminiRealtimeService(InteractionModeService):
         # Usage metadata - log token counts
         elif "usageMetadata" in event:
             usage = event["usageMetadata"]
-            _log("USAGE", f"prompt={usage.get('promptTokenCount', 0)}, response={usage.get('responseTokenCount', 0)}, total={usage.get('totalTokenCount', 0)}")
+            _log(
+                "USAGE",
+                f"prompt={usage.get('promptTokenCount', 0)}, response={usage.get('responseTokenCount', 0)}, total={usage.get('totalTokenCount', 0)}",
+            )
 
         else:
             # Log unhandled events (but not too verbose)

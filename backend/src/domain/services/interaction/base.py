@@ -81,8 +81,13 @@ class InteractionModeService(ABC):
         ...
 
     @abstractmethod
-    async def end_turn(self) -> None:
-        """Signal end of user speech (when VAD doesn't detect it)."""
+    async def end_turn(self, force: bool = False) -> None:
+        """Signal end of user speech.
+
+        Args:
+            force: If True, always send the signal (for Force Send button).
+                   If False, behavior depends on VAD mode configuration.
+        """
         ...
 
     @abstractmethod

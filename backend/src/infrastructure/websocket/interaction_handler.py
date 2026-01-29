@@ -231,13 +231,16 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
     async def _handle_config(self, message: WebSocketMessage) -> None:
         """Handle session configuration message."""
         data = message.data
+
         config = data.get("config", {})
         system_prompt = data.get("system_prompt", "")
 
         # T073b [US4]: Extract role and scenario configuration
-        user_role = data.get("user_role", "使用者")
-        ai_role = data.get("ai_role", "AI 助理")
-        scenario_context = data.get("scenario_context", "")
+        # Use 'or' operator to handle None values (when key exists but value is null)
+        # dict.get() only returns default when key is missing, not when value is None
+        user_role = data.get("user_role") or "使用者"
+        ai_role = data.get("ai_role") or "AI 助理"
+        scenario_context = data.get("scenario_context") or ""
 
         # T084 [US5]: Extract barge-in configuration
         barge_in_enabled = data.get("barge_in_enabled", True)
@@ -282,9 +285,14 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             await self._audio_storage.ensure_session_dir(self._session.id)
 
             # Connect mode service
+            # Include vad_mode in config for Server/Manual VAD selection
+            connect_config = {
+                **config,
+                "vad_mode": data.get("vad_mode", "server"),  # Default to Server VAD
+            }
             await self._mode_service.connect(
                 session_id=self._session.id,
-                config=config,
+                config=connect_config,
                 system_prompt=effective_system_prompt,
             )
 
@@ -356,10 +364,16 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         )
         await self._mode_service.send_audio(audio_chunk)
 
-    async def _handle_end_turn(self, _message: WebSocketMessage) -> None:
-        """Handle explicit end of user turn."""
+    async def _handle_end_turn(self, message: WebSocketMessage) -> None:
+        """Handle explicit end of user turn.
+
+        In Server VAD mode, this only sends a signal if force=True (Force Send button).
+        In Manual VAD mode, this always sends the signal.
+        """
         if self._mode_service.is_connected():
-            await self._mode_service.end_turn()
+            # Support force parameter from frontend (for Force Send button)
+            force = message.data.get("force", False)
+            await self._mode_service.end_turn(force=force)
 
     async def _handle_interrupt(self, _message: WebSocketMessage) -> None:
         """Handle barge-in/interrupt request.
@@ -480,7 +494,9 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
         elif event_type == "response_started":
             # Send response_started to client for latency tracking
-            self._logger.debug(f"[response_started] Received from provider, sent={self._response_started_sent}")
+            self._logger.debug(
+                f"[response_started] Received from provider, sent={self._response_started_sent}"
+            )
             if not self._response_started_sent:
                 self._response_started_sent = True
                 self._logger.info("[response_started] Sending to client")

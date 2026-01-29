@@ -307,6 +307,11 @@ export interface InteractionOptions {
   autoGreeting: boolean
   greetingPrompt?: string // Custom prompt to trigger greeting
 
+  // VAD (Voice Activity Detection) mode
+  // 'server': Gemini handles end-of-speech detection (lower latency, recommended)
+  // 'manual': Frontend detects silence and sends end_turn (higher latency, fallback)
+  vadMode: 'server' | 'manual'
+
   // Display settings
   showLatencyMetrics: boolean
   showTranscripts: boolean
@@ -336,6 +341,8 @@ export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
   // US6: Auto-greeting disabled by default
   autoGreeting: false,
   greetingPrompt: undefined,
+  // VAD mode: server (recommended) or manual (fallback)
+  vadMode: 'server',
   showLatencyMetrics: true,
   showTranscripts: true,
 }

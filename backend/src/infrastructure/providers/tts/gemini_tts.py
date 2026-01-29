@@ -98,13 +98,16 @@ class GeminiTTSProvider(BaseTTSProvider):
         if request.style_prompt:
             text_content = f"{request.style_prompt}: {request.text}"
 
+        # Extract voice name - strip provider prefix if present (e.g., "gemini:Kore" -> "Kore")
+        voice_name = request.voice_id
+        if voice_name.startswith("gemini:"):
+            voice_name = voice_name[7:]  # Remove "gemini:" prefix
+
         payload = {
             "contents": [{"parts": [{"text": text_content}]}],
             "generationConfig": {
                 "responseModalities": ["AUDIO"],
-                "speechConfig": {
-                    "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": request.voice_id}}
-                },
+                "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice_name}}},
             },
         }
 
@@ -211,18 +214,23 @@ class GeminiTTSProvider(BaseTTSProvider):
         """Get a specific voice profile.
 
         Args:
-            voice_id: Voice identifier
+            voice_id: Voice identifier (can be "Kore" or "gemini:Kore")
 
         Returns:
             Voice profile if found, None otherwise
         """
-        if voice_id in self.VOICES:
-            info = self.VOICES[voice_id]
+        # Strip provider prefix if present
+        lookup_id = voice_id
+        if lookup_id.startswith("gemini:"):
+            lookup_id = lookup_id[7:]
+
+        if lookup_id in self.VOICES:
+            info = self.VOICES[lookup_id]
             return VoiceProfile(
-                id=f"gemini:{voice_id}",
+                id=f"gemini:{lookup_id}",
                 provider="gemini",
-                voice_id=voice_id,
-                display_name=voice_id,
+                voice_id=lookup_id,
+                display_name=lookup_id,
                 language="multilingual",
                 gender=Gender.MALE if info["gender"] == "male" else Gender.FEMALE,
                 description=info["description"],

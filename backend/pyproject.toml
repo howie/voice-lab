@@ -159,6 +159,14 @@ module = [
     "anthropic.*",
     "openai.*",
     "httpx.*",
+    "fastapi.*",
+    "pydantic.*",
+    "pydantic_settings.*",
+    "sqlalchemy.*",
+    "starlette.*",
+    "jwt.*",
+    "dotenv.*",
+    "websockets.*",
 ]
 ignore_missing_imports = true
 

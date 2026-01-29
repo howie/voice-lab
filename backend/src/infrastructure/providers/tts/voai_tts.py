@@ -156,13 +156,19 @@ class VoAITTSProvider(BaseTTSProvider):
         }
         speaker = speaker_map.get(request.voice_id, "佑希")  # Default to 佑希
 
+        # Clamp parameters to VoAI API limits
+        # VoAI speed range: [0.5, 1.5]
+        # VoAI pitch_shift range: [-5, 5]
+        speed = max(0.5, min(1.5, request.speed))
+        pitch_shift = max(-5, min(5, int(request.pitch)))
+
         body = {
             "version": "Neo",
             "text": request.text,
             "speaker": speaker,
             "style": "預設",
-            "speed": request.speed,
-            "pitch_shift": int(request.pitch),  # VoAI uses integer
+            "speed": speed,
+            "pitch_shift": pitch_shift,
             "style_weight": 0,
             "breath_pause": 0,
         }
@@ -231,3 +237,16 @@ class VoAITTSProvider(BaseTTSProvider):
                     )
 
         return voices
+
+    def get_supported_params(self) -> dict:
+        """Get VoAI-specific supported parameter ranges.
+
+        VoAI has different limits than other providers:
+        - speed: [0.5, 1.5] (not 2.0)
+        - pitch: [-5, 5] (not [-20, 20])
+        """
+        return {
+            "speed": {"min": 0.5, "max": 1.5, "default": 1.0},
+            "pitch": {"min": -5.0, "max": 5.0, "default": 0.0},
+            "volume": {"min": 0.0, "max": 2.0, "default": 1.0},
+        }

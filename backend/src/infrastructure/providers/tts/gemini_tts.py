@@ -117,7 +117,18 @@ class GeminiTTSProvider(BaseTTSProvider):
         }
 
         response = await self._client.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+
+        if response.status_code != 200:
+            # Extract error details from Gemini API response
+            try:
+                error_json = response.json()
+                error_message = error_json.get("error", {}).get("message", response.text)
+            except Exception:
+                error_message = response.text
+
+            raise RuntimeError(
+                f"Gemini TTS API error (status {response.status_code}): {error_message}"
+            )
 
         result = response.json()
 

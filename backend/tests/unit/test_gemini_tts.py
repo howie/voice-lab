@@ -254,10 +254,13 @@ class TestGeminiTTSProvider:
         with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
             mock_response = MagicMock()
             mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = Exception("API Error")
+            mock_response.text = "Internal Server Error"
+            mock_response.json.return_value = {"error": {"message": "Model overloaded"}}
             mock_post.return_value = mock_response
 
-            with pytest.raises(Exception, match="API Error"):
+            with pytest.raises(
+                RuntimeError, match="Gemini TTS API error.*status 500.*Model overloaded"
+            ):
                 await gemini_provider.synthesize(sample_request)
 
     @pytest.mark.asyncio

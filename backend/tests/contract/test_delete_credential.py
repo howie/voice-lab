@@ -12,6 +12,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.domain.entities.provider_credential import UserProviderCredential
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -52,15 +53,21 @@ class TestDeleteCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -78,7 +85,7 @@ class TestDeleteCredentialEndpoint:
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     response = await ac.delete(
                         f"/api/v1/credentials/{mock_credential.id}",
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 204
@@ -99,15 +106,21 @@ class TestDeleteCredentialEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -126,7 +139,7 @@ class TestDeleteCredentialEndpoint:
                     fake_id = uuid.uuid4()
                     response = await ac.delete(
                         f"/api/v1/credentials/{fake_id}",
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 404
@@ -149,15 +162,21 @@ class TestDeleteCredentialEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return different_user_id
+        mock_current_user = CurrentUser(
+            id=str(different_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -175,7 +194,7 @@ class TestDeleteCredentialEndpoint:
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     response = await ac.delete(
                         f"/api/v1/credentials/{mock_credential.id}",
-                        headers={"X-User-Id": str(different_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 403
@@ -191,15 +210,13 @@ class TestDeleteCredentialEndpoint:
         """T056: Test deletion without authentication."""
         from fastapi import HTTPException, status
 
-        async def override_get_current_user_id():
+        async def override_get_current_user():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
             )
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             transport = ASGITransport(app=app)
@@ -226,15 +243,21 @@ class TestDeleteCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -252,7 +275,7 @@ class TestDeleteCredentialEndpoint:
                 async with AsyncClient(transport=transport, base_url="http://test") as ac:
                     response = await ac.delete(
                         f"/api/v1/credentials/{mock_credential.id}",
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 204

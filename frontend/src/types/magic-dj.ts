@@ -1,8 +1,10 @@
 /**
  * Magic DJ Controller Types
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T003: TypeScript types and interfaces for Magic DJ module.
+ * 011-T001~T005: Audio features enhancement types.
  */
 
 // =============================================================================
@@ -21,7 +23,14 @@ export type TrackType =
   | 'rescue' // 救場語音
 
 /**
- * Track configuration
+ * Track source type (011-T001)
+ * - tts: 透過 TTS 服務生成
+ * - upload: 使用者上傳的音檔
+ */
+export type TrackSource = 'tts' | 'upload'
+
+/**
+ * Track configuration (011-T002)
  */
 export interface Track {
   /** 唯一識別碼，如 'track_01_intro' */
@@ -44,10 +53,18 @@ export interface Track {
   textContent?: string
   /** Base64 編碼的音訊資料（用於 localStorage 持久化） */
   audioBase64?: string
+
+  // === 011 Audio Features Enhancement ===
+  /** 音軌來源：'tts' | 'upload' (011-T002) */
+  source: TrackSource
+  /** 上傳時的原始檔名，僅 upload 類型 (011-T002) */
+  originalFileName?: string
+  /** 音量 0.0 ~ 1.0，預設 1.0 (011-T002) */
+  volume: number
 }
 
 /**
- * Track playback state
+ * Track playback state (011-T005)
  */
 export interface TrackPlaybackState {
   trackId: string
@@ -60,7 +77,61 @@ export interface TrackPlaybackState {
   currentTime: number
   /** 音量 0-1 */
   volume: number
+
+  // === 011 Audio Features Enhancement (T005) ===
+  /** 是否靜音 */
+  isMuted: boolean
+  /** 靜音前的音量（用於恢復） */
+  previousVolume: number
 }
+
+/**
+ * File upload state (011-T003)
+ */
+export interface FileUploadState {
+  /** 原始 File 物件 */
+  file: File | null
+  /** 檔案名稱 */
+  fileName: string
+  /** 檔案大小 (bytes) */
+  fileSize: number
+  /** blob URL (用於預覽) */
+  audioUrl: string | null
+  /** base64 編碼 (用於儲存) */
+  audioBase64: string | null
+  /** 音訊時長 (毫秒) */
+  duration: number | null
+  /** 錯誤訊息 */
+  error: string | null
+  /** 是否處理中 */
+  isProcessing: boolean
+}
+
+// =============================================================================
+// Audio Features Constants (011-T004)
+// =============================================================================
+
+/** 支援的音訊 MIME 類型 */
+export const SUPPORTED_AUDIO_TYPES = [
+  'audio/mpeg', // MP3
+  'audio/wav', // WAV
+  'audio/ogg', // OGG
+  'audio/webm', // WebM
+] as const
+
+/** 檔案大小上限 (10MB) */
+export const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+/** 同時播放上限 */
+export const MAX_CONCURRENT_TRACKS = 5
+
+/** 音量圖示對應 */
+export const VOLUME_ICONS = {
+  muted: '🔇', // 0%
+  low: '🔈', // 1-33%
+  medium: '🔉', // 34-66%
+  high: '🔊', // 67-100%
+} as const
 
 // =============================================================================
 // Operation Mode Types
@@ -229,6 +300,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'intro',
     url: '',
     textContent: '嗨！歡迎來到魔法世界！今天我們要一起探險喔！',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'track_02_cleanup',
@@ -236,6 +309,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'song',
     url: '',
     textContent: '收玩具、收玩具，大家一起來收玩具！',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'track_03_success',
@@ -243,6 +318,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'effect',
     url: '',
     textContent: '太棒了！你做得很好！',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'track_04_book',
@@ -250,6 +327,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'transition',
     url: '',
     textContent: '讓我們翻開魔法書，看看裡面有什麼故事...',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'track_05_forest',
@@ -257,6 +336,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'transition',
     url: '',
     textContent: '我們來到了神秘的迷霧森林...',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'sound_thinking',
@@ -264,6 +345,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'filler',
     url: '',
     textContent: '嗯...讓我想一想...',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'filler_wait',
@@ -271,6 +354,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'rescue',
     url: '',
     textContent: '等我一下下喔，我正在準備一些很棒的東西！',
+    source: 'tts',
+    volume: 1.0,
   },
   {
     id: 'track_end',
@@ -278,6 +363,8 @@ export const DEFAULT_TRACKS: Track[] = [
     type: 'rescue',
     url: '',
     textContent: '好的，今天的冒險就到這裡！下次再見囉！',
+    source: 'tts',
+    volume: 1.0,
   },
 ]
 

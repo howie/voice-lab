@@ -1,6 +1,7 @@
 /**
  * Magic DJ Components Index
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  */
 
 export { DJControlPanel } from './DJControlPanel'
@@ -13,3 +14,7 @@ export { ModeSwitch } from './ModeSwitch'
 export { RescuePanel } from './RescuePanel'
 export { SessionTimer } from './SessionTimer'
 export { ExportPanel } from './ExportPanel'
+
+// 011-magic-dj-audio-features
+export { AudioDropzone } from './AudioDropzone'
+export { VolumeSlider } from './VolumeSlider'

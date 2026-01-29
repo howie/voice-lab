@@ -1,12 +1,14 @@
 /**
  * Track List
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T016: TrackList component displaying all tracks with hotkey labels,
  * play status indicators.
  * T047: Error UI showing failed tracks with red indicator and retry button.
  * Enhanced: Dynamic track management with TTS integration.
  * Enhanced: Drag and drop reordering support.
+ * 011-T020: Show source icon based on track.source field.
  */
 
 import {
@@ -34,6 +36,8 @@ import {
   Pencil,
   Trash2,
   GripVertical,
+  Mic,
+  FileAudio,
 } from 'lucide-react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
@@ -127,8 +131,20 @@ function SortableTrackItem({
 
       {/* Track Info */}
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{track.name}</div>
-        <div className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          {/* 011-T020: Source icon */}
+          {track.source === 'upload' ? (
+            <span title="上傳音檔">
+              <FileAudio className="h-4 w-4 text-blue-500 shrink-0" />
+            </span>
+          ) : (
+            <span title="TTS 語音">
+              <Mic className="h-4 w-4 text-green-500 shrink-0" />
+            </span>
+          )}
+          <span className="font-medium truncate">{track.name}</span>
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap ml-5">
           <span className="shrink-0">
             {track.type === 'intro' && '開場'}
             {track.type === 'song' && '歌曲'}
@@ -136,6 +152,11 @@ function SortableTrackItem({
             {track.type === 'transition' && '過場'}
           </span>
           {track.isCustom && <span className="text-primary shrink-0">(自訂)</span>}
+          {track.source === 'upload' && track.originalFileName && (
+            <span className="text-muted-foreground/70 truncate max-w-[100px] shrink-0" title={track.originalFileName}>
+              {track.originalFileName}
+            </span>
+          )}
         </div>
       </div>
 

@@ -24,11 +24,11 @@
 
 **Purpose**: 專案初始化和類型定義擴充
 
-- [ ] T001 擴充 TrackSource 類型定義，新增 `'tts' | 'upload'` 在 `frontend/src/types/magic-dj.ts`
-- [ ] T002 [P] 擴充 Track 介面，新增 `source`, `originalFileName`, `volume` 欄位在 `frontend/src/types/magic-dj.ts`
-- [ ] T003 [P] 新增 FileUploadState 介面定義在 `frontend/src/types/magic-dj.ts`
-- [ ] T004 [P] 新增常數定義（SUPPORTED_AUDIO_TYPES, MAX_FILE_SIZE, MAX_CONCURRENT_TRACKS）在 `frontend/src/types/magic-dj.ts`
-- [ ] T005 擴充 TrackPlaybackState 介面，新增 `isMuted`, `previousVolume` 欄位在 `frontend/src/types/magic-dj.ts`
+- [x] T001 擴充 TrackSource 類型定義，新增 `'tts' | 'upload'` 在 `frontend/src/types/magic-dj.ts`
+- [x] T002 [P] 擴充 Track 介面，新增 `source`, `originalFileName`, `volume` 欄位在 `frontend/src/types/magic-dj.ts`
+- [x] T003 [P] 新增 FileUploadState 介面定義在 `frontend/src/types/magic-dj.ts`
+- [x] T004 [P] 新增常數定義（SUPPORTED_AUDIO_TYPES, MAX_FILE_SIZE, MAX_CONCURRENT_TRACKS）在 `frontend/src/types/magic-dj.ts`
+- [x] T005 擴充 TrackPlaybackState 介面，新增 `isMuted`, `previousVolume` 欄位在 `frontend/src/types/magic-dj.ts`
 
 ---
 
@@ -38,10 +38,10 @@
 
 **⚠️ CRITICAL**: 必須完成此階段才能開始任何 User Story
 
-- [ ] T006 在 magicDJStore 新增資料遷移邏輯，為舊 Track 補上 `source: 'tts'` 和 `volume: 1.0` 預設值在 `frontend/src/stores/magicDJStore.ts`
-- [ ] T007 [P] 新增 `setTrackVolume(trackId, volume)` action 在 `frontend/src/stores/magicDJStore.ts`
-- [ ] T008 [P] 新增 `toggleTrackMute(trackId)` action 在 `frontend/src/stores/magicDJStore.ts`
-- [ ] T009 確認 Zustand persist middleware 正確序列化新欄位（source, volume）在 `frontend/src/stores/magicDJStore.ts`
+- [x] T006 在 magicDJStore 新增資料遷移邏輯，為舊 Track 補上 `source: 'tts'` 和 `volume: 1.0` 預設值在 `frontend/src/stores/magicDJStore.ts`
+- [x] T007 [P] 新增 `setTrackVolume(trackId, volume)` action 在 `frontend/src/stores/magicDJStore.ts`
+- [x] T008 [P] 新增 `toggleTrackMute(trackId)` action 在 `frontend/src/stores/magicDJStore.ts`
+- [x] T009 確認 Zustand persist middleware 正確序列化新欄位（source, volume）在 `frontend/src/stores/magicDJStore.ts`
 
 **Checkpoint**: 基礎建設完成 - 可開始實作 User Story
 
@@ -55,18 +55,18 @@
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] 建立 AudioDropzone 元件骨架（props 定義、基本結構）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T011 [US1] 實作 AudioDropzone 拖放上傳功能（HTML5 Drag and Drop API）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T012 [US1] 實作 AudioDropzone 點擊選擇檔案功能在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T013 [US1] 實作檔案驗證邏輯（格式、大小）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T014 [US1] 實作檔案處理邏輯（ArrayBuffer → base64 → blob URL）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T015 [US1] 實作音訊時長取得功能在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T016 [US1] 實作儲存空間不足錯誤處理在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
-- [ ] T017 [US1] 修改 TrackEditorModal，新增「音源方式」切換（TTS / 上傳）在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
-- [ ] T018 [US1] 整合 AudioDropzone 到 TrackEditorModal（當選擇上傳時顯示）在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
-- [ ] T019 [US1] 實作音訊預覽播放功能在 TrackEditorModal 中 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
-- [ ] T020 [US1] 修改 TrackList，根據 source 欄位顯示來源圖示（🎤 TTS / 📁 上傳）在 `frontend/src/components/magic-dj/TrackList.tsx`
-- [ ] T021 [US1] 匯出 AudioDropzone 元件在 `frontend/src/components/magic-dj/index.ts`
+- [x] T010 [P] [US1] 建立 AudioDropzone 元件骨架（props 定義、基本結構）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T011 [US1] 實作 AudioDropzone 拖放上傳功能（HTML5 Drag and Drop API）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T012 [US1] 實作 AudioDropzone 點擊選擇檔案功能在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T013 [US1] 實作檔案驗證邏輯（格式、大小）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T014 [US1] 實作檔案處理邏輯（ArrayBuffer → base64 → blob URL）在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T015 [US1] 實作音訊時長取得功能在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T016 [US1] 實作儲存空間不足錯誤處理在 `frontend/src/components/magic-dj/AudioDropzone.tsx`
+- [x] T017 [US1] 修改 TrackEditorModal，新增「音源方式」切換（TTS / 上傳）在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
+- [x] T018 [US1] 整合 AudioDropzone 到 TrackEditorModal（當選擇上傳時顯示）在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
+- [x] T019 [US1] 實作音訊預覽播放功能在 TrackEditorModal 中 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
+- [x] T020 [US1] 修改 TrackList，根據 source 欄位顯示來源圖示（🎤 TTS / 📁 上傳）在 `frontend/src/components/magic-dj/TrackList.tsx`
+- [x] T021 [US1] 匯出 AudioDropzone 元件在 `frontend/src/components/magic-dj/index.ts`
 
 **Checkpoint**: User Story 1 完成 - 可獨立測試上傳功能
 
@@ -80,18 +80,18 @@
 
 ### Implementation for User Story 2
 
-- [ ] T022 [P] [US2] 建立 VolumeSlider 元件骨架（props 定義、基本結構）在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
-- [ ] T023 [US2] 實作 VolumeSlider 滑桿拖動調整功能在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
-- [ ] T024 [US2] 實作 VolumeSlider 音量圖示動態切換（🔇 🔈 🔉 🔊）在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
-- [ ] T025 [US2] 實作 VolumeSlider 點擊圖示靜音切換功能在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
-- [ ] T026 [US2] 實作 VolumeSlider 百分比顯示在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
-- [ ] T027 [US2] 修改 TrackPlayer，整合 VolumeSlider 元件在 `frontend/src/components/magic-dj/TrackPlayer.tsx`
-- [ ] T028 [US2] 修改 useMultiTrackPlayer，整合持久化音量（從 store 讀取 volume）在 `frontend/src/hooks/useMultiTrackPlayer.ts`
-- [ ] T029 [US2] 修改 useMultiTrackPlayer，實作即時音量調整（GainNode）在 `frontend/src/hooks/useMultiTrackPlayer.ts`
-- [ ] T030 [US2] 修改 TrackEditorModal，新增預設音量設定欄位在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
-- [ ] T031 [US2] 修改 TrackList，調整佈局加入音量控制顯示在 `frontend/src/components/magic-dj/TrackList.tsx`
-- [ ] T032 [US2] 實作同時播放 5 軌上限檢查，超過時顯示提示在 `frontend/src/hooks/useMultiTrackPlayer.ts`
-- [ ] T033 [US2] 匯出 VolumeSlider 元件在 `frontend/src/components/magic-dj/index.ts`
+- [x] T022 [P] [US2] 建立 VolumeSlider 元件骨架（props 定義、基本結構）在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
+- [x] T023 [US2] 實作 VolumeSlider 滑桿拖動調整功能在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
+- [x] T024 [US2] 實作 VolumeSlider 音量圖示動態切換（🔇 🔈 🔉 🔊）在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
+- [x] T025 [US2] 實作 VolumeSlider 點擊圖示靜音切換功能在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
+- [x] T026 [US2] 實作 VolumeSlider 百分比顯示在 `frontend/src/components/magic-dj/VolumeSlider.tsx`
+- [x] T027 [US2] 修改 TrackPlayer，整合 VolumeSlider 元件在 `frontend/src/components/magic-dj/TrackPlayer.tsx`
+- [x] T028 [US2] 修改 useMultiTrackPlayer，整合持久化音量（從 store 讀取 volume）在 `frontend/src/hooks/useMultiTrackPlayer.ts`
+- [x] T029 [US2] 修改 useMultiTrackPlayer，實作即時音量調整（GainNode）在 `frontend/src/hooks/useMultiTrackPlayer.ts`
+- [x] T030 [US2] 修改 TrackEditorModal，新增預設音量設定欄位在 `frontend/src/components/magic-dj/TrackEditorModal.tsx`
+- [x] T031 [US2] 修改 TrackList，調整佈局加入音量控制顯示在 `frontend/src/components/magic-dj/TrackList.tsx`
+- [x] T032 [US2] 實作同時播放 5 軌上限檢查，超過時顯示提示在 `frontend/src/hooks/useMultiTrackPlayer.ts`
+- [x] T033 [US2] 匯出 VolumeSlider 元件在 `frontend/src/components/magic-dj/index.ts`
 
 **Checkpoint**: User Story 1 + 2 完成 - 前端功能完整
 
@@ -136,8 +136,8 @@
 
 - [ ] T051 [P] 驗證 quickstart.md 文件步驟可正確執行
 - [ ] T052 [P] 程式碼清理和重構（移除 console.log, 統一錯誤訊息格式）
-- [ ] T053 [P] 確認所有新增元件已匯出在 index.ts
-- [ ] T054 執行 `make check` 確認通過 linting 和 type checking
+- [x] T053 [P] 確認所有新增元件已匯出在 index.ts
+- [x] T054 執行 `make check` 確認通過 linting 和 type checking
 - [ ] T055 更新 CLAUDE.md 相關章節（如有需要）
 
 ---

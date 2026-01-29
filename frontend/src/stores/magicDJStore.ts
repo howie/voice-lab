@@ -1,9 +1,11 @@
 /**
  * Magic DJ Store
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T004: Zustand store for Magic DJ state management.
  * T048: Operation priority queue with debounce logic.
+ * 011-T006~T009: Audio features enhancement - migration logic and volume actions.
  */
 
 import { create } from 'zustand'
@@ -18,6 +20,7 @@ import type {
   SessionRecord,
   Track,
   TrackPlaybackState,
+  TrackSource,
 } from '@/types/magic-dj'
 import {
   DEFAULT_DJ_SETTINGS,
@@ -38,6 +41,10 @@ interface MagicDJStoreState extends MagicDJState {
   updateTrackState: (trackId: string, state: Partial<TrackPlaybackState>) => void
   reorderTracks: (activeId: string, overId: string) => void
   setMasterVolume: (volume: number) => void
+
+  // === 011 Audio Features: Volume Actions (T007, T008) ===
+  setTrackVolume: (trackId: string, volume: number) => void
+  toggleTrackMute: (trackId: string) => void
 
   // === Mode Actions ===
   setMode: (mode: OperationMode) => void
@@ -83,11 +90,25 @@ const createInitialTrackStates = (tracks: Track[]): Record<string, TrackPlayback
       isLoading: false,
       error: null,
       currentTime: 0,
-      volume: 1,
+      volume: track.volume ?? 1,
+      // 011 Audio Features (T005)
+      isMuted: false,
+      previousVolume: track.volume ?? 1,
     }
   }
   return states
 }
+
+/**
+ * Migrate legacy track data (011-T006)
+ * - Add source: 'tts' if missing
+ * - Add volume: 1.0 if missing
+ */
+const migrateTrackData = (track: Partial<Track>): Track => ({
+  ...track,
+  source: (track.source as TrackSource) ?? 'tts',
+  volume: track.volume ?? 1.0,
+} as Track)
 
 const initialState: MagicDJState = {
   tracks: DEFAULT_TRACKS,
@@ -181,7 +202,7 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       addTrack: (track) =>
         set((prev) => ({
-          tracks: [...prev.tracks, track],
+          tracks: [...prev.tracks, migrateTrackData(track)],
           trackStates: {
             ...prev.trackStates,
             [track.id]: {
@@ -191,7 +212,10 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
               isLoading: false,
               error: null,
               currentTime: 0,
-              volume: 1,
+              volume: track.volume ?? 1,
+              // 011 Audio Features (T005)
+              isMuted: false,
+              previousVolume: track.volume ?? 1,
             },
           },
         })),
@@ -241,6 +265,51 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       setMasterVolume: (volume) =>
         set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
+
+      // === 011 Audio Features: Volume Actions (T007, T008) ===
+      setTrackVolume: (trackId, volume) =>
+        set((prev) => {
+          const clampedVolume = Math.max(0, Math.min(1, volume))
+          return {
+            tracks: prev.tracks.map((t) =>
+              t.id === trackId ? { ...t, volume: clampedVolume } : t
+            ),
+            trackStates: {
+              ...prev.trackStates,
+              [trackId]: {
+                ...prev.trackStates[trackId],
+                volume: clampedVolume,
+                isMuted: clampedVolume === 0,
+              },
+            },
+          }
+        }),
+
+      toggleTrackMute: (trackId) =>
+        set((prev) => {
+          const currentState = prev.trackStates[trackId]
+          const track = prev.tracks.find((t) => t.id === trackId)
+          if (!currentState || !track) return prev
+
+          const isMuted = currentState.isMuted
+          const newVolume = isMuted ? currentState.previousVolume || 1 : 0
+          const previousVolume = isMuted ? currentState.previousVolume : track.volume
+
+          return {
+            tracks: prev.tracks.map((t) =>
+              t.id === trackId ? { ...t, volume: newVolume } : t
+            ),
+            trackStates: {
+              ...prev.trackStates,
+              [trackId]: {
+                ...currentState,
+                volume: newVolume,
+                isMuted: !isMuted,
+                previousVolume: previousVolume,
+              },
+            },
+          }
+        }),
 
       // === Mode Actions ===
       setMode: (mode) => {
@@ -411,25 +480,30 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
     }),
     {
       name: 'magic-dj-store',
-      // Persist user preferences and track configuration
+      // Persist user preferences and track configuration (011-T009)
       partialize: (state) => ({
         settings: state.settings,
         masterVolume: state.masterVolume,
-        // Persist tracks (order + custom tracks with audio data)
+        // Persist tracks (order + custom tracks with audio data, source, volume)
         tracks: state.tracks.map((track) => ({
           ...track,
           // Don't persist blob URLs, they're ephemeral
-          url: track.isCustom ? '' : track.url,
+          url: track.isCustom || track.source === 'upload' ? '' : track.url,
+          // Ensure source and volume are persisted (011-T009)
+          source: track.source ?? 'tts',
+          volume: track.volume ?? 1.0,
         })),
       }),
-      // Merge persisted state with defaults
+      // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<MagicDJStoreState>
 
-        // Restore tracks from persisted state
+        // Restore tracks from persisted state with migration (011-T006)
         let tracks = currentState.tracks
         if (persisted.tracks && persisted.tracks.length > 0) {
-          tracks = restoreTracks(persisted.tracks)
+          // Apply migration to each track before restoring blob URLs
+          const migratedTracks = persisted.tracks.map(migrateTrackData)
+          tracks = restoreTracks(migratedTracks)
         }
 
         return {

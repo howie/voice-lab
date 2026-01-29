@@ -1,15 +1,18 @@
 /**
  * Track Player
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T017: TrackPlayer component with play/stop button, volume slider,
  * progress indicator per track.
+ * 011-T027: Integrate VolumeSlider component with persistent volume.
  */
 
-import { Play, Square, Volume2 } from 'lucide-react'
+import { Play, Square } from 'lucide-react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { cn } from '@/lib/utils'
+import { VolumeSlider } from './VolumeSlider'
 
 // =============================================================================
 // Types
@@ -20,6 +23,7 @@ export interface TrackPlayerProps {
   onPlay: () => void
   onStop: () => void
   onVolumeChange: (volume: number) => void
+  onMuteToggle?: () => void
 }
 
 // =============================================================================
@@ -31,6 +35,7 @@ export function TrackPlayer({
   onPlay,
   onStop,
   onVolumeChange,
+  onMuteToggle,
 }: TrackPlayerProps) {
   const { tracks, trackStates } = useMagicDJStore()
 
@@ -39,7 +44,7 @@ export function TrackPlayer({
 
   if (!track || !state) return null
 
-  const { isPlaying, isLoaded, volume, currentTime } = state
+  const { isPlaying, isLoaded, volume, currentTime, isMuted } = state
   const duration = track.duration ?? 0
 
   // Calculate progress percentage
@@ -80,19 +85,15 @@ export function TrackPlayer({
         </div>
       </div>
 
-      {/* Volume Control */}
-      <div className="flex items-center gap-2">
-        <Volume2 className="h-4 w-4 text-muted-foreground" />
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-          className="h-2 w-20 cursor-pointer appearance-none rounded-full bg-muted"
-        />
-      </div>
+      {/* Volume Control (011-T027) */}
+      <VolumeSlider
+        value={volume}
+        onChange={onVolumeChange}
+        onMuteToggle={onMuteToggle}
+        isMuted={isMuted}
+        size="md"
+        showPercentage={false}
+      />
 
       {/* Hotkey Badge */}
       {track.hotkey && (

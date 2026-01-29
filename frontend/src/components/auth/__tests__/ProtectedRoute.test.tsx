@@ -7,6 +7,10 @@
  * - Renders children when authenticated
  */
 
+// Set DEV to false BEFORE importing the component to disable auth bypass
+// @ts-expect-error - modifying import.meta.env for testing
+import.meta.env.DEV = false
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'

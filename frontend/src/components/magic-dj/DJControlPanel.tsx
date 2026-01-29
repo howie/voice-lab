@@ -37,6 +37,7 @@ export interface DJControlPanelProps {
   onStartSession: () => void
   onStopSession: () => void
   onAddTrack?: () => void
+  onGenerateBGM?: () => void
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
   wsStatus: ConnectionStatus
@@ -58,6 +59,7 @@ export function DJControlPanel({
   onStartSession,
   onStopSession,
   onAddTrack,
+  onGenerateBGM,
   onEditTrack,
   onDeleteTrack,
   wsStatus,
@@ -127,6 +129,7 @@ export function DJControlPanel({
             onPlayTrack={onPlayTrack}
             onStopTrack={onStopTrack}
             onAddTrack={onAddTrack}
+            onGenerateBGM={onGenerateBGM}
             onEditTrack={onEditTrack}
             onDeleteTrack={onDeleteTrack}
           />

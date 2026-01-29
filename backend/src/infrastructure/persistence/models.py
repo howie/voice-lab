@@ -724,3 +724,72 @@ class DJTrackModel(Base):
 
     # Relationships
     preset: Mapped["DJPresetModel"] = relationship("DJPresetModel", back_populates="tracks")
+
+
+# =============================================================================
+# Music Generation Models (Feature 012)
+# =============================================================================
+
+
+class MusicGenerationJobModel(Base):
+    """SQLAlchemy model for music generation jobs via Mureka AI.
+
+    Tracks async music generation tasks including songs, instrumentals, and lyrics.
+    """
+
+    __tablename__ = "music_generation_jobs"
+    __table_args__ = (
+        Index("ix_music_jobs_user_id", "user_id"),
+        Index("ix_music_jobs_status", "status"),
+        Index("ix_music_jobs_user_status", "user_id", "status"),
+        Index("ix_music_jobs_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(
+        PgEnum("song", "instrumental", "lyrics", name="music_generation_type", create_type=False),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        PgEnum(
+            "pending",
+            "processing",
+            "completed",
+            "failed",
+            name="music_generation_status",
+            create_type=False,
+        ),
+        nullable=False,
+        default="pending",
+    )
+
+    # Input parameters
+    prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lyrics: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model: Mapped[str] = mapped_column(String(20), nullable=False, default="auto")
+
+    # Mureka task tracking
+    mureka_task_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Output
+    result_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    original_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cover_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_lyrics: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Error handling
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")

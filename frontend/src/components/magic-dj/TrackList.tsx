@@ -33,6 +33,7 @@ import {
   RefreshCw,
   AlertCircle,
   Plus,
+  Music,
   Pencil,
   Trash2,
   GripVertical,
@@ -53,6 +54,7 @@ export interface TrackListProps {
   onPlayTrack: (trackId: string) => void
   onStopTrack: (trackId: string) => void
   onAddTrack?: () => void
+  onGenerateBGM?: () => void
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
 }
@@ -251,6 +253,7 @@ export function TrackList({
   onPlayTrack,
   onStopTrack,
   onAddTrack,
+  onGenerateBGM,
   onEditTrack,
   onDeleteTrack,
 }: TrackListProps) {
@@ -308,16 +311,27 @@ export function TrackList({
         </SortableContext>
       </DndContext>
 
-      {/* Add Track Button */}
-      {onAddTrack && (
-        <button
-          onClick={onAddTrack}
-          className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 p-4 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        >
-          <Plus className="h-5 w-5" />
-          <span>新增音軌</span>
-        </button>
-      )}
+      {/* Add Track Buttons */}
+      <div className="flex gap-2">
+        {onAddTrack && (
+          <button
+            onClick={onAddTrack}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 p-4 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <Plus className="h-5 w-5" />
+            <span>新增 TTS</span>
+          </button>
+        )}
+        {onGenerateBGM && (
+          <button
+            onClick={onGenerateBGM}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 p-4 text-primary/70 transition-colors hover:border-primary hover:text-primary"
+          >
+            <Music className="h-5 w-5" />
+            <span>生成 BGM</span>
+          </button>
+        )}
+      </div>
     </div>
   )
 }

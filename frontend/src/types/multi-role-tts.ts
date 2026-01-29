@@ -16,6 +16,7 @@ export type MultiRoleTTSProvider =
   | 'elevenlabs'
   | 'azure'
   | 'gcp'
+  | 'gemini'
   | 'openai'
   | 'cartesia'
   | 'deepgram'

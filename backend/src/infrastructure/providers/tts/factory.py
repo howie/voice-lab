@@ -41,7 +41,7 @@ class TTSProviderFactory:
     """
 
     # Supported providers
-    SUPPORTED_PROVIDERS = ["elevenlabs", "azure", "gemini", "voai"]
+    SUPPORTED_PROVIDERS = ["elevenlabs", "azure", "gcp", "gemini", "voai"]
 
     @classmethod
     def get_supported_providers(cls) -> list[str]:
@@ -93,6 +93,15 @@ class TTSProviderFactory:
             return AzureTTSProvider(
                 subscription_key=api_key or os.getenv("AZURE_SPEECH_KEY", ""),
                 region=kwargs.get("region") or os.getenv("AZURE_SPEECH_REGION", "eastasia"),
+            )
+
+        elif provider_name == "gcp":
+            from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
+
+            # GCP uses service account credentials, not API key
+            return GCPTTSProvider(
+                credentials_path=kwargs.get("credentials_path")
+                or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
             )
 
         elif provider_name == "gemini":

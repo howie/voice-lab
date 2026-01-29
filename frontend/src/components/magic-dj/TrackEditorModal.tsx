@@ -47,7 +47,8 @@ const TTS_PROVIDERS = [
   { id: 'voai', name: 'VoAI 台灣語音' },
   { id: 'azure', name: 'Azure 語音' },
   { id: 'elevenlabs', name: 'ElevenLabs' },
-  { id: 'gcp', name: 'Google Cloud' },
+  { id: 'gcp', name: 'Google Cloud TTS' },
+  { id: 'gemini', name: 'Gemini TTS' },
 ]
 
 // Fallback 聲音（當 API 無法連線時使用）
@@ -69,6 +70,12 @@ const FALLBACK_VOICES: Record<string, Array<{ id: string; name: string; gender: 
   gcp: [
     { id: 'zh-TW-Standard-A', name: 'Standard A', gender: 'female' },
     { id: 'zh-TW-Standard-B', name: 'Standard B', gender: 'male' },
+  ],
+  gemini: [
+    { id: 'Kore', name: 'Kore', gender: 'female' },
+    { id: 'Charon', name: 'Charon', gender: 'male' },
+    { id: 'Aoede', name: 'Aoede', gender: 'female' },
+    { id: 'Puck', name: 'Puck', gender: 'male' },
   ],
 }
 

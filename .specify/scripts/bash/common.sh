@@ -153,3 +153,128 @@ EOF
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
 check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+
+# ============================================
+# State Management Functions (Cloud Integration)
+# ============================================
+
+# Get state directory and file paths
+get_state_dir() {
+    echo "$(get_repo_root)/.specify/state"
+}
+
+get_state_file() {
+    echo "$(get_state_dir)/current-feature.json"
+}
+
+# Ensure state directory exists
+ensure_state_dir() {
+    local state_dir=$(get_state_dir)
+    mkdir -p "$state_dir"
+}
+
+# Check if running in Cloud environment
+is_cloud_environment() {
+    [ "$CLAUDE_CODE_REMOTE" = "true" ]
+}
+
+# Get current environment name
+get_environment() {
+    if is_cloud_environment; then
+        echo "cloud"
+    else
+        echo "local"
+    fi
+}
+
+# Read current feature state (returns JSON or empty object)
+get_current_feature_state() {
+    local state_file=$(get_state_file)
+    if [ -f "$state_file" ]; then
+        cat "$state_file"
+    else
+        echo "{}"
+    fi
+}
+
+# Update feature state
+# Usage: update_feature_state <feature_id> <branch> <phase>
+update_feature_state() {
+    local feature_id="$1"
+    local branch="$2"
+    local phase="$3"
+
+    ensure_state_dir
+    local state_file=$(get_state_file)
+    local environment=$(get_environment)
+    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    if [ -f "$state_file" ] && command -v jq &>/dev/null; then
+        # Update existing state with jq
+        jq --arg phase "$phase" \
+           --arg env "$environment" \
+           --arg now "$now" \
+           '.phase = $phase | .last_updated = $now | .environment.last_modified_in = $env' \
+           "$state_file" > "${state_file}.tmp" && mv "${state_file}.tmp" "$state_file"
+    else
+        # Create new state (or overwrite without jq)
+        cat > "$state_file" << EOF
+{
+  "feature_id": "$feature_id",
+  "branch": "$branch",
+  "phase": "$phase",
+  "paths": {
+    "spec": "docs/features/$feature_id/spec.md",
+    "plan": null,
+    "tasks": null
+  },
+  "created_at": "$now",
+  "last_updated": "$now",
+  "environment": {
+    "created_in": "$environment",
+    "last_modified_in": "$environment"
+  }
+}
+EOF
+    fi
+}
+
+# Update a specific path in the state file
+# Usage: update_feature_path <path_key> <path_value>
+update_feature_path() {
+    local path_key="$1"
+    local path_value="$2"
+    local state_file=$(get_state_file)
+
+    if [ -f "$state_file" ] && command -v jq &>/dev/null; then
+        jq --arg key "$path_key" \
+           --arg value "$path_value" \
+           '.paths[$key] = $value' \
+           "$state_file" > "${state_file}.tmp" && mv "${state_file}.tmp" "$state_file"
+    fi
+}
+
+# Clear current feature state
+clear_feature_state() {
+    local state_file=$(get_state_file)
+    if [ -f "$state_file" ]; then
+        rm "$state_file"
+    fi
+}
+
+# Get a value from the state file
+# Usage: get_state_value <key>  (e.g., "branch", "phase", "feature_id")
+get_state_value() {
+    local key="$1"
+    local state_file=$(get_state_file)
+
+    if [ -f "$state_file" ]; then
+        if command -v jq &>/dev/null; then
+            jq -r ".$key // empty" "$state_file" 2>/dev/null
+        else
+            # Fallback using grep and sed
+            grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$state_file" 2>/dev/null | \
+                sed "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/"
+        fi
+    fi
+}

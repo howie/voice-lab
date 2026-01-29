@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,7 @@ from src.infrastructure.persistence.scenario_template_repository_impl import (
 )
 from src.infrastructure.storage.audio_storage import AudioStorageService
 from src.presentation.api.dependencies import get_voice_interaction_use_case
+from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.schemas.interaction import (
     ConversationMessage,
     InteractionResponse,
@@ -43,35 +44,6 @@ from src.presentation.schemas.interaction import (
 )
 
 router = APIRouter()
-
-
-# Development user ID for DISABLE_AUTH mode
-DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
-
-async def get_current_user_id(request: Request) -> uuid.UUID:
-    """Get the current user ID from the request."""
-    settings = get_settings()
-
-    if settings.disable_auth:
-        return DEV_USER_ID
-
-    user_id = getattr(request.state, "user_id", None)
-    if user_id is None:
-        user_id_header = request.headers.get("X-User-Id")
-        if user_id_header:
-            try:
-                return uuid.UUID(user_id_header)
-            except ValueError as e:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid user ID format",
-                ) from e
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required",
-        )
-    return user_id
 
 
 @router.post("/voice", response_model=InteractionResponse)
@@ -433,7 +405,7 @@ async def get_scenario_template(
 
 @router.get("/providers")
 async def list_providers(
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
     """List available providers for cascade mode with credential status.
@@ -446,6 +418,7 @@ async def list_providers(
     provider_info = CascadeModeFactory.get_provider_info()
 
     # Get user's credentials
+    user_id = uuid.UUID(current_user.id)
     credential_repo = SQLAlchemyProviderCredentialRepository(session)
     credentials = await credential_repo.list_by_user(user_id)
 
@@ -534,7 +507,6 @@ async def get_v2v_feature_flags() -> dict:
     Returns current state of all V2V optimization toggles for A/B testing.
     These can be overridden per-session via WebSocket config message.
     """
-    from src.config import get_settings
 
     settings = get_settings()
 

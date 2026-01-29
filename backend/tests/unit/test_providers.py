@@ -17,6 +17,12 @@ from src.infrastructure.providers.tts.elevenlabs import (
     ElevenLabsTTSProvider,
 )
 from src.infrastructure.providers.tts.voai import VOAI_VOICES, VoAITTSProvider
+from src.infrastructure.providers.tts.voai_tts import (
+    VOAI_VOICES as VOAI_TTS_VOICES,
+)
+from src.infrastructure.providers.tts.voai_tts import (
+    VoAITTSProvider as VoAITTSProviderProduction,
+)
 
 
 @pytest.fixture
@@ -393,6 +399,257 @@ class TestProviderVoiceMappings:
     def test_voai_voices_have_required_fields(self):
         """Test VoAI voice mappings have all required fields."""
         for _lang, voices in VOAI_VOICES.items():
+            for voice in voices:
+                assert "id" in voice
+                assert "name" in voice
+                assert "gender" in voice
+
+
+class TestVoAITTSProviderProduction:
+    """Tests for VoAI TTS provider (voai_tts.py - production implementation).
+
+    This tests the actual provider used by the factory, which has
+    different parameter limits than the generic TTS interface.
+    """
+
+    def test_provider_name(self):
+        """Test provider name property."""
+        provider = VoAITTSProviderProduction(api_key="test-key")
+        assert provider.name == "voai"
+
+    def test_display_name(self):
+        """Test display name property."""
+        provider = VoAITTSProviderProduction(api_key="test-key")
+        assert provider.display_name == "VoAI"
+
+    def test_get_supported_params_voai_specific_limits(self):
+        """Test that VoAI returns correct parameter limits.
+
+        VoAI has stricter limits than other providers:
+        - speed: [0.5, 1.5] (not 2.0)
+        - pitch: [-5, 5] (not [-20, 20])
+        """
+        provider = VoAITTSProviderProduction(api_key="test-key")
+        params = provider.get_supported_params()
+
+        assert "speed" in params
+        assert params["speed"]["min"] == 0.5
+        assert params["speed"]["max"] == 1.5  # VoAI limit, not 2.0
+        assert params["speed"]["default"] == 1.0
+
+        assert "pitch" in params
+        assert params["pitch"]["min"] == -5.0  # VoAI limit, not -20
+        assert params["pitch"]["max"] == 5.0  # VoAI limit, not 20
+        assert params["pitch"]["default"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_synthesize_clamps_speed_to_max(self):
+        """Test that speed > 1.5 is clamped to 1.5 for VoAI API."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            # Request with speed=2.0 (exceeds VoAI's 1.5 limit)
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+                language="zh-TW",
+                speed=2.0,  # Should be clamped to 1.5
+            )
+
+            await provider.synthesize(request)
+
+            # Verify the API was called with clamped speed
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["speed"] == 1.5  # Clamped from 2.0
+
+    @pytest.mark.asyncio
+    async def test_synthesize_clamps_speed_to_min(self):
+        """Test that speed < 0.5 is clamped to 0.5 for VoAI API."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            # Note: TTSRequest validates speed >= 0.5, so we test at boundary
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+                language="zh-TW",
+                speed=0.5,  # At minimum
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["speed"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_synthesize_clamps_pitch_to_max(self):
+        """Test that pitch > 5 is clamped to 5 for VoAI API."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            # Request with pitch=15 (exceeds VoAI's 5 limit)
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+                language="zh-TW",
+                pitch=15.0,  # Should be clamped to 5
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["pitch_shift"] == 5  # Clamped from 15
+
+    @pytest.mark.asyncio
+    async def test_synthesize_clamps_pitch_to_min(self):
+        """Test that pitch < -5 is clamped to -5 for VoAI API."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            # Request with pitch=-15 (below VoAI's -5 limit)
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+                language="zh-TW",
+                pitch=-15.0,  # Should be clamped to -5
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["pitch_shift"] == -5  # Clamped from -15
+
+    @pytest.mark.asyncio
+    async def test_synthesize_normal_params_unchanged(self):
+        """Test that params within VoAI limits are not modified."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            # Request with params within VoAI limits
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+                language="zh-TW",
+                speed=1.2,  # Within [0.5, 1.5]
+                pitch=3.0,  # Within [-5, 5]
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["speed"] == 1.2  # Unchanged
+            assert body["pitch_shift"] == 3  # Converted to int, unchanged
+
+    @pytest.mark.asyncio
+    async def test_synthesize_api_error_handling(self):
+        """Test handling of VoAI API errors."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 400
+            mock_response.text = "Invalid parameter"
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key")
+
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai-tw-female-1",
+                provider="voai",
+            )
+
+            with pytest.raises(RuntimeError) as exc_info:
+                await provider.synthesize(request)
+
+            assert "VoAI TTS failed" in str(exc_info.value)
+            assert "400" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_list_voices(self):
+        """Test listing VoAI voices."""
+        provider = VoAITTSProviderProduction(api_key="test-key")
+        voices = await provider.list_voices()
+
+        # Should have voices from VOAI_TTS_VOICES
+        assert len(voices) > 0
+        assert all(v.provider == "voai" for v in voices)
+
+    @pytest.mark.asyncio
+    async def test_list_voices_by_language(self):
+        """Test listing VoAI voices filtered by language."""
+        provider = VoAITTSProviderProduction(api_key="test-key")
+        voices = await provider.list_voices(language="zh-TW")
+
+        assert len(voices) == len(VOAI_TTS_VOICES.get("zh-TW", []))
+        assert all(v.language == "zh-TW" for v in voices)
+
+    def test_voai_tts_voices_have_required_fields(self):
+        """Test VoAI TTS voice mappings have all required fields."""
+        for _lang, voices in VOAI_TTS_VOICES.items():
             for voice in voices:
                 assert "id" in voice
                 assert "name" in voice

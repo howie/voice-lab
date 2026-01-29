@@ -366,3 +366,180 @@ class TestStreamEndpoint:
                 # Streaming should return audio content type
                 content_type = response.headers.get("content-type", "")
                 assert "audio" in content_type or "octet-stream" in content_type
+
+
+class TestVoAIParameterClamping:
+    """Integration tests for VoAI parameter clamping.
+
+    These tests verify that the full flow through the factory correctly
+    clamps VoAI parameters to prevent API errors.
+    """
+
+    @pytest.fixture(autouse=True)
+    def override_dependencies(self):
+        """Override database dependencies."""
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()
+
+        async def get_mock_session():
+            yield mock_session
+
+        app.dependency_overrides[get_db_session] = get_mock_session
+        yield
+        app.dependency_overrides = {}
+
+    @pytest.mark.asyncio
+    async def test_voai_speed_clamped_to_max_via_factory(self):
+        """Test that VoAI speed > 1.5 is clamped when using factory.
+
+        This is an integration test that verifies the full flow:
+        API request -> Factory -> VoAITTSProvider -> clamped params -> VoAI API
+
+        Regression test for production 500 error caused by speed=2.0.
+        """
+        captured_body = {}
+
+        # Mock httpx to capture the actual request body sent to VoAI
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+
+            async def capture_post(url, headers, json):
+                captured_body.update(json)
+                return mock_response
+
+            mock_client.post = capture_post
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                payload = {
+                    "text": "你好世界",
+                    "provider": "voai",
+                    "voice_id": "voai-tw-female-1",
+                    "language": "zh-TW",
+                    "speed": 2.0,  # Exceeds VoAI's 1.5 limit
+                }
+                response = await ac.post("/api/v1/tts/synthesize", json=payload)
+
+            # Request should succeed (not 500)
+            assert response.status_code == 200
+
+            # Verify VoAI received clamped speed
+            assert captured_body.get("speed") == 1.5  # Clamped from 2.0
+
+    @pytest.mark.asyncio
+    async def test_voai_pitch_clamped_to_max_via_factory(self):
+        """Test that VoAI pitch > 5 is clamped when using factory.
+
+        Regression test for production 500 error caused by pitch=15.
+        """
+        captured_body = {}
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+
+            async def capture_post(url, headers, json):
+                captured_body.update(json)
+                return mock_response
+
+            mock_client.post = capture_post
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                payload = {
+                    "text": "你好世界",
+                    "provider": "voai",
+                    "voice_id": "voai-tw-female-1",
+                    "language": "zh-TW",
+                    "pitch": 15.0,  # Exceeds VoAI's 5 limit
+                }
+                response = await ac.post("/api/v1/tts/synthesize", json=payload)
+
+            assert response.status_code == 200
+            assert captured_body.get("pitch_shift") == 5  # Clamped from 15
+
+    @pytest.mark.asyncio
+    async def test_voai_pitch_clamped_to_min_via_factory(self):
+        """Test that VoAI pitch < -5 is clamped when using factory."""
+        captured_body = {}
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+
+            async def capture_post(url, headers, json):
+                captured_body.update(json)
+                return mock_response
+
+            mock_client.post = capture_post
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                payload = {
+                    "text": "你好世界",
+                    "provider": "voai",
+                    "voice_id": "voai-tw-female-1",
+                    "language": "zh-TW",
+                    "pitch": -15.0,  # Below VoAI's -5 limit
+                }
+                response = await ac.post("/api/v1/tts/synthesize", json=payload)
+
+            assert response.status_code == 200
+            assert captured_body.get("pitch_shift") == -5  # Clamped from -15
+
+    @pytest.mark.asyncio
+    async def test_voai_multiple_params_clamped_simultaneously(self):
+        """Test that multiple out-of-range params are all clamped correctly."""
+        captured_body = {}
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+
+            async def capture_post(url, headers, json):
+                captured_body.update(json)
+                return mock_response
+
+            mock_client.post = capture_post
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                payload = {
+                    "text": "你好世界",
+                    "provider": "voai",
+                    "voice_id": "voai-tw-female-1",
+                    "language": "zh-TW",
+                    "speed": 2.0,  # Should be clamped to 1.5
+                    "pitch": 20.0,  # Should be clamped to 5
+                }
+                response = await ac.post("/api/v1/tts/synthesize", json=payload)
+
+            assert response.status_code == 200
+            assert captured_body.get("speed") == 1.5
+            assert captured_body.get("pitch_shift") == 5

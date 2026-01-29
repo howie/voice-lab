@@ -27,6 +27,7 @@ import {
   DEFAULT_TRACKS,
   OperationPriority,
 } from '@/types/magic-dj'
+import * as djApi from '@/services/djApi'
 
 // =============================================================================
 // Store Interface
@@ -71,6 +72,16 @@ interface MagicDJStoreState extends MagicDJState {
   queueOperation: (operation: Omit<PendingOperation, 'timestamp'>) => boolean
   processOperationQueue: () => PendingOperation | null
   clearOperationQueue: () => void
+
+  // === Backend Sync Actions (011 Phase 3) ===
+  setAuthenticated: (authenticated: boolean) => void
+  fetchPresets: () => Promise<void>
+  loadPreset: (presetId: string) => Promise<void>
+  saveCurrentPreset: () => Promise<void>
+  createNewPreset: (name: string, description?: string) => Promise<string>
+  deleteCurrentPreset: () => Promise<void>
+  importToBackend: (presetName: string) => Promise<string>
+  switchToLocalStorage: () => void
 
   // === General Actions ===
   reset: () => void
@@ -125,6 +136,13 @@ const initialState: MagicDJState = {
   currentSession: null,
   pendingOperations: [],
   lastOperationTime: 0,
+  // Backend Sync (011 Phase 3)
+  currentPresetId: null,
+  presets: [],
+  isLoading: false,
+  isSyncing: false,
+  syncError: null,
+  isAuthenticated: false,
 }
 
 // =============================================================================
@@ -474,6 +492,207 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
       },
 
       clearOperationQueue: () => set({ pendingOperations: [] }),
+
+      // === Backend Sync Actions (011 Phase 3) ===
+      setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
+
+      fetchPresets: async () => {
+        const state = get()
+        if (!state.isAuthenticated) return
+
+        set({ isLoading: true, syncError: null })
+        try {
+          const response = await djApi.listPresets()
+          set({
+            presets: response.items.map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              is_default: p.is_default,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+            })),
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Failed to fetch presets:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to fetch presets',
+            isLoading: false,
+          })
+        }
+      },
+
+      loadPreset: async (presetId) => {
+        set({ isLoading: true, syncError: null })
+        try {
+          const response = await djApi.getPreset(presetId)
+
+          // Convert API tracks to frontend format
+          const tracks = response.tracks.map((t) => djApi.apiTrackToFrontend(t))
+
+          // Convert settings
+          const apiSettings = djApi.apiSettingsToFrontend(response.settings)
+
+          set({
+            currentPresetId: presetId,
+            tracks,
+            trackStates: createInitialTrackStates(tracks),
+            masterVolume: response.settings.master_volume,
+            settings: {
+              ...get().settings,
+              ...apiSettings,
+            },
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Failed to load preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to load preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      saveCurrentPreset: async () => {
+        const state = get()
+        if (!state.currentPresetId || !state.isAuthenticated) return
+
+        set({ isSyncing: true, syncError: null })
+        try {
+          // Update preset settings
+          await djApi.updatePreset(state.currentPresetId, {
+            settings: {
+              master_volume: state.masterVolume,
+              ...djApi.frontendSettingsToApi(state.settings),
+            },
+          })
+
+          // Update each track
+          for (const track of state.tracks) {
+            await djApi.updateTrack(state.currentPresetId, track.id, {
+              name: track.name,
+              type: track.type,
+              hotkey: track.hotkey,
+              loop: track.loop,
+              text_content: track.textContent,
+              volume: track.volume,
+            })
+          }
+
+          set({ isSyncing: false })
+        } catch (error) {
+          console.error('Failed to save preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to save preset',
+            isSyncing: false,
+          })
+          throw error
+        }
+      },
+
+      createNewPreset: async (name, description) => {
+        set({ isLoading: true, syncError: null })
+        try {
+          const state = get()
+          const response = await djApi.createPreset({
+            name,
+            description,
+            settings: {
+              master_volume: state.masterVolume,
+              ...djApi.frontendSettingsToApi(state.settings),
+            },
+          })
+
+          // Refresh preset list
+          await get().fetchPresets()
+
+          set({ isLoading: false })
+          return response.id
+        } catch (error) {
+          console.error('Failed to create preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to create preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      deleteCurrentPreset: async () => {
+        const state = get()
+        if (!state.currentPresetId) return
+
+        set({ isLoading: true, syncError: null })
+        try {
+          await djApi.deletePreset(state.currentPresetId)
+
+          // Switch to localStorage mode
+          set({
+            currentPresetId: null,
+            tracks: DEFAULT_TRACKS,
+            trackStates: createInitialTrackStates(DEFAULT_TRACKS),
+            isLoading: false,
+          })
+
+          // Refresh preset list
+          await get().fetchPresets()
+        } catch (error) {
+          console.error('Failed to delete preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to delete preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      importToBackend: async (presetName) => {
+        const state = get()
+        set({ isLoading: true, syncError: null })
+
+        try {
+          // Prepare localStorage data format
+          const localStorageData: djApi.LocalStorageData = {
+            masterVolume: state.masterVolume,
+            settings: state.settings as unknown as Record<string, unknown>,
+            tracks: state.tracks.map((track) => ({
+              id: track.id,
+              name: track.name,
+              type: track.type,
+              source: track.source,
+              hotkey: track.hotkey,
+              loop: track.loop,
+              text_content: track.textContent,
+              audioBase64: track.audioBase64,
+              volume: track.volume,
+            })),
+          }
+
+          const response = await djApi.importFromLocalStorage(presetName, localStorageData)
+
+          // Refresh preset list
+          await get().fetchPresets()
+
+          set({ isLoading: false })
+          return response.id
+        } catch (error) {
+          console.error('Failed to import to backend:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to import',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      switchToLocalStorage: () => {
+        set({
+          currentPresetId: null,
+          syncError: null,
+        })
+      },
 
       // === General Actions ===
       reset: () => set(initialState),

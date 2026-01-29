@@ -18,3 +18,4 @@ export { ExportPanel } from './ExportPanel'
 // 011-magic-dj-audio-features
 export { AudioDropzone } from './AudioDropzone'
 export { VolumeSlider } from './VolumeSlider'
+export { PresetSelector } from './PresetSelector'

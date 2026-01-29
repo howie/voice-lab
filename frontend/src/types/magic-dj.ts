@@ -252,6 +252,19 @@ export interface PendingOperation {
 }
 
 /**
+ * Preset summary (from backend)
+ * Feature: 011-magic-dj-audio-features Phase 3
+ */
+export interface PresetSummary {
+  id: string
+  name: string
+  description: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+/**
  * Magic DJ Store state
  */
 export interface MagicDJState {
@@ -282,6 +295,20 @@ export interface MagicDJState {
   // === Operation Priority Queue (EC-002) ===
   pendingOperations: PendingOperation[]
   lastOperationTime: number
+
+  // === Backend Sync (011 Phase 3) ===
+  /** Current preset ID (null = localStorage mode) */
+  currentPresetId: string | null
+  /** Available presets from backend */
+  presets: PresetSummary[]
+  /** Loading state for async operations */
+  isLoading: boolean
+  /** Syncing state for background sync */
+  isSyncing: boolean
+  /** Last sync error */
+  syncError: string | null
+  /** Whether user is authenticated (can use backend) */
+  isAuthenticated: boolean
 }
 
 // =============================================================================

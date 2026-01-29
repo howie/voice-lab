@@ -17,6 +17,7 @@ import { RescuePanel } from './RescuePanel'
 import { SessionTimer } from './SessionTimer'
 import { ExportPanel } from './ExportPanel'
 import { TrackConfigPanel } from './TrackConfigPanel'
+import { PresetSelector } from './PresetSelector'
 import { useMagicDJStore, selectIsAITimeout } from '@/stores/magicDJStore'
 import type { ConnectionStatus } from '@/types/interaction'
 import type { Track } from '@/types/magic-dj'
@@ -95,12 +96,15 @@ export function DJControlPanel({
 
   return (
     <div className="flex h-full flex-col gap-4 p-4">
-      {/* Header: Session Timer + Mode Switch */}
+      {/* Header: Session Timer + Preset Selector + Mode Switch */}
       <div className="flex items-center justify-between rounded-lg border bg-card p-4">
-        <SessionTimer
-          onStartSession={onStartSession}
-          onStopSession={onStopSession}
-        />
+        <div className="flex items-center gap-4">
+          <SessionTimer
+            onStartSession={onStartSession}
+            onStopSession={onStopSession}
+          />
+          <PresetSelector />
+        </div>
 
         <ModeSwitch onToggle={onToggleMode} wsStatus={wsStatus} />
       </div>

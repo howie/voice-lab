@@ -4,12 +4,24 @@ T055: Add GET /voices endpoint (list all voices with filters)
 T056: Add GET /voices/{provider}/{voice_id} endpoint
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.application.interfaces.voice_cache_repository import IVoiceCacheRepository
 from src.application.use_cases.list_voices import (
     VoiceFilter,
     VoiceProfile,
     list_voices_use_case,
+)
+from src.application.use_cases.list_voices_with_customization import (
+    ListVoicesWithCustomizationUseCase,
+    VoiceListFilters,
+)
+from src.domain.repositories.voice_customization_repository import (
+    IVoiceCustomizationRepository,
+)
+from src.presentation.api.dependencies import (
+    get_voice_cache_repository,
+    get_voice_customization_repository,
 )
 
 router = APIRouter(prefix="/voices", tags=["voices"])
@@ -23,7 +35,7 @@ VALID_PROVIDERS = {"azure", "gemini", "elevenlabs", "voai"}
 VALID_AGE_GROUPS = {"child", "young", "adult", "senior"}
 
 
-@router.get("", response_model=list[dict])
+@router.get("")
 async def list_voices(
     provider: str | None = Query(None, description="Filter by provider"),
     language: str | None = Query(None, description="Filter by language code"),
@@ -31,47 +43,75 @@ async def list_voices(
     age_group: str | None = Query(
         None, description="Filter by age group (child, young, adult, senior)"
     ),
-    style: str | None = Query(
-        None, description="Filter by style (e.g., news, conversation, cheerful)"
-    ),
     search: str | None = Query(None, description="Search by name or description"),
-    limit: int | None = Query(None, ge=1, le=100, description="Max results"),
+    exclude_hidden: bool = Query(True, description="Exclude hidden voices"),
+    favorites_only: bool = Query(False, description="Only show favorites"),
+    limit: int = Query(100, ge=1, le=500, description="Max results"),
     offset: int = Query(0, ge=0, description="Results offset"),
-) -> list[dict]:
-    """List all available voices with optional filters.
+    voice_cache_repo: IVoiceCacheRepository = Depends(get_voice_cache_repository),
+    customization_repo: IVoiceCustomizationRepository = Depends(get_voice_customization_repository),
+) -> dict:
+    """List all available voices with optional filters and customization data.
 
-    Returns a list of voice profiles from all configured TTS providers.
+    Returns a paginated list of voice profiles with customization info.
     """
-    # Validate provider if specified
-    if provider and provider not in VALID_PROVIDERS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid provider. Must be one of: {', '.join(VALID_PROVIDERS)}",
-        )
-
-    # Validate age_group if specified
-    if age_group and age_group not in VALID_AGE_GROUPS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid age_group. Must be one of: {', '.join(VALID_AGE_GROUPS)}",
-        )
-
-    filter = VoiceFilter(
+    filters = VoiceListFilters(
         provider=provider,
         language=language,
         gender=gender,
         age_group=age_group,
-        style=style,
         search=search,
-    )
-
-    voices = await list_voices_use_case.execute(
-        filter=filter,
+        exclude_hidden=exclude_hidden,
+        favorites_only=favorites_only,
         limit=limit,
         offset=offset,
     )
 
-    return [_voice_to_dict(v) for v in voices]
+    use_case = ListVoicesWithCustomizationUseCase(voice_cache_repo, customization_repo)
+    result = await use_case.execute(filters)
+
+    # Get customization map to include in response
+    voice_ids = [v.id for v in result.items]
+    customization_map = await customization_repo.get_customization_map(voice_ids)
+
+    items = []
+    for v in result.items:
+        item: dict = {
+            "id": v.id,
+            "provider": v.provider,
+            "voice_id": v.voice_id,
+            "name": v.name,
+            "display_name": v.display_name,
+            "language": v.language,
+            "gender": v.gender,
+            "age_group": v.age_group,
+            "styles": v.styles,
+            "use_cases": v.use_cases,
+            "sample_audio_url": v.sample_audio_url,
+            "is_deprecated": v.is_deprecated,
+            "is_favorite": v.is_favorite,
+            "is_hidden": v.is_hidden,
+            "customization": None,
+        }
+        c = customization_map.get(v.id)
+        if c:
+            item["customization"] = {
+                "id": c.id,
+                "voice_cache_id": c.voice_cache_id,
+                "custom_name": c.custom_name,
+                "is_favorite": c.is_favorite,
+                "is_hidden": c.is_hidden,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+        items.append(item)
+
+    return {
+        "items": items,
+        "total": result.total,
+        "limit": result.limit,
+        "offset": result.offset,
+    }
 
 
 @router.get("/{provider}", response_model=list[dict])

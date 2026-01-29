@@ -4,6 +4,8 @@ Feature: 008-voai-multi-role-voice-generation
 T028-T031: Admin endpoints for voice sync management
 """
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +16,7 @@ from src.application.use_cases.sync_voices import (
     SyncVoicesInput,
     SyncVoicesUseCase,
 )
+from src.config import get_settings
 from src.domain.entities.voice_sync_job import VoiceSyncJob, VoiceSyncStatus
 from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.voice_cache_repository_impl import (
@@ -22,6 +25,8 @@ from src.infrastructure.persistence.voice_cache_repository_impl import (
 from src.infrastructure.persistence.voice_sync_job_repository_impl import (
     VoiceSyncJobRepositoryImpl,
 )
+from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+from src.infrastructure.providers.tts.voai_tts import VoAITTSProvider
 
 router = APIRouter(prefix="/admin/voices", tags=["admin-voices"])
 
@@ -94,9 +99,31 @@ def get_sync_voices_use_case(
     sync_job_repo: IVoiceSyncJobRepository = Depends(get_voice_sync_job_repo),
 ) -> SyncVoicesUseCase:
     """Get sync voices use case instance."""
+    settings = get_settings()
+
+    # Initialize VoAI provider if API key is configured
+    voai_provider = None
+    if settings.voai_api_key:
+        voai_provider = VoAITTSProvider(
+            api_key=settings.voai_api_key,
+            api_endpoint=settings.voai_api_endpoint or None,
+        )
+
+    # Initialize Gemini provider if API key is configured
+    # Try google_ai_api_key first, then fallback to GEMINI_API_KEY env var
+    gemini_provider = None
+    gemini_api_key = settings.google_ai_api_key or os.getenv("GEMINI_API_KEY", "")
+    if gemini_api_key:
+        gemini_provider = GeminiTTSProvider(
+            api_key=gemini_api_key,
+            model=settings.gemini_tts_model,
+        )
+
     return SyncVoicesUseCase(
         voice_cache_repo=voice_cache_repo,
         sync_job_repo=sync_job_repo,
+        voai_provider=voai_provider,
+        gemini_provider=gemini_provider,
     )
 
 

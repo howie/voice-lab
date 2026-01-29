@@ -11,7 +11,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from src.application.interfaces.voice_cache_repository import IVoiceCacheRepository
 from src.application.interfaces.voice_sync_job_repository import IVoiceSyncJobRepository
@@ -26,6 +26,10 @@ from src.infrastructure.providers.tts.voice_fetchers.elevenlabs_voice_fetcher im
     ElevenLabsVoiceFetcher,
     ElevenLabsVoiceInfo,
 )
+
+if TYPE_CHECKING:
+    from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+    from src.infrastructure.providers.tts.voai_tts import VoAITTSProvider
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +70,7 @@ class SyncVoicesUseCase:
     Implements exponential backoff retry (1s, 2s, 4s, max 3 retries).
     """
 
-    SUPPORTED_PROVIDERS = ["azure", "elevenlabs"]
+    SUPPORTED_PROVIDERS = ["azure", "elevenlabs", "voai", "gemini"]
     MAX_RETRIES = 3
     INITIAL_BACKOFF_SECONDS = 1.0
 
@@ -76,6 +80,8 @@ class SyncVoicesUseCase:
         sync_job_repo: IVoiceSyncJobRepository,
         azure_fetcher: AzureVoiceFetcher | None = None,
         elevenlabs_fetcher: ElevenLabsVoiceFetcher | None = None,
+        voai_provider: "VoAITTSProvider | None" = None,
+        gemini_provider: "GeminiTTSProvider | None" = None,
     ):
         """Initialize the use case.
 
@@ -84,11 +90,16 @@ class SyncVoicesUseCase:
             sync_job_repo: Repository for sync job tracking.
             azure_fetcher: Azure voice fetcher instance.
             elevenlabs_fetcher: ElevenLabs voice fetcher instance.
+            voai_provider: VoAI TTS provider instance.
+            gemini_provider: Gemini TTS provider instance.
         """
         self.voice_cache_repo = voice_cache_repo
         self.sync_job_repo = sync_job_repo
         self.azure_fetcher = azure_fetcher or AzureVoiceFetcher()
         self.elevenlabs_fetcher = elevenlabs_fetcher or ElevenLabsVoiceFetcher()
+        # VoAI and Gemini providers require API keys, keep None if not provided
+        self.voai_provider = voai_provider
+        self.gemini_provider = gemini_provider
         self.inferrer = VoiceMetadataInferrer()
 
     async def execute(self, input_data: SyncVoicesInput) -> SyncVoicesResult:
@@ -188,6 +199,10 @@ class SyncVoicesUseCase:
             return await self._sync_azure(language)
         elif provider == "elevenlabs":
             return await self._sync_elevenlabs()
+        elif provider == "voai":
+            return await self._sync_voai(language)
+        elif provider == "gemini":
+            return await self._sync_gemini()
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
@@ -248,6 +263,113 @@ class SyncVoicesUseCase:
         )
 
         logger.info(f"Synced {len(profiles)} ElevenLabs voices, deprecated {deprecated_count}")
+        return len(profiles), deprecated_count
+
+    async def _sync_voai(self, language: str | None = None) -> tuple[int, int]:
+        """Sync VoAI voices.
+
+        VoAI voices are hardcoded in the provider, no API fetch needed.
+
+        Args:
+            language: Optional language filter.
+
+        Returns:
+            Tuple of (voices_synced, voices_deprecated).
+
+        Raises:
+            ValueError: If VoAI provider is not configured.
+        """
+        if not self.voai_provider:
+            raise ValueError("VoAI API key not configured")
+
+        # Get voices directly from provider (no API call needed)
+        raw_profiles = await self.voai_provider.list_voices(language)
+
+        # Update synced_at timestamp for all profiles
+        now = datetime.utcnow()
+        profiles = [
+            VoiceProfile(
+                id=p.id,
+                provider=p.provider,
+                voice_id=p.voice_id,
+                display_name=p.display_name,
+                language=p.language,
+                gender=p.gender,
+                age_group=getattr(p, "age_group", None),
+                styles=getattr(p, "styles", None) or (),
+                use_cases=getattr(p, "use_cases", None) or (),
+                description=getattr(p, "description", None) or "",
+                sample_audio_url=getattr(p, "sample_audio_url", None),
+                is_deprecated=False,
+                tags=getattr(p, "tags", None) or (),
+                metadata=getattr(p, "metadata", None) or {},
+                synced_at=now,
+            )
+            for p in raw_profiles
+        ]
+
+        # Upsert to database
+        await self.voice_cache_repo.upsert_batch(profiles)
+
+        # Mark deprecated voices
+        deprecated_count = await self._mark_deprecated_voices(
+            provider="voai",
+            current_voice_ids={p.voice_id for p in profiles},
+        )
+
+        logger.info(f"Synced {len(profiles)} VoAI voices, deprecated {deprecated_count}")
+        return len(profiles), deprecated_count
+
+    async def _sync_gemini(self) -> tuple[int, int]:
+        """Sync Gemini voices.
+
+        Gemini voices are hardcoded in the provider, no API fetch needed.
+
+        Returns:
+            Tuple of (voices_synced, voices_deprecated).
+
+        Raises:
+            ValueError: If Gemini provider is not configured.
+        """
+        if not self.gemini_provider:
+            raise ValueError("Gemini API key not configured")
+
+        # Get voices directly from provider (no API call needed)
+        raw_profiles = await self.gemini_provider.list_voices()
+
+        # Update synced_at timestamp for all profiles
+        now = datetime.utcnow()
+        profiles = [
+            VoiceProfile(
+                id=p.id,
+                provider=p.provider,
+                voice_id=p.voice_id,
+                display_name=p.display_name,
+                language=p.language,
+                gender=p.gender,
+                age_group=getattr(p, "age_group", None),
+                styles=getattr(p, "styles", None) or (),
+                use_cases=getattr(p, "use_cases", None) or (),
+                description=getattr(p, "description", None) or "",
+                sample_audio_url=getattr(p, "sample_audio_url", None),
+                is_deprecated=False,
+                tags=getattr(p, "tags", None) or (),
+                metadata=getattr(p, "metadata", None) or {},
+                synced_at=now,
+            )
+            for p in raw_profiles
+        ]
+
+        # Upsert to database
+        await self.voice_cache_repo.upsert_batch(profiles)
+
+        # Mark deprecated voices
+        deprecated_count = await self._mark_deprecated_voices(
+            provider="gemini",
+            current_voice_ids={p.voice_id for p in profiles},
+        )
+
+        logger.info(f"Synced {len(profiles)} Gemini voices, deprecated {deprecated_count}")
         return len(profiles), deprecated_count
 
     async def _fetch_with_retry(self, fetch_fn) -> list:

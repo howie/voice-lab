@@ -21,7 +21,8 @@ import type { MultiRoleTTSProvider } from '@/types/multi-role-tts'
 const PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
   { value: 'elevenlabs', label: 'ElevenLabs' },
   { value: 'azure', label: 'Azure' },
-  { value: 'gcp', label: 'Google Cloud' },
+  { value: 'gcp', label: 'Google Cloud TTS' },
+  { value: 'gemini', label: 'Gemini TTS' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'cartesia', label: 'Cartesia' },
   { value: 'deepgram', label: 'Deepgram' },

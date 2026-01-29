@@ -20,8 +20,14 @@ const PROVIDERS: Provider[] = [
   {
     id: 'gcp',
     name: 'gcp',
-    displayName: 'Google Cloud',
-    description: 'Google Cloud Text-to-Speech',
+    displayName: 'Google Cloud TTS',
+    description: 'Google Cloud Platform 傳統 TTS 服務',
+  },
+  {
+    id: 'gemini',
+    name: 'gemini',
+    displayName: 'Gemini TTS',
+    description: 'Google AI Gemini 模型語音合成（支援 style prompt）',
   },
   {
     id: 'elevenlabs',

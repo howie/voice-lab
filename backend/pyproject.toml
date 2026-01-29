@@ -42,6 +42,7 @@ dependencies = [
     # Voice Providers & Pipecat
     "pipecat-ai[azure,elevenlabs]>=0.0.50",
     "google-cloud-speech>=2.23.0",
+    "google-cloud-texttospeech>=2.16.0",
     "azure-cognitiveservices-speech>=1.35.0",
     "elevenlabs>=1.0.0",
     # Auth

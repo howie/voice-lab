@@ -19,8 +19,14 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
   },
   gcp: {
     id: 'gcp',
-    name: 'Google Cloud',
+    name: 'Google Cloud TTS',
     maxTextLength: 5000,
+  },
+  gemini: {
+    id: 'gemini',
+    name: 'Gemini TTS',
+    maxTextLength: 4000,  // Gemini TTS 限制 4000 bytes
+    warningMessage: 'Gemini TTS 輸入限制為 4000 bytes',
   },
   elevenlabs: {
     id: 'elevenlabs',

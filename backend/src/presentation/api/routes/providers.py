@@ -111,6 +111,20 @@ TTS_PROVIDER_CONFIGS = {
             "speed": {"min": 0.5, "max": 2.0, "default": 1.0},
         },
     },
+    "gemini": {
+        "display_name": "Gemini TTS",
+        "supported_formats": ["mp3", "wav", "ogg", "opus", "flac"],
+        "supported_languages": ["zh-TW", "zh-CN", "en-US", "ja-JP", "ko-KR", "multilingual"],
+        "supported_params": {
+            "speed": {"min": 0.5, "max": 2.0, "default": 1.0},
+            "pitch": {"min": -20, "max": 20, "default": 0},
+            "style_prompt": {
+                "min": 0,
+                "max": 500,
+                "default": 0,
+            },  # character limit for style prompt
+        },
+    },
     "voai": {
         "display_name": "VoAI 台灣語音",
         "supported_formats": ["mp3", "wav"],

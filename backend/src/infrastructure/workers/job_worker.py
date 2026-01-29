@@ -138,6 +138,11 @@ class JobWorker:
                 # No pending jobs available
                 return
 
+            # Commit the status change to PROCESSING immediately
+            # This ensures the job won't be picked up by other workers
+            # and the status is persisted even if execution fails later
+            await session.commit()
+
             logger.info(f"Acquired job: id={job.id}, type={job.job_type}, provider={job.provider}")
 
             try:

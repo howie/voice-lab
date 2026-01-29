@@ -108,7 +108,9 @@ class TTSProviderFactory:
             from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
 
             return GeminiTTSProvider(
-                api_key=api_key or os.getenv("GOOGLE_AI_API_KEY", ""),
+                api_key=api_key
+                or os.getenv("GOOGLE_AI_API_KEY")
+                or os.getenv("GEMINI_API_KEY", ""),
                 model=kwargs.get("model")
                 or os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-pro-preview-tts"),
             )

@@ -1,0 +1,626 @@
+openapi: 3.0.3
+info:
+  title: Magic DJ API
+  description: API for Magic DJ audio features (Phase 3)
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: presets
+    description: DJ Preset management
+  - name: tracks
+    description: Track management
+  - name: audio
+    description: Audio file management
+  - name: migration
+    description: Data import/export
+
+paths:
+  /dj/presets:
+    get:
+      tags: [presets]
+      summary: List user presets
+      operationId: listPresets
+      responses:
+        '200':
+          description: List of presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DJPreset'
+    post:
+      tags: [presets]
+      summary: Create preset
+      operationId: createPreset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePresetRequest'
+      responses:
+        '201':
+          description: Created preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJPreset'
+
+  /dj/presets/{presetId}:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [presets]
+      summary: Get preset with tracks
+      operationId: getPreset
+      responses:
+        '200':
+          description: Preset with tracks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJPresetWithTracks'
+        '404':
+          description: Preset not found
+    put:
+      tags: [presets]
+      summary: Update preset
+      operationId: updatePreset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePresetRequest'
+      responses:
+        '200':
+          description: Updated preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJPreset'
+    delete:
+      tags: [presets]
+      summary: Delete preset
+      operationId: deletePreset
+      responses:
+        '204':
+          description: Deleted
+
+  /dj/presets/{presetId}/clone:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [presets]
+      summary: Clone preset
+      operationId: clonePreset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+              required: [name]
+      responses:
+        '201':
+          description: Cloned preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJPresetWithTracks'
+
+  /dj/presets/{presetId}/tracks:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [tracks]
+      summary: List tracks in preset
+      operationId: listTracks
+      responses:
+        '200':
+          description: List of tracks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DJTrack'
+    post:
+      tags: [tracks]
+      summary: Create track
+      operationId: createTrack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrackRequest'
+      responses:
+        '201':
+          description: Created track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJTrack'
+
+  /dj/presets/{presetId}/tracks/{trackId}:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: trackId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [tracks]
+      summary: Get track
+      operationId: getTrack
+      responses:
+        '200':
+          description: Track details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJTrack'
+    put:
+      tags: [tracks]
+      summary: Update track
+      operationId: updateTrack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrackRequest'
+      responses:
+        '200':
+          description: Updated track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJTrack'
+    delete:
+      tags: [tracks]
+      summary: Delete track
+      operationId: deleteTrack
+      responses:
+        '204':
+          description: Deleted
+
+  /dj/presets/{presetId}/tracks/reorder:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [tracks]
+      summary: Reorder tracks
+      operationId: reorderTracks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trackIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required: [trackIds]
+      responses:
+        '200':
+          description: Reordered tracks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DJTrack'
+
+  /dj/audio/upload:
+    post:
+      tags: [audio]
+      summary: Upload audio file
+      operationId: uploadAudio
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                track_id:
+                  type: string
+                  format: uuid
+              required: [file, track_id]
+      responses:
+        '200':
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioUploadResponse'
+        '400':
+          description: Invalid file (size/format)
+
+  /dj/audio/{trackId}:
+    parameters:
+      - name: trackId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [audio]
+      summary: Get audio URL
+      operationId: getAudioUrl
+      responses:
+        '302':
+          description: Redirect to signed URL
+        '404':
+          description: Audio not found
+    delete:
+      tags: [audio]
+      summary: Delete audio file
+      operationId: deleteAudio
+      responses:
+        '204':
+          description: Deleted
+
+  /dj/import:
+    post:
+      tags: [migration]
+      summary: Import from localStorage
+      operationId: importFromLocalStorage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '201':
+          description: Imported preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DJPresetWithTracks'
+
+  /dj/export/{presetId}:
+    parameters:
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [migration]
+      summary: Export preset
+      operationId: exportPreset
+      responses:
+        '200':
+          description: Exported data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+components:
+  schemas:
+    TrackType:
+      type: string
+      enum: [intro, transition, effect, song, filler, rescue]
+
+    TrackSource:
+      type: string
+      enum: [tts, upload]
+
+    DJSettings:
+      type: object
+      properties:
+        master_volume:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1.0
+        time_warning_at:
+          type: integer
+          default: 1500
+        session_time_limit:
+          type: integer
+          default: 1800
+        ai_response_timeout:
+          type: integer
+          default: 10
+        auto_play_filler:
+          type: boolean
+          default: true
+
+    DJPreset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        is_default:
+          type: boolean
+        settings:
+          $ref: '#/components/schemas/DJSettings'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, user_id, name, settings, created_at, updated_at]
+
+    DJTrack:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        preset_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TrackType'
+        hotkey:
+          type: string
+          nullable: true
+        loop:
+          type: boolean
+        sort_order:
+          type: integer
+        source:
+          $ref: '#/components/schemas/TrackSource'
+        text_content:
+          type: string
+          nullable: true
+        tts_provider:
+          type: string
+          nullable: true
+        tts_voice_id:
+          type: string
+          nullable: true
+        tts_speed:
+          type: number
+        original_filename:
+          type: string
+          nullable: true
+        audio_url:
+          type: string
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        file_size_bytes:
+          type: integer
+          nullable: true
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, preset_id, name, type, source, volume, created_at, updated_at]
+
+    DJPresetWithTracks:
+      allOf:
+        - $ref: '#/components/schemas/DJPreset'
+        - type: object
+          properties:
+            tracks:
+              type: array
+              items:
+                $ref: '#/components/schemas/DJTrack'
+
+    CreatePresetRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        settings:
+          $ref: '#/components/schemas/DJSettings'
+      required: [name]
+
+    UpdatePresetRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        is_default:
+          type: boolean
+        settings:
+          $ref: '#/components/schemas/DJSettings'
+
+    CreateTrackRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/TrackType'
+        hotkey:
+          type: string
+          maxLength: 10
+          nullable: true
+        loop:
+          type: boolean
+        source:
+          $ref: '#/components/schemas/TrackSource'
+        text_content:
+          type: string
+          nullable: true
+        tts_provider:
+          type: string
+          nullable: true
+        tts_voice_id:
+          type: string
+          nullable: true
+        tts_speed:
+          type: number
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1.0
+      required: [name, type, source]
+
+    UpdateTrackRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/TrackType'
+        hotkey:
+          type: string
+          maxLength: 10
+          nullable: true
+        loop:
+          type: boolean
+        text_content:
+          type: string
+          nullable: true
+        tts_provider:
+          type: string
+          nullable: true
+        tts_voice_id:
+          type: string
+          nullable: true
+        tts_speed:
+          type: number
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    AudioUploadResponse:
+      type: object
+      properties:
+        track_id:
+          type: string
+          format: uuid
+        storage_path:
+          type: string
+        audio_url:
+          type: string
+        duration_ms:
+          type: integer
+        file_size_bytes:
+          type: integer
+        content_type:
+          type: string
+      required: [track_id, storage_path, audio_url]
+
+    ImportRequest:
+      type: object
+      properties:
+        preset_name:
+          type: string
+          maxLength: 100
+        data:
+          type: object
+          properties:
+            settings:
+              $ref: '#/components/schemas/DJSettings'
+            masterVolume:
+              type: number
+            tracks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  type:
+                    $ref: '#/components/schemas/TrackType'
+                  source:
+                    $ref: '#/components/schemas/TrackSource'
+                  volume:
+                    type: number
+                  audioBase64:
+                    type: string
+                  textContent:
+                    type: string
+      required: [preset_name, data]
+
+    ExportResponse:
+      type: object
+      properties:
+        preset:
+          $ref: '#/components/schemas/DJPreset'
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/DJTrack'
+        exported_at:
+          type: string
+          format: date-time

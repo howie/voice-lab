@@ -26,6 +26,10 @@ interface PerformanceSettingsProps {
   lightweightMode?: boolean
   /** Callback when lightweight mode changes */
   onLightweightModeChange?: (enabled: boolean) => void
+  /** Current VAD mode setting from store */
+  vadMode?: 'server' | 'manual'
+  /** Callback when VAD mode changes */
+  onVadModeChange?: (mode: 'server' | 'manual') => void
   /** Whether settings are disabled (e.g., during active session) */
   disabled?: boolean
   /** Additional CSS classes */
@@ -35,6 +39,8 @@ interface PerformanceSettingsProps {
 export function PerformanceSettings({
   lightweightMode = true,
   onLightweightModeChange,
+  vadMode = 'server',
+  onVadModeChange,
   disabled = false,
   className = '',
 }: PerformanceSettingsProps) {
@@ -146,6 +152,49 @@ export function PerformanceSettings({
             </div>
           ) : (
             <>
+              {/* VAD Mode Selector */}
+              <div className="rounded-lg border p-3">
+                <div className="mb-2">
+                  <span className="text-sm font-medium">語音活動偵測 (VAD) 模式</span>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    決定如何偵測用戶說話結束的時機
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onVadModeChange?.('server')}
+                    disabled={disabled}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      vadMode === 'server'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <div className="font-medium">Server VAD</div>
+                    <div className="mt-0.5 text-xs opacity-80">Gemini 自動偵測</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onVadModeChange?.('manual')}
+                    disabled={disabled}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      vadMode === 'manual'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <div className="font-medium">Manual VAD</div>
+                    <div className="mt-0.5 text-xs opacity-80">前端靜音偵測</div>
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {vadMode === 'server'
+                    ? '推薦：Gemini 會自動判斷語音結束，延遲更低、更自然'
+                    : '備用：前端偵測靜音後發送訊號，延遲較高但更可控'}
+                </p>
+              </div>
+
               {/* Lightweight Mode Toggle */}
               <div className="rounded-lg border p-3">
                 <label className="flex cursor-pointer items-start gap-3">

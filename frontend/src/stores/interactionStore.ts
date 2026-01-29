@@ -98,6 +98,8 @@ interface InteractionStoreState {
   setBargeInEnabled: (enabled: boolean) => void
   // US6: Auto-greeting configuration
   setAutoGreeting: (enabled: boolean, prompt?: string) => void
+  // VAD mode configuration
+  setVadMode: (mode: 'server' | 'manual') => void
   // Performance optimization
   setLightweightMode: (enabled: boolean) => void
 
@@ -151,6 +153,8 @@ const defaultOptions: InteractionOptions = {
   // US6: Auto-greeting - AI initiates conversation
   autoGreeting: true, // 預設啟用，讓 AI 主動打招呼
   greetingPrompt: undefined, // 使用預設提示
+  // VAD mode: server (recommended, lower latency) or manual (fallback)
+  vadMode: 'server',
   showLatencyMetrics: true,
   showTranscripts: true,
   // Lightweight mode: skip sync audio storage for lower latency
@@ -312,6 +316,12 @@ export const useInteractionStore = create<InteractionStoreState>()(
             autoGreeting: enabled,
             greetingPrompt: prompt,
           },
+        })),
+
+      // VAD mode configuration action
+      setVadMode: (mode) =>
+        set((state) => ({
+          options: { ...state.options, vadMode: mode },
         })),
 
       // Performance optimization action

@@ -195,8 +195,13 @@ class OpenAIRealtimeService(InteractionModeService):
         if audio.is_final:
             await self._send_message({"type": "input_audio_buffer.commit"})
 
-    async def end_turn(self) -> None:
-        """Signal end of user speech (manual turn detection)."""
+    async def end_turn(self, force: bool = False) -> None:
+        """Signal end of user speech (manual turn detection).
+
+        Args:
+            force: Ignored in OpenAI mode (OpenAI uses its own server VAD).
+        """
+        _ = force  # OpenAI mode uses server VAD by default
         if not self._connected or not self._ws:
             return
 

@@ -210,15 +210,12 @@ async def interaction_websocket(
         await handler.on_connect()
 
         # Process the config message to start session
+        # Pass the complete data from the client, not just extracted fields
         from src.infrastructure.websocket.base_handler import MessageType, WebSocketMessage
 
         config_message = WebSocketMessage(
             type=MessageType.CONFIG,
-            data={
-                "config": config,
-                "system_prompt": system_prompt,
-                "lightweight_mode": lightweight_mode,
-            },
+            data=config_data.get("data", {}),  # Pass ALL fields from client
         )
         await handler._handle_config(config_message)
 

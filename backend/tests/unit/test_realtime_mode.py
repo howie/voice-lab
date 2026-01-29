@@ -11,9 +11,11 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from src.domain.entities import InteractionMode, InteractionSession, SessionStatus
 from src.domain.services.interaction.base import InteractionModeService
+from src.domain.services.interaction.gemini_realtime import GeminiRealtimeService
 
 
 @pytest.fixture
@@ -71,10 +73,18 @@ class TestInteractionModeServiceInterface:
         assert method is not None
 
     def test_end_turn_signature(self) -> None:
-        """Verify end_turn method signature."""
-        # Expected: async def end_turn() -> None
+        """Verify end_turn method signature with force parameter."""
+        import inspect
+
+        # Expected: async def end_turn(force: bool = False) -> None
         method = getattr(InteractionModeService, "end_turn", None)
         assert method is not None
+
+        # Verify force parameter exists with default value
+        sig = inspect.signature(method)
+        params = sig.parameters
+        assert "force" in params, "end_turn should have 'force' parameter"
+        assert params["force"].default is False, "force should default to False"
 
     def test_interrupt_signature(self) -> None:
         """Verify interrupt method signature."""
@@ -184,6 +194,44 @@ class TestGeminiLiveConfig:
 
         assert "speech_config" in generation_config
         assert "response_modalities" in generation_config
+
+    def test_server_vad_config(self) -> None:
+        """Verify Server VAD configuration for Gemini.
+
+        Ref: https://ai.google.dev/api/live#AutomaticActivityDetection
+        Note: Gemini API uses camelCase and specific enum values.
+        """
+        # Server VAD mode (recommended, lower latency)
+        server_vad_config = {
+            "automatic_activity_detection": {
+                "startOfSpeechSensitivity": "START_SENSITIVITY_LOW",
+                "endOfSpeechSensitivity": "END_SENSITIVITY_LOW",
+                "prefixPaddingMs": 300,
+                "silenceDurationMs": 400,
+            }
+        }
+
+        aad = server_vad_config["automatic_activity_detection"]
+        assert "disabled" not in aad, "Server VAD should not have 'disabled' key"
+        # Validate enum values match Gemini API spec
+        valid_start_sensitivity = ["START_SENSITIVITY_LOW", "START_SENSITIVITY_HIGH"]
+        valid_end_sensitivity = ["END_SENSITIVITY_LOW", "END_SENSITIVITY_HIGH"]
+        assert aad["startOfSpeechSensitivity"] in valid_start_sensitivity
+        assert aad["endOfSpeechSensitivity"] in valid_end_sensitivity
+        assert aad["prefixPaddingMs"] >= 0
+        assert aad["silenceDurationMs"] >= 0
+
+    def test_manual_vad_config(self) -> None:
+        """Verify Manual VAD configuration for Gemini."""
+        # Manual VAD mode (frontend controlled, fallback)
+        manual_vad_config = {
+            "automatic_activity_detection": {
+                "disabled": True
+            }
+        }
+
+        aad = manual_vad_config["automatic_activity_detection"]
+        assert aad["disabled"] is True, "Manual VAD should have 'disabled': True"
 
 
 class TestOpenAIRealtimeMessages:
@@ -452,3 +500,45 @@ class TestAudioProcessing:
 
         assert decoded == mock_audio_data
         assert isinstance(encoded, str)
+
+
+class TestGeminiRealtimeService:
+    """Tests for GeminiRealtimeService logic."""
+
+    @pytest.mark.asyncio
+    async def test_interrupt_server_vad(self) -> None:
+        """Verify interrupt does NOT send message in Server VAD mode."""
+        service = GeminiRealtimeService(api_key="test-key")
+
+        # Manually set state to avoid calling connect() which requires WS mocking
+        service._connected = True
+        service._ws = MagicMock()
+        service._vad_mode = "server"
+        service._send_message = AsyncMock()
+
+        # Call interrupt
+        await service.interrupt()
+
+        # Verify NO message was sent
+        service._send_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_interrupt_manual_vad(self) -> None:
+        """Verify interrupt sends message in Manual VAD mode."""
+        service = GeminiRealtimeService(api_key="test-key")
+
+        # Manually set state
+        service._connected = True
+        service._ws = MagicMock()
+        service._vad_mode = "manual"
+        service._send_message = AsyncMock()
+
+        # Call interrupt
+        await service.interrupt()
+
+        # Verify message WAS sent
+        service._send_message.assert_called_once()
+        args, _ = service._send_message.call_args
+        message = args[0]
+        assert "client_content" in message
+        assert message["client_content"]["turn_complete"] is True

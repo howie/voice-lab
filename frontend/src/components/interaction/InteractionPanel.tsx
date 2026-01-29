@@ -240,6 +240,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setBargeInEnabled,
     // US6: Auto-greeting configuration
     setAutoGreeting,
+    // VAD mode configuration
+    setVadMode,
     // Performance optimization
     setLightweightMode,
   } = useInteractionStore()
@@ -461,11 +463,18 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // 1. WebSocket 已連線
       // 2. 狀態為 'listening'（用戶輪次）
       // 3. 或者音量足夠大（可能是打斷 AI）
+      // 4. Server VAD 模式下，speaking 狀態也要發送（讓 Gemini 偵測打斷）
       const currentState = interactionStateRef.current
       const currentVolume = inputVolumeRef.current
+      const isServerVadMode = options.vadMode === 'server'
+
+      // In Server VAD mode, always send audio when speaking (for auto-interrupt detection)
+      // Gemini will detect user speech and automatically interrupt AI response
       const shouldSend =
         wsStatus === 'connected' &&
-        (currentState === 'listening' || currentVolume > SPEAKING_THRESHOLD)
+        (currentState === 'listening' ||
+          currentVolume > SPEAKING_THRESHOLD ||
+          (isServerVadMode && currentState === 'speaking'))
 
       if (!shouldSend) {
         // Debug: Log when audio is blocked (rate-limited to avoid spam)
@@ -512,9 +521,38 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       setInputVolume(vol)
       inputVolumeRef.current = vol // Update ref for audio gating in onAudioChunk
 
-      // VAD state machine: auto send end_turn when user stops speaking
-      // Use ref for interactionState to avoid stale closure
       const currentState = interactionStateRef.current
+      const isServerVadMode = options.vadMode === 'server'
+
+      // Server VAD Mode: Gemini handles both end-of-speech and barge-in detection
+      if (isServerVadMode) {
+        // In Server VAD mode:
+        // - Audio is continuously sent (even during 'speaking' state)
+        // - Gemini auto-detects when user starts speaking and interrupts AI
+        // - No need to send explicit 'interrupt' message
+        // - When Gemini detects barge-in, it sends 'interrupted' event
+        // - We just need to stop audio playback when we receive 'interrupted'
+
+        // Optional: Log when user might be barging in (for debugging)
+        if (currentState === 'speaking' && vol > SPEAKING_THRESHOLD) {
+          speakingFrameCountRef.current++
+          if (speakingFrameCountRef.current === SPEAKING_FRAMES_REQUIRED) {
+            log('BARGE_IN', `user speaking during AI response (vol=${(vol * 100).toFixed(1)}%) - Gemini will auto-detect`)
+            // Stop local audio playback immediately for better UX
+            // Gemini will send 'interrupted' event shortly
+            stopAudio()
+          }
+        } else {
+          speakingFrameCountRef.current = 0
+        }
+
+        // In Server VAD mode, we skip Manual VAD silence detection
+        // Gemini will automatically detect end-of-speech
+        return
+      }
+
+      // Manual VAD Mode: Detect silence and send end_turn
+      // Use ref for interactionState to avoid stale closure
       if (wsStatus === 'connected' && currentState === 'listening') {
         const now = Date.now()
 
@@ -649,6 +687,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       // T084: Include barge_in_enabled configuration
       // T089: Include lightweight_mode for lower latency V2V
       // US6: Include auto_greeting to trigger AI-initiated conversation
+      // Server VAD: Include vad_mode for Server/Manual VAD selection
       const configPayload = {
         config: options.providerConfig,
         system_prompt: options.systemPrompt,
@@ -659,9 +698,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         lightweight_mode: options.lightweightMode ?? true,
         auto_greeting: options.autoGreeting ?? false,
         greeting_prompt: options.greetingPrompt,
+        vad_mode: options.vadMode ?? 'server',
       }
-      // Debug: Log the config being sent to verify aiRole
-      log('CONFIG', `sending config: user_role="${configPayload.user_role}", ai_role="${configPayload.ai_role}"`)
       sendMessage('config', configPayload)
     }
   }, [wsStatus, sendMessage, options, log])
@@ -697,10 +735,13 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     stopAudio()
   }
 
-  // Handle manual end of user speech (backup for when VAD doesn't detect silence)
+  // Handle manual end of user speech (Force Send button)
+  // In Server VAD mode, we pass force=true to override automatic detection
   const handleEndTurn = () => {
     stopRecording()
-    sendMessage('end_turn', {})
+    // Always pass force=true for manual end turn (Force Send button)
+    // This ensures the signal is sent even in Server VAD mode
+    sendMessage('end_turn', { force: true })
     setInteractionState('processing')
   }
 
@@ -733,6 +774,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         <PerformanceSettings
           lightweightMode={options.lightweightMode}
           onLightweightModeChange={setLightweightMode}
+          vadMode={options.vadMode}
+          onVadModeChange={setVadMode}
           disabled={isConnected}
         />
       )}

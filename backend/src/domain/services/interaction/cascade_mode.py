@@ -147,8 +147,13 @@ class CascadeModeService(InteractionModeService):
         if self._audio_buffer.tell() == len(audio.data):
             await self._emit_event("speech_started", {})
 
-    async def end_turn(self) -> None:
-        """Process accumulated audio through STT → LLM → TTS pipeline."""
+    async def end_turn(self, force: bool = False) -> None:
+        """Process accumulated audio through STT → LLM → TTS pipeline.
+
+        Args:
+            force: Ignored in cascade mode (always processes).
+        """
+        _ = force  # Cascade mode always processes
         if not self._connected or self._is_processing:
             return
 

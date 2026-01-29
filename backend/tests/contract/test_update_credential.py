@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 from src.domain.entities.provider_credential import UserProviderCredential
 from src.infrastructure.providers.validators.base import ValidationResult
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -54,15 +55,21 @@ class TestUpdateCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -81,7 +88,7 @@ class TestUpdateCredentialEndpoint:
                     response = await ac.put(
                         f"/api/v1/credentials/{mock_credential.id}",
                         json={"selected_model_id": "eleven_multilingual_v2"},
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 200
@@ -115,15 +122,21 @@ class TestUpdateCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -146,7 +159,7 @@ class TestUpdateCredentialEndpoint:
                     response = await ac.put(
                         f"/api/v1/credentials/{mock_credential.id}",
                         json={"api_key": "sk-newkey1234567890abcdef"},
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 200
@@ -177,15 +190,21 @@ class TestUpdateCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -208,7 +227,7 @@ class TestUpdateCredentialEndpoint:
                     response = await ac.put(
                         f"/api/v1/credentials/{mock_credential.id}",
                         json={"api_key": "invalid-key"},
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 400
@@ -239,15 +258,21 @@ class TestUpdateCredentialEndpoint:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -273,7 +298,7 @@ class TestUpdateCredentialEndpoint:
                             "api_key": "sk-newkey1234567890",
                             "selected_model_id": "eleven_turbo_v2",
                         },
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 200
@@ -293,15 +318,21 @@ class TestUpdateCredentialEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -321,7 +352,7 @@ class TestUpdateCredentialEndpoint:
                     response = await ac.put(
                         f"/api/v1/credentials/{fake_id}",
                         json={"selected_model_id": "some-model"},
-                        headers={"X-User-Id": str(mock_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 404
@@ -344,15 +375,21 @@ class TestUpdateCredentialEndpoint:
 
         mock_session = MagicMock()
 
-        async def override_get_current_user_id():
-            return different_user_id
+        mock_current_user = CurrentUser(
+            id=str(different_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -371,7 +408,7 @@ class TestUpdateCredentialEndpoint:
                     response = await ac.put(
                         f"/api/v1/credentials/{mock_credential.id}",
                         json={"selected_model_id": "some-model"},
-                        headers={"X-User-Id": str(different_user_id)},
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                 assert response.status_code == 403
@@ -386,15 +423,13 @@ class TestUpdateCredentialEndpoint:
         """T037: Test updating credential without authentication."""
         from fastapi import HTTPException, status
 
-        async def override_get_current_user_id():
+        async def override_get_current_user():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
             )
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             transport = ASGITransport(app=app)

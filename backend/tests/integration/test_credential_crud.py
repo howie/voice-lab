@@ -14,6 +14,7 @@ from src.domain.entities.provider import Provider
 from src.domain.entities.provider_credential import UserProviderCredential
 from src.infrastructure.providers.validators.base import ValidationResult
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -119,15 +120,21 @@ class TestCredentialCRUDIntegration:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -269,15 +276,21 @@ class TestCredentialCRUDIntegration:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -377,16 +390,22 @@ class TestCredentialCRUDIntegration:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        # Dynamic user override - returns current_user["id"]
-        async def override_get_current_user_id():
-            return current_user["id"]
+        # Dynamic user override - returns CurrentUser with current_user["id"]
+        mock_current_user = CurrentUser(
+            id=str(current_user["id"]),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:
@@ -495,15 +514,21 @@ class TestCredentialAPIKeyRotation:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        async def override_get_current_user_id():
-            return mock_user_id
+        mock_current_user = CurrentUser(
+            id=str(mock_user_id),
+            email="test@example.com",
+            name="Test User",
+            picture_url=None,
+            google_id="google-123",
+        )
+
+        async def override_get_current_user():
+            return mock_current_user
 
         async def override_get_db_session():
             return mock_session
 
-        app.dependency_overrides[credentials_module.get_current_user_id] = (
-            override_get_current_user_id
-        )
+        app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
         try:

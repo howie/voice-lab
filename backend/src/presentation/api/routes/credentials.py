@@ -20,7 +20,6 @@ from src.application.use_cases.validate_provider_key import (
     ValidateKeyInput,
     ValidateProviderKeyUseCase,
 )
-from src.config import get_settings
 from src.domain.utils.masking import mask_api_key
 from src.infrastructure.persistence.audit_log_repository import (
     SQLAlchemyAuditLogRepository,
@@ -31,6 +30,7 @@ from src.infrastructure.persistence.credential_repository import (
 )
 from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.providers.validators import ProviderValidatorRegistry
+from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.schemas.credential import (
     AddCredentialRequest,
     CredentialListResponse,
@@ -50,44 +50,6 @@ router = APIRouter(prefix="/credentials", tags=["Credentials"])
 providers_router = APIRouter(prefix="/credentials/providers", tags=["Providers"])
 
 
-# Development user ID for DISABLE_AUTH mode
-DEV_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
-
-# Dependency to get current user ID
-# In production, this would come from JWT token validation
-async def get_current_user_id(request: Request) -> uuid.UUID:
-    """Get the current user ID from the request.
-
-    This is a placeholder - in production this would validate JWT token
-    and extract user_id from it.
-    """
-    settings = get_settings()
-
-    # Development mode: return dev user ID
-    if settings.disable_auth:
-        return DEV_USER_ID
-
-    # For now, check if there's a user_id in request state (set by auth middleware)
-    user_id = getattr(request.state, "user_id", None)
-    if user_id is None:
-        # For development/testing, allow a header-based user ID
-        user_id_header = request.headers.get("X-User-Id")
-        if user_id_header:
-            try:
-                return uuid.UUID(user_id_header)
-            except ValueError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid user ID format",
-                ) from e
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-    return user_id
-
-
 def _get_provider_display_name(provider_id: str) -> str:
     """Get display name for a provider."""
     display_names = {
@@ -103,10 +65,11 @@ def _get_provider_display_name(provider_id: str) -> str:
 
 @router.get("", response_model=CredentialListResponse)
 async def list_credentials(
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CredentialListResponse:
     """List all provider credentials for the current user."""
+    user_id = uuid.UUID(current_user.id)
     repo = SQLAlchemyProviderCredentialRepository(session)
     credentials = await repo.list_by_user(user_id)
 
@@ -131,13 +94,14 @@ async def list_credentials(
 async def add_credential(
     request_data: AddCredentialRequest,
     request: Request,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CredentialResponse:
     """Add a new provider credential.
 
     The API key will be validated against the provider's API before being stored.
     """
+    user_id = uuid.UUID(current_user.id)
     credential_repo = SQLAlchemyProviderCredentialRepository(session)
     provider_repo = SQLAlchemyProviderRepository(session)
     audit_repo = SQLAlchemyAuditLogRepository(session)
@@ -191,10 +155,11 @@ async def add_credential(
 @router.get("/{credential_id}", response_model=CredentialResponse)
 async def get_credential(
     credential_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CredentialResponse:
     """Get details of a specific credential."""
+    user_id = uuid.UUID(current_user.id)
     repo = SQLAlchemyProviderCredentialRepository(session)
     cred = await repo.get_by_id(credential_id)
 
@@ -228,10 +193,11 @@ async def update_credential(
     credential_id: uuid.UUID,
     request_data: UpdateCredentialRequest,
     request: Request,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CredentialResponse:
     """Update a credential (API key and/or selected model)."""
+    user_id = uuid.UUID(current_user.id)
     repo = SQLAlchemyProviderCredentialRepository(session)
     audit_repo = SQLAlchemyAuditLogRepository(session)
     audit_service = AuditService(audit_repo)
@@ -312,10 +278,11 @@ async def update_credential(
 async def delete_credential(
     credential_id: uuid.UUID,
     request: Request,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
     """Delete a credential."""
+    user_id = uuid.UUID(current_user.id)
     repo = SQLAlchemyProviderCredentialRepository(session)
     audit_repo = SQLAlchemyAuditLogRepository(session)
     audit_service = AuditService(audit_repo)
@@ -351,10 +318,11 @@ async def delete_credential(
 async def validate_credential(
     credential_id: uuid.UUID,
     request: Request,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ValidationResult:
     """Re-validate an existing credential."""
+    user_id = uuid.UUID(current_user.id)
     credential_repo = SQLAlchemyProviderCredentialRepository(session)
     audit_repo = SQLAlchemyAuditLogRepository(session)
     audit_service = AuditService(audit_repo)
@@ -407,11 +375,12 @@ async def validate_credential(
 @router.get("/{credential_id}/models", response_model=ProviderModelsResponse)
 async def list_credential_models(
     credential_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     language: str | None = None,
 ) -> ProviderModelsResponse:
     """List available models for a credential's provider."""
+    user_id = uuid.UUID(current_user.id)
     repo = SQLAlchemyProviderCredentialRepository(session)
     cred = await repo.get_by_id(credential_id)
 

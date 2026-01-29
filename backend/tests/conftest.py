@@ -13,6 +13,7 @@ import pytest
 
 from src.domain.entities.job import Job, JobStatus, JobType
 from src.main import app
+from src.presentation.api.middleware.auth import CurrentUser, get_current_user
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -71,21 +72,28 @@ async def override_dependencies(
     """Context manager to override FastAPI dependencies for testing.
 
     Args:
-        user_id: The user ID to return from get_current_user_id
+        user_id: The user ID to return from get_current_user
         session: The mock database session
         credential_repo: Optional mock credential repository
         provider_repo: Optional mock provider repository
         audit_repo: Optional mock audit log repository
     """
+    mock_current_user = CurrentUser(
+        id=str(user_id),
+        email="test@example.com",
+        name="Test User",
+        picture_url=None,
+        google_id="google-123",
+    )
 
-    async def override_get_current_user_id() -> uuid.UUID:
-        return user_id
+    async def override_get_current_user() -> CurrentUser:
+        return mock_current_user
 
     async def override_get_db_session() -> Any:
         return session
 
     # Set overrides
-    app.dependency_overrides[credentials_module.get_current_user_id] = override_get_current_user_id
+    app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[credentials_module.get_db_session] = override_get_db_session
 
     try:

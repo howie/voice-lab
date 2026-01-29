@@ -7,6 +7,7 @@ from src.presentation.api.routes import (
     auth,
     compare,
     credentials,
+    dj,
     health,
     history,
     interaction,
@@ -40,5 +41,6 @@ api_router.include_router(credentials.providers_router)  # Providers (credential
 api_router.include_router(credentials.router)  # Credentials routes have their own prefix
 api_router.include_router(jobs.router)  # Jobs routes (async job management)
 api_router.include_router(admin_voices.router)  # Admin voice sync routes
+api_router.include_router(dj.router)  # DJ routes (Magic DJ Controller)
 
 __all__ = ["api_router"]

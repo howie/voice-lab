@@ -5,6 +5,15 @@ from src.domain.entities.audio_file import AudioFile, AudioFileFormat, AudioSour
 
 # Interaction module entities (Phase 4)
 from src.domain.entities.conversation_turn import ConversationTurn
+
+# DJ entities (Feature 011)
+from src.domain.entities.dj import (
+    DJPreset,
+    DJSettings,
+    DJTrack,
+    DJTrackSource,
+    DJTrackType,
+)
 from src.domain.entities.ground_truth import GroundTruth
 from src.domain.entities.interaction import InteractionRequest, InteractionResult
 from src.domain.entities.interaction_enums import InteractionMode, SessionStatus
@@ -59,4 +68,10 @@ __all__ = [
     "Job",
     "JobStatus",
     "JobType",
+    # DJ (Feature 011)
+    "DJPreset",
+    "DJSettings",
+    "DJTrack",
+    "DJTrackSource",
+    "DJTrackType",
 ]

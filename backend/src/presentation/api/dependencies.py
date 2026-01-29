@@ -112,8 +112,8 @@ class Container:
         """Create TTS provider instances based on configuration."""
         providers: dict[str, ITTSProvider] = {}
 
-        # Gemini TTS - Enable if GOOGLE_AI_API_KEY is set
-        google_ai_api_key = os.getenv("GOOGLE_AI_API_KEY")
+        # Gemini TTS - Enable if GOOGLE_AI_API_KEY or GEMINI_API_KEY is set
+        google_ai_api_key = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY")
         if google_ai_api_key:
             try:
                 from src.infrastructure.providers.tts import GeminiTTSProvider

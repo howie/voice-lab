@@ -1,16 +1,20 @@
 /**
  * Multi-Track Player Hook
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T005: Web Audio API multi-track playback with AudioContext, GainNode per track,
  * preloading, play/stop/volume control.
  * T046: Track loading error state with per-track error flag and retry capability.
+ * 011-T028~T029: Integrate persistent volume from store, real-time GainNode adjustment.
+ * 011-T032: Enforce maximum 5 concurrent tracks limit.
  */
 
 import { useCallback, useEffect, useRef } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import type { Track } from '@/types/magic-dj'
+import { MAX_CONCURRENT_TRACKS } from '@/types/magic-dj'
 
 // =============================================================================
 // Types
@@ -46,6 +50,10 @@ export interface UseMultiTrackPlayerReturn {
   isTrackPlaying: (trackId: string) => boolean
   /** Get loading progress (0-1) */
   getLoadingProgress: () => number
+  /** Get count of currently playing tracks (011-T032) */
+  getPlayingCount: () => number
+  /** Check if can play more tracks (011-T032) */
+  canPlayMore: () => boolean
 }
 
 // =============================================================================
@@ -58,7 +66,7 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
   const tracksRef = useRef<Map<string, TrackAudioNode>>(new Map())
   const trackConfigRef = useRef<Map<string, Track>>(new Map())
 
-  const { masterVolume, updateTrackState } = useMagicDJStore()
+  const { masterVolume, tracks, trackStates, updateTrackState } = useMagicDJStore()
 
   // Initialize AudioContext lazily (requires user interaction)
   const getAudioContext = useCallback(() => {
@@ -183,12 +191,35 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     [loadTrack]
   )
 
-  // Play a track
+  // Get count of currently playing tracks (011-T032)
+  const getPlayingCount = useCallback((): number => {
+    let count = 0
+    for (const [, node] of tracksRef.current) {
+      if (node.isPlaying) count++
+    }
+    return count
+  }, [])
+
+  // Check if can play more tracks (011-T032)
+  const canPlayMore = useCallback((): boolean => {
+    return getPlayingCount() < MAX_CONCURRENT_TRACKS
+  }, [getPlayingCount])
+
+  // Play a track (011-T028, T029, T032)
   const playTrack = useCallback(
     (trackId: string, loop = false): void => {
       const node = tracksRef.current.get(trackId)
       if (!node?.buffer) {
         console.warn(`Track ${trackId} is not loaded`)
+        return
+      }
+
+      // 011-T032: Check concurrent track limit (only if not already playing this track)
+      if (!node.isPlaying && getPlayingCount() >= MAX_CONCURRENT_TRACKS) {
+        console.warn(`Cannot play more than ${MAX_CONCURRENT_TRACKS} tracks simultaneously`)
+        updateTrackState(trackId, {
+          error: `最多只能同時播放 ${MAX_CONCURRENT_TRACKS} 個音軌`,
+        })
         return
       }
 
@@ -208,6 +239,13 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       source.loop = loop
       source.connect(node.gainNode)
 
+      // 011-T028: Apply persistent volume from track config
+      const track = tracks.find((t) => t.id === trackId)
+      const trackState = trackStates[trackId]
+      const persistedVolume = track?.volume ?? 1
+      const isMuted = trackState?.isMuted ?? false
+      node.gainNode.gain.value = isMuted ? 0 : persistedVolume
+
       // Handle track end
       source.onended = () => {
         node.isPlaying = false
@@ -219,9 +257,9 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       node.source = source
       node.isPlaying = true
 
-      updateTrackState(trackId, { isPlaying: true, currentTime: 0 })
+      updateTrackState(trackId, { isPlaying: true, currentTime: 0, error: null })
     },
-    [getAudioContext, updateTrackState]
+    [getAudioContext, updateTrackState, getPlayingCount, tracks, trackStates]
   )
 
   // Stop a track
@@ -252,14 +290,18 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     }
   }, [stopTrack])
 
-  // Set track volume
+  // Set track volume (011-T029: real-time GainNode adjustment)
   const setTrackVolume = useCallback(
     (trackId: string, volume: number): void => {
       const node = tracksRef.current.get(trackId)
       if (!node) return
 
       const clampedVolume = Math.max(0, Math.min(1, volume))
-      node.gainNode.gain.value = clampedVolume
+
+      // 011-T029: Smooth volume transition for better UX
+      const currentTime = audioContextRef.current?.currentTime ?? 0
+      node.gainNode.gain.setTargetAtTime(clampedVolume, currentTime, 0.01)
+
       updateTrackState(trackId, { volume: clampedVolume })
     },
     [updateTrackState]
@@ -354,6 +396,9 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     isTrackLoaded,
     isTrackPlaying,
     getLoadingProgress,
+    // 011-T032
+    getPlayingCount,
+    canPlayMore,
   }
 }
 

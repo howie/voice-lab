@@ -1,9 +1,11 @@
 /**
  * Magic DJ Store
  * Feature: 010-magic-dj-controller
+ * Feature: 011-magic-dj-audio-features
  *
  * T004: Zustand store for Magic DJ state management.
  * T048: Operation priority queue with debounce logic.
+ * 011-T006~T009: Audio features enhancement - migration logic and volume actions.
  */
 
 import { create } from 'zustand'
@@ -18,12 +20,20 @@ import type {
   SessionRecord,
   Track,
   TrackPlaybackState,
+  TrackSource,
 } from '@/types/magic-dj'
 import {
   DEFAULT_DJ_SETTINGS,
   DEFAULT_TRACKS,
   OperationPriority,
 } from '@/types/magic-dj'
+import * as djApi from '@/services/djApi'
+import {
+  audioStorage,
+  type StorageQuota,
+  type AudioStorageError,
+  type MigrationResult,
+} from '@/lib/audioStorage'
 
 // =============================================================================
 // Store Interface
@@ -38,6 +48,10 @@ interface MagicDJStoreState extends MagicDJState {
   updateTrackState: (trackId: string, state: Partial<TrackPlaybackState>) => void
   reorderTracks: (activeId: string, overId: string) => void
   setMasterVolume: (volume: number) => void
+
+  // === 011 Audio Features: Volume Actions (T007, T008) ===
+  setTrackVolume: (trackId: string, volume: number) => void
+  toggleTrackMute: (trackId: string) => void
 
   // === Mode Actions ===
   setMode: (mode: OperationMode) => void
@@ -65,6 +79,31 @@ interface MagicDJStoreState extends MagicDJState {
   processOperationQueue: () => PendingOperation | null
   clearOperationQueue: () => void
 
+  // === Backend Sync Actions (011 Phase 3) ===
+  setAuthenticated: (authenticated: boolean) => void
+  fetchPresets: () => Promise<void>
+  loadPreset: (presetId: string) => Promise<void>
+  saveCurrentPreset: () => Promise<void>
+  createNewPreset: (name: string, description?: string) => Promise<string>
+  deleteCurrentPreset: () => Promise<void>
+  importToBackend: (presetName: string) => Promise<string>
+  switchToLocalStorage: () => void
+
+  // === IndexedDB Storage Actions (011 Phase 4) ===
+  storageQuota: StorageQuota | null
+  storageError: AudioStorageError | null
+  isStorageReady: boolean
+  hasPendingMigration: boolean
+  pendingMigrationCount: number
+  initializeStorage: () => Promise<void>
+  refreshStorageQuota: () => Promise<void>
+  saveAudioToStorage: (trackId: string, blob: Blob) => Promise<void>
+  loadAudioFromStorage: (trackId: string) => Promise<Blob | null>
+  deleteAudioFromStorage: (trackId: string) => Promise<void>
+  checkMigration: () => void
+  completeMigration: (result: MigrationResult) => void
+  clearStorageError: () => void
+
   // === General Actions ===
   reset: () => void
 }
@@ -83,13 +122,33 @@ const createInitialTrackStates = (tracks: Track[]): Record<string, TrackPlayback
       isLoading: false,
       error: null,
       currentTime: 0,
-      volume: 1,
+      volume: track.volume ?? 1,
+      // 011 Audio Features (T005)
+      isMuted: false,
+      previousVolume: track.volume ?? 1,
     }
   }
   return states
 }
 
-const initialState: MagicDJState = {
+/**
+ * Migrate legacy track data (011-T006)
+ * - Add source: 'tts' if missing
+ * - Add volume: 1.0 if missing
+ */
+const migrateTrackData = (track: Partial<Track>): Track => ({
+  ...track,
+  source: (track.source as TrackSource) ?? 'tts',
+  volume: track.volume ?? 1.0,
+} as Track)
+
+const initialState: MagicDJState & {
+  storageQuota: StorageQuota | null
+  storageError: AudioStorageError | null
+  isStorageReady: boolean
+  hasPendingMigration: boolean
+  pendingMigrationCount: number
+} = {
   tracks: DEFAULT_TRACKS,
   trackStates: createInitialTrackStates(DEFAULT_TRACKS),
   masterVolume: 1,
@@ -104,6 +163,19 @@ const initialState: MagicDJState = {
   currentSession: null,
   pendingOperations: [],
   lastOperationTime: 0,
+  // Backend Sync (011 Phase 3)
+  currentPresetId: null,
+  presets: [],
+  isLoading: false,
+  isSyncing: false,
+  syncError: null,
+  isAuthenticated: false,
+  // IndexedDB Storage (011 Phase 4)
+  storageQuota: null,
+  storageError: null,
+  isStorageReady: false,
+  hasPendingMigration: false,
+  pendingMigrationCount: 0,
 }
 
 // =============================================================================
@@ -179,9 +251,16 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           trackStates: createInitialTrackStates(tracks),
         }),
 
-      addTrack: (track) =>
+      addTrack: (track) => {
+        // Add track to state with IndexedDB flag
+        const migratedTrack = {
+          ...migrateTrackData(track),
+          // Mark that audio is stored in IndexedDB, not base64
+          hasLocalAudio: track.source === 'upload',
+        }
+
         set((prev) => ({
-          tracks: [...prev.tracks, track],
+          tracks: [...prev.tracks, migratedTrack],
           trackStates: {
             ...prev.trackStates,
             [track.id]: {
@@ -191,12 +270,30 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
               isLoading: false,
               error: null,
               currentTime: 0,
-              volume: 1,
+              volume: track.volume ?? 1,
+              // 011 Audio Features (T005)
+              isMuted: false,
+              previousVolume: track.volume ?? 1,
             },
           },
-        })),
+        }))
+      },
 
-      removeTrack: (trackId) =>
+      removeTrack: (trackId) => {
+        const track = get().tracks.find((t) => t.id === trackId)
+
+        // Delete from IndexedDB if it's a local audio track
+        if (track && (track.source === 'upload' || track.hasLocalAudio)) {
+          audioStorage.delete(trackId).catch((err) => {
+            console.error('Failed to delete audio from storage:', err)
+          })
+        }
+
+        // Revoke blob URL if exists
+        if (track?.url && track.url.startsWith('blob:')) {
+          audioStorage.revokeObjectURL(track.url)
+        }
+
         set((prev) => {
           const newTracks = prev.tracks.filter((t) => t.id !== trackId)
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -205,7 +302,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             tracks: newTracks,
             trackStates: newTrackStates,
           }
-        }),
+        })
+      },
 
       updateTrack: (trackId, updates) =>
         set((prev) => ({
@@ -241,6 +339,51 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       setMasterVolume: (volume) =>
         set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
+
+      // === 011 Audio Features: Volume Actions (T007, T008) ===
+      setTrackVolume: (trackId, volume) =>
+        set((prev) => {
+          const clampedVolume = Math.max(0, Math.min(1, volume))
+          return {
+            tracks: prev.tracks.map((t) =>
+              t.id === trackId ? { ...t, volume: clampedVolume } : t
+            ),
+            trackStates: {
+              ...prev.trackStates,
+              [trackId]: {
+                ...prev.trackStates[trackId],
+                volume: clampedVolume,
+                isMuted: clampedVolume === 0,
+              },
+            },
+          }
+        }),
+
+      toggleTrackMute: (trackId) =>
+        set((prev) => {
+          const currentState = prev.trackStates[trackId]
+          const track = prev.tracks.find((t) => t.id === trackId)
+          if (!currentState || !track) return prev
+
+          const isMuted = currentState.isMuted
+          const newVolume = isMuted ? currentState.previousVolume || 1 : 0
+          const previousVolume = isMuted ? currentState.previousVolume : track.volume
+
+          return {
+            tracks: prev.tracks.map((t) =>
+              t.id === trackId ? { ...t, volume: newVolume } : t
+            ),
+            trackStates: {
+              ...prev.trackStates,
+              [trackId]: {
+                ...currentState,
+                volume: newVolume,
+                isMuted: !isMuted,
+                previousVolume: previousVolume,
+              },
+            },
+          }
+        }),
 
       // === Mode Actions ===
       setMode: (mode) => {
@@ -406,30 +549,362 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       clearOperationQueue: () => set({ pendingOperations: [] }),
 
+      // === Backend Sync Actions (011 Phase 3) ===
+      setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
+
+      fetchPresets: async () => {
+        const state = get()
+        if (!state.isAuthenticated) return
+
+        set({ isLoading: true, syncError: null })
+        try {
+          const response = await djApi.listPresets()
+          set({
+            presets: response.items.map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              is_default: p.is_default,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+            })),
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Failed to fetch presets:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to fetch presets',
+            isLoading: false,
+          })
+        }
+      },
+
+      loadPreset: async (presetId) => {
+        set({ isLoading: true, syncError: null })
+        try {
+          const response = await djApi.getPreset(presetId)
+
+          // Convert API tracks to frontend format
+          const tracks = response.tracks.map((t) => djApi.apiTrackToFrontend(t))
+
+          // Convert settings
+          const apiSettings = djApi.apiSettingsToFrontend(response.settings)
+
+          set({
+            currentPresetId: presetId,
+            tracks,
+            trackStates: createInitialTrackStates(tracks),
+            masterVolume: response.settings.master_volume,
+            settings: {
+              ...get().settings,
+              ...apiSettings,
+            },
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Failed to load preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to load preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      saveCurrentPreset: async () => {
+        const state = get()
+        if (!state.currentPresetId || !state.isAuthenticated) return
+
+        set({ isSyncing: true, syncError: null })
+        try {
+          // Update preset settings
+          await djApi.updatePreset(state.currentPresetId, {
+            settings: {
+              master_volume: state.masterVolume,
+              ...djApi.frontendSettingsToApi(state.settings),
+            },
+          })
+
+          // Update each track
+          for (const track of state.tracks) {
+            await djApi.updateTrack(state.currentPresetId, track.id, {
+              name: track.name,
+              type: track.type,
+              hotkey: track.hotkey,
+              loop: track.loop,
+              text_content: track.textContent,
+              volume: track.volume,
+            })
+          }
+
+          set({ isSyncing: false })
+        } catch (error) {
+          console.error('Failed to save preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to save preset',
+            isSyncing: false,
+          })
+          throw error
+        }
+      },
+
+      createNewPreset: async (name, description) => {
+        set({ isLoading: true, syncError: null })
+        try {
+          const state = get()
+          const response = await djApi.createPreset({
+            name,
+            description,
+            settings: {
+              master_volume: state.masterVolume,
+              ...djApi.frontendSettingsToApi(state.settings),
+            },
+          })
+
+          // Refresh preset list
+          await get().fetchPresets()
+
+          set({ isLoading: false })
+          return response.id
+        } catch (error) {
+          console.error('Failed to create preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to create preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      deleteCurrentPreset: async () => {
+        const state = get()
+        if (!state.currentPresetId) return
+
+        set({ isLoading: true, syncError: null })
+        try {
+          await djApi.deletePreset(state.currentPresetId)
+
+          // Switch to localStorage mode
+          set({
+            currentPresetId: null,
+            tracks: DEFAULT_TRACKS,
+            trackStates: createInitialTrackStates(DEFAULT_TRACKS),
+            isLoading: false,
+          })
+
+          // Refresh preset list
+          await get().fetchPresets()
+        } catch (error) {
+          console.error('Failed to delete preset:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to delete preset',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      importToBackend: async (presetName) => {
+        const state = get()
+        set({ isLoading: true, syncError: null })
+
+        try {
+          // Prepare localStorage data format
+          const localStorageData: djApi.LocalStorageData = {
+            masterVolume: state.masterVolume,
+            settings: state.settings as unknown as Record<string, unknown>,
+            tracks: state.tracks.map((track) => ({
+              id: track.id,
+              name: track.name,
+              type: track.type,
+              source: track.source,
+              hotkey: track.hotkey,
+              loop: track.loop,
+              text_content: track.textContent,
+              audioBase64: track.audioBase64,
+              volume: track.volume,
+            })),
+          }
+
+          const response = await djApi.importFromLocalStorage(presetName, localStorageData)
+
+          // Refresh preset list
+          await get().fetchPresets()
+
+          set({ isLoading: false })
+          return response.id
+        } catch (error) {
+          console.error('Failed to import to backend:', error)
+          set({
+            syncError: error instanceof Error ? error.message : 'Failed to import',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      switchToLocalStorage: () => {
+        set({
+          currentPresetId: null,
+          syncError: null,
+        })
+      },
+
+      // === IndexedDB Storage Actions (011 Phase 4) ===
+      storageQuota: null,
+      storageError: null,
+      isStorageReady: false,
+      hasPendingMigration: false,
+      pendingMigrationCount: 0,
+
+      initializeStorage: async () => {
+        try {
+          await audioStorage.init()
+          const quota = await audioStorage.getQuota()
+          const pendingCount = audioStorage.getPendingMigrationCount()
+
+          set({
+            isStorageReady: true,
+            storageQuota: quota,
+            hasPendingMigration: pendingCount > 0,
+            pendingMigrationCount: pendingCount,
+            storageError: null,
+          })
+
+          // Restore audio URLs for tracks that have local storage
+          const state = get()
+          const tracksToRestore = state.tracks.filter(
+            (t) => t.source === 'upload' || t.hasLocalAudio
+          )
+
+          if (tracksToRestore.length > 0) {
+            const trackIds = tracksToRestore.map((t) => t.id)
+            const blobs = await audioStorage.getMultiple(trackIds)
+
+            const updatedTracks = state.tracks.map((track) => {
+              const blob = blobs.get(track.id)
+              if (blob) {
+                return {
+                  ...track,
+                  url: audioStorage.createObjectURL(blob),
+                }
+              }
+              return track
+            })
+
+            set({ tracks: updatedTracks })
+          }
+        } catch (error) {
+          console.error('Failed to initialize storage:', error)
+          set({
+            storageError: error as AudioStorageError,
+            isStorageReady: false,
+          })
+        }
+      },
+
+      refreshStorageQuota: async () => {
+        try {
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota })
+        } catch (error) {
+          console.error('Failed to refresh storage quota:', error)
+        }
+      },
+
+      saveAudioToStorage: async (trackId, blob) => {
+        try {
+          await audioStorage.save(trackId, blob)
+
+          // Refresh quota after save
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota, storageError: null })
+        } catch (error) {
+          console.error('Failed to save audio:', error)
+          set({ storageError: error as AudioStorageError })
+          throw error
+        }
+      },
+
+      loadAudioFromStorage: async (trackId) => {
+        try {
+          return await audioStorage.get(trackId)
+        } catch (error) {
+          console.error('Failed to load audio:', error)
+          set({ storageError: error as AudioStorageError })
+          return null
+        }
+      },
+
+      deleteAudioFromStorage: async (trackId) => {
+        try {
+          await audioStorage.delete(trackId)
+
+          // Refresh quota after delete
+          const quota = await audioStorage.getQuota()
+          set({ storageQuota: quota })
+        } catch (error) {
+          console.error('Failed to delete audio:', error)
+        }
+      },
+
+      checkMigration: () => {
+        const pendingCount = audioStorage.getPendingMigrationCount()
+        set({
+          hasPendingMigration: pendingCount > 0,
+          pendingMigrationCount: pendingCount,
+        })
+      },
+
+      completeMigration: (result) => {
+        set({
+          hasPendingMigration: false,
+          pendingMigrationCount: 0,
+        })
+
+        // Reload tracks to get fresh blob URLs
+        get().initializeStorage()
+
+        console.log(
+          `Migration complete: ${result.migratedCount} tracks, ${audioStorage.formatBytes(result.totalSizeBytes)}`
+        )
+      },
+
+      clearStorageError: () => set({ storageError: null }),
+
       // === General Actions ===
       reset: () => set(initialState),
     }),
     {
       name: 'magic-dj-store',
-      // Persist user preferences and track configuration
+      // Persist user preferences and track configuration (011-T009)
       partialize: (state) => ({
         settings: state.settings,
         masterVolume: state.masterVolume,
-        // Persist tracks (order + custom tracks with audio data)
+        // Persist tracks (order + custom tracks metadata, source, volume)
         tracks: state.tracks.map((track) => ({
           ...track,
           // Don't persist blob URLs, they're ephemeral
-          url: track.isCustom ? '' : track.url,
+          url: track.isCustom || track.source === 'upload' ? '' : track.url,
+          // Ensure source and volume are persisted (011-T009)
+          source: track.source ?? 'tts',
+          volume: track.volume ?? 1.0,
+          // Phase 4: Don't persist audioBase64 anymore - use IndexedDB
+          audioBase64: undefined,
+          // Flag to indicate audio is in IndexedDB
+          hasLocalAudio: track.source === 'upload' || !!track.hasLocalAudio,
         })),
       }),
-      // Merge persisted state with defaults
+      // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<MagicDJStoreState>
 
-        // Restore tracks from persisted state
+        // Restore tracks from persisted state with migration (011-T006)
         let tracks = currentState.tracks
         if (persisted.tracks && persisted.tracks.length > 0) {
-          tracks = restoreTracks(persisted.tracks)
+          // Apply migration to each track before restoring blob URLs
+          const migratedTracks = persisted.tracks.map(migrateTrackData)
+          tracks = restoreTracks(migratedTracks)
         }
 
         return {

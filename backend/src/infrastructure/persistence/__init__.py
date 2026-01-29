@@ -1,5 +1,7 @@
 """Persistence Layer - Repository implementations."""
 
+# DJ Repository (Feature 011)
+from src.infrastructure.persistence.dj_repository_impl import DJRepositoryImpl
 from src.infrastructure.persistence.memory_test_record_repository import (
     InMemoryTestRecordRepository,
 )
@@ -18,4 +20,6 @@ __all__ = [
     "InMemoryVoiceRepository",
     "VoiceCacheRepositoryImpl",
     "VoiceSyncJobRepositoryImpl",
+    # DJ (Feature 011)
+    "DJRepositoryImpl",
 ]

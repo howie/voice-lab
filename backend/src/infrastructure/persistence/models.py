@@ -630,3 +630,97 @@ class VoiceSyncJobModel(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# =============================================================================
+# DJ Models (Feature 011 - Magic DJ Audio Features)
+# =============================================================================
+
+
+class DJPresetModel(Base):
+    """SQLAlchemy model for DJ preset (track collection).
+
+    Represents a user's preset configuration for Magic DJ Controller.
+    """
+
+    __tablename__ = "dj_presets"
+    __table_args__ = (
+        Index("idx_dj_presets_user_id", "user_id"),
+        UniqueConstraint("user_id", "name", name="uq_dj_presets_user_name"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    settings: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    tracks: Mapped[list["DJTrackModel"]] = relationship(
+        "DJTrackModel", back_populates="preset", cascade="all, delete-orphan"
+    )
+
+
+class DJTrackModel(Base):
+    """SQLAlchemy model for DJ track.
+
+    Represents an audio track within a DJ preset.
+    """
+
+    __tablename__ = "dj_tracks"
+    __table_args__ = (
+        Index("idx_dj_tracks_preset_id", "preset_id"),
+        Index("idx_dj_tracks_sort_order", "preset_id", "sort_order"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    preset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dj_presets.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Basic info
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # dj_track_type enum
+    hotkey: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    loop: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Source info
+    source: Mapped[str] = mapped_column(String(20), nullable=False)  # dj_track_source enum
+
+    # TTS fields
+    text_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tts_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    tts_voice_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tts_speed: Mapped[Decimal] = mapped_column(
+        DECIMAL(3, 2), nullable=False, default=Decimal("1.0")
+    )
+
+    # Upload fields
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Audio info
+    audio_storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False, default="audio/mpeg")
+
+    # Volume
+    volume: Mapped[Decimal] = mapped_column(DECIMAL(3, 2), nullable=False, default=Decimal("1.0"))
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    preset: Mapped["DJPresetModel"] = relationship("DJPresetModel", back_populates="tracks")

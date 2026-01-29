@@ -1,5 +1,6 @@
 """Storage Layer - Storage service implementations."""
 
+from src.infrastructure.storage.dj_audio_storage import DJAudioStorageService
 from src.infrastructure.storage.local_storage import LocalStorage
 
 # Alias for backward compatibility
@@ -15,4 +16,6 @@ __all__ = [
     "LocalStorage",
     "LocalStorageService",
     "S3StorageService",
+    # DJ (Feature 011)
+    "DJAudioStorageService",
 ]

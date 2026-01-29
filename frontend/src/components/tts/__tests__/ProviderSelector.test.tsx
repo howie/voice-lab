@@ -73,7 +73,7 @@ describe('ProviderSelector', () => {
 
       rerender(<ProviderSelector {...defaultProps} value="gcp" />)
 
-      expect(screen.getByText('Google Cloud Text-to-Speech')).toBeInTheDocument()
+      expect(screen.getByText('Google Cloud Platform 傳統 TTS 服務')).toBeInTheDocument()
     })
   })
 
@@ -105,10 +105,10 @@ describe('ProviderSelector', () => {
       expect(screen.getByRole('option', { name: 'Azure Speech' })).toBeInTheDocument()
     })
 
-    it('has Google Cloud as an option', () => {
+    it('has Google Cloud TTS as an option', () => {
       render(<ProviderSelector {...defaultProps} />)
 
-      expect(screen.getByRole('option', { name: 'Google Cloud' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Google Cloud TTS' })).toBeInTheDocument()
     })
 
     it('has ElevenLabs as an option', () => {
@@ -125,8 +125,8 @@ describe('ProviderSelector', () => {
   })
 
   describe('PROVIDERS constant', () => {
-    it('exports PROVIDERS array with 4 providers', () => {
-      expect(PROVIDERS).toHaveLength(4)
+    it('exports PROVIDERS array with 5 providers', () => {
+      expect(PROVIDERS).toHaveLength(5)
     })
 
     it('each provider has required properties', () => {

@@ -671,10 +671,10 @@ async def reorder_tracks(
     description="上傳音檔到指定音軌。",
 )
 async def upload_audio(
+    current_user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
     file: UploadFile = File(...),
     track_id: uuid.UUID = Form(...),
-    current_user: CurrentUserDep = Depends(),
-    session: AsyncSession = Depends(get_db_session),
 ) -> AudioUploadResponse:
     """Upload audio file for a track."""
     dj_service = _get_dj_service(session)

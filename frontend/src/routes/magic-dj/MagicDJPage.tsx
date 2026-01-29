@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
+import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
 import { useMagicDJStore } from '@/stores/magicDJStore'
 // Note: interactionStore imported for future Gemini integration
 // import { useInteractionStore } from '@/stores/interactionStore'
@@ -30,6 +31,9 @@ export function MagicDJPage() {
   // Track Editor Modal state
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editingTrack, setEditingTrack] = useState<Track | null>(null)
+
+  // BGM Generator Modal state
+  const [isBGMGeneratorOpen, setIsBGMGeneratorOpen] = useState(false)
 
   // Stores
   const {
@@ -306,6 +310,45 @@ export function MagicDJPage() {
     setEditingTrack(null)
   }, [])
 
+  // === BGM Generator Handlers ===
+
+  const handleOpenBGMGenerator = useCallback(() => {
+    setIsBGMGeneratorOpen(true)
+  }, [])
+
+  const handleCloseBGMGenerator = useCallback(() => {
+    setIsBGMGeneratorOpen(false)
+  }, [])
+
+  const handleSaveBGMTrack = useCallback(
+    async (track: Track, audioBlob: Blob) => {
+      // Create blob URL for the audio (for immediate playback)
+      const blobUrl = URL.createObjectURL(audioBlob)
+
+      // Convert blob to base64 for localStorage persistence
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      let binary = ''
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i])
+      }
+      const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
+
+      // Add new BGM track
+      const newTrack: Track = {
+        ...track,
+        url: blobUrl,
+        isCustom: true,
+        audioBase64,
+      }
+      addTrack(newTrack)
+
+      // Load the new track in the player
+      await loadTrack(newTrack)
+    },
+    [addTrack, loadTrack]
+  )
+
   // === Session Management ===
 
   const handleStartSession = useCallback(() => {
@@ -351,6 +394,7 @@ export function MagicDJPage() {
         onStartSession={handleStartSession}
         onStopSession={handleStopSession}
         onAddTrack={handleAddTrack}
+        onGenerateBGM={handleOpenBGMGenerator}
         onEditTrack={handleEditTrack}
         onDeleteTrack={handleDeleteTrack}
         wsStatus={wsStatus}
@@ -363,6 +407,13 @@ export function MagicDJPage() {
         onSave={handleSaveTrack}
         editingTrack={editingTrack}
         existingText={editingTrack?.textContent}
+      />
+
+      {/* BGM Generator Modal */}
+      <BGMGeneratorModal
+        isOpen={isBGMGeneratorOpen}
+        onClose={handleCloseBGMGenerator}
+        onSave={handleSaveBGMTrack}
       />
     </div>
   )

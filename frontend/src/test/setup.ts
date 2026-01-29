@@ -7,6 +7,10 @@ import '@testing-library/jest-dom'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
+// Override import.meta.env.DEV to false for testing ProtectedRoute
+// This ensures auth bypass is disabled in tests
+vi.stubEnv('DEV', false)
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()

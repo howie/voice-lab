@@ -251,7 +251,7 @@ describe('Provider Switch', () => {
       // Check all options exist
       expect(screen.getByRole('option', { name: 'ElevenLabs' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Azure' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Google Cloud' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Google Cloud TTS' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'OpenAI' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Cartesia' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Deepgram' })).toBeInTheDocument()

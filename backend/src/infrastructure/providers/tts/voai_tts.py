@@ -6,84 +6,521 @@ import httpx
 
 from src.domain.entities.audio import AudioData
 from src.domain.entities.tts import TTSRequest
-from src.domain.entities.voice import Gender, VoiceProfile
+from src.domain.entities.voice import AgeGroup, Gender, VoiceProfile
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 # VoAI voice mappings (using actual VoAI speaker names)
 # Reference: https://connect.voai.ai/TTS/GetSpeaker
+# Neo model has 46+ speakers, Classic model has 35 speakers
 VOAI_VOICES: dict[str, list[dict[str, Any]]] = {
     "zh-TW": [
-        # Popular speakers for general use
+        # ========== 主要真實聲線 (Real Voice) ==========
         {
-            "id": "voai-tw-male-1",
+            "id": "佑希",
             "name": "佑希",
             "gender": "male",
             "age": 22,
             "styles": ["預設", "聊天", "穩重", "激昂"],
+            "use_cases": [
+                "廣播",
+                "教學",
+                "新聞",
+                "動畫",
+                "叫賣",
+                "商務談話",
+                "家庭對話",
+                "廣告",
+                "客服",
+            ],
         },
         {
-            "id": "voai-tw-female-1",
+            "id": "雨榛",
             "name": "雨榛",
             "gender": "female",
             "age": 25,
             "styles": ["預設", "聊天", "輕柔", "輕鬆"],
+            "use_cases": [
+                "冥想",
+                "廣播",
+                "科幻小說",
+                "教學",
+                "新聞",
+                "商務談話",
+                "言情小說",
+                "廣告",
+                "客服",
+            ],
         },
         {
-            "id": "voai-tw-male-2",
+            "id": "子墨",
             "name": "子墨",
             "gender": "male",
             "age": 37,
             "styles": ["預設", "穩健"],
+            "use_cases": ["夜間DJ", "冥想", "旁白", "動畫", "言情小說", "家庭對話", "廣告"],
         },
         {
-            "id": "voai-tw-female-2",
+            "id": "柔洢",
             "name": "柔洢",
             "gender": "female",
             "age": 26,
-            "styles": ["預設", "輕柔"],
+            "styles": ["預設", "可愛", "難過", "生氣", "溫暖"],
+            "use_cases": ["夜間DJ", "冥想", "旁白", "廣播", "日常對話", "言情小說", "廣告"],
         },
         {
-            "id": "voai-tw-female-3",
+            "id": "竹均",
             "name": "竹均",
             "gender": "female",
             "age": 22,
-            "styles": ["預設", "難過", "開心", "生氣"],
+            "styles": ["預設", "平靜", "開心", "生氣", "難過"],
+            "use_cases": ["日常對話", "言情小說", "家庭對話"],
         },
-        # Additional speakers
         {
-            "id": "voai-tw-male-3",
+            "id": "昊宇",
             "name": "昊宇",
             "gender": "male",
             "age": 36,
             "styles": ["預設", "溫暖", "開心", "難過"],
+            "use_cases": [
+                "夜間DJ",
+                "商務談話",
+                "廣播",
+                "科幻小說",
+                "新聞",
+                "日常對話",
+                "言情小說",
+                "家庭對話",
+            ],
         },
         {
-            "id": "voai-tw-female-4",
+            "id": "采芸",
             "name": "采芸",
             "gender": "female",
             "age": 25,
             "styles": ["預設", "感性", "難過", "懸疑", "生氣"],
+            "use_cases": [
+                "夜間DJ",
+                "冥想",
+                "旁白",
+                "廣播",
+                "恐怖小說",
+                "新聞",
+                "日常對話",
+                "廣告",
+                "客服",
+            ],
         },
         {
-            "id": "voai-tw-female-5",
+            "id": "樂晰",
             "name": "樂晰",
             "gender": "female",
             "age": 30,
             "styles": ["預設", "聊天", "可愛"],
+            "use_cases": [
+                "旁白",
+                "廣播",
+                "科幻小說",
+                "兒童教材",
+                "童話故事",
+                "教學",
+                "新聞",
+                "動畫",
+                "叫賣",
+                "商務談話",
+                "日常對話",
+                "家庭對話",
+                "廣告",
+                "客服",
+            ],
         },
         {
-            "id": "voai-tw-male-4",
-            "name": "汪一誠",
-            "gender": "male",
-            "age": 55,
-            "styles": ["預設", "聊天"],
-        },
-        {
-            "id": "voai-tw-female-6",
+            "id": "璦廷",
             "name": "璦廷",
             "gender": "female",
             "age": 38,
             "styles": ["預設"],
+            "use_cases": ["旁白", "廣播", "新聞"],
+        },
+        {
+            "id": "汪一誠",
+            "name": "汪一誠",
+            "gender": "male",
+            "age": 55,
+            "styles": ["預設", "聊天"],
+            "use_cases": ["旁白", "新聞", "商務談話"],
+        },
+        # ========== 兒童聲線 (Child Voice) ==========
+        {
+            "id": "品妍",
+            "name": "品妍",
+            "gender": "female",
+            "age": 6,
+            "styles": ["預設"],
+            "use_cases": ["兒童教材", "童話故事", "動畫", "叫賣", "日常對話", "家庭對話", "廣告"],
+        },
+        {
+            "id": "子睿",
+            "name": "子睿",
+            "gender": "male",
+            "age": 5,
+            "styles": ["預設"],
+            "use_cases": ["兒童教材", "童話故事", "動畫", "日常對話", "家庭對話", "廣告"],
+        },
+        # ========== 長者聲線 (Senior Voice) ==========
+        {
+            "id": "春枝",
+            "name": "春枝",
+            "gender": "female",
+            "age": 67,
+            "styles": ["預設"],
+            "use_cases": ["講古", "童話故事", "恐怖小說", "動畫", "日常對話", "家庭對話", "廣告"],
+        },
+        {
+            "id": "麗珠",
+            "name": "麗珠",
+            "gender": "female",
+            "age": 73,
+            "styles": ["預設"],
+            "use_cases": ["動畫", "叫賣", "日常對話", "家庭對話", "廣告"],
+        },
+        # ========== 其他成人聲線 ==========
+        {
+            "id": "李晴",
+            "name": "李晴",
+            "gender": "female",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "婉婷",
+            "name": "婉婷",
+            "gender": "female",
+            "age": 30,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "淑芬",
+            "name": "淑芬",
+            "gender": "female",
+            "age": 45,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "楷心",
+            "name": "楷心",
+            "gender": "female",
+            "age": 25,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "美霞",
+            "name": "美霞",
+            "gender": "female",
+            "age": 40,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "惠婷",
+            "name": "惠婷",
+            "gender": "female",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "辰辰",
+            "name": "辰辰",
+            "gender": "male",
+            "age": 8,
+            "styles": ["預設"],
+            "use_cases": ["兒童教材", "童話故事", "動畫"],
+        },
+        {
+            "id": "語安",
+            "name": "語安",
+            "gender": "female",
+            "age": 26,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "虹葳",
+            "name": "虹葳",
+            "gender": "female",
+            "age": 24,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "欣妤",
+            "name": "欣妤",
+            "gender": "female",
+            "age": 23,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "柏翰",
+            "name": "柏翰",
+            "gender": "male",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "凡萱",
+            "name": "凡萱",
+            "gender": "female",
+            "age": 27,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "韻菲",
+            "name": "韻菲",
+            "gender": "female",
+            "age": 29,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "士倫",
+            "name": "士倫",
+            "gender": "male",
+            "age": 32,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "袁祺裕",
+            "name": "袁祺裕",
+            "gender": "male",
+            "age": 35,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "皓軒",
+            "name": "皓軒",
+            "gender": "male",
+            "age": 26,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "靜芝",
+            "name": "靜芝",
+            "gender": "female",
+            "age": 31,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "渝函",
+            "name": "渝函",
+            "gender": "female",
+            "age": 24,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "文彬",
+            "name": "文彬",
+            "gender": "male",
+            "age": 30,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "怡婷",
+            "name": "怡婷",
+            "gender": "female",
+            "age": 26,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        # ========== Neo 專屬聲線 ==========
+        {
+            "id": "娜娜",
+            "name": "娜娜",
+            "gender": "female",
+            "age": 22,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告", "客服"],
+        },
+        {
+            "id": "文澤",
+            "name": "文澤",
+            "gender": "male",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "諭書",
+            "name": "諭書",
+            "gender": "male",
+            "age": 30,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "鳳姊",
+            "name": "鳳姊",
+            "gender": "female",
+            "age": 50,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "家庭對話"],
+        },
+        {
+            "id": "悅青",
+            "name": "悅青",
+            "gender": "female",
+            "age": 25,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "俊傑",
+            "name": "俊傑",
+            "gender": "male",
+            "age": 32,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "詠芯",
+            "name": "詠芯",
+            "gender": "female",
+            "age": 24,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "建忠",
+            "name": "建忠",
+            "gender": "male",
+            "age": 45,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "立安",
+            "name": "立安",
+            "gender": "male",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "昱翔",
+            "name": "昱翔",
+            "gender": "male",
+            "age": 26,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "佩綺",
+            "name": "佩綺",
+            "gender": "female",
+            "age": 27,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "豪哥",
+            "name": "豪哥",
+            "gender": "male",
+            "age": 40,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "家庭對話", "廣告"],
+        },
+        {
+            "id": "政德",
+            "name": "政德",
+            "gender": "male",
+            "age": 35,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "喬喬",
+            "name": "喬喬",
+            "gender": "female",
+            "age": 20,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告", "客服"],
+        },
+        {
+            "id": "軒軒",
+            "name": "軒軒",
+            "gender": "male",
+            "age": 7,
+            "styles": ["預設"],
+            "use_cases": ["兒童教材", "童話故事", "動畫"],
+        },
+        {
+            "id": "阿皮",
+            "name": "阿皮",
+            "gender": "male",
+            "age": 25,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告"],
+        },
+        {
+            "id": "布丁",
+            "name": "布丁",
+            "gender": "female",
+            "age": 22,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告", "客服"],
+        },
+        {
+            "id": "明達",
+            "name": "明達",
+            "gender": "male",
+            "age": 38,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "旁白"],
+        },
+        {
+            "id": "泡泡",
+            "name": "泡泡",
+            "gender": "female",
+            "age": 20,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告", "客服"],
+        },
+        {
+            "id": "佳雯",
+            "name": "佳雯",
+            "gender": "female",
+            "age": 28,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        {
+            "id": "雅琪",
+            "name": "雅琪",
+            "gender": "female",
+            "age": 26,
+            "styles": ["預設"],
+            "use_cases": ["廣播", "新聞", "客服"],
+        },
+        # ========== Classic 專屬聲線 (不在 Neo 的) ==========
+        {
+            "id": "阿偉",
+            "name": "阿偉",
+            "gender": "male",
+            "age": 30,
+            "styles": ["預設"],
+            "use_cases": ["日常對話", "廣告"],
         },
     ],
 }
@@ -141,8 +578,9 @@ class VoAITTSProvider(BaseTTSProvider):
             "Content-Type": "application/json",
         }
 
-        # Map voice IDs to speaker names
-        speaker_map = {
+        # Voice ID is now the speaker name directly (e.g., "佑希", "雨榛")
+        # Also support legacy IDs for backward compatibility
+        legacy_speaker_map = {
             "voai-tw-male-1": "佑希",
             "voai-tw-female-1": "雨榛",
             "voai-tw-male-2": "子墨",
@@ -154,7 +592,12 @@ class VoAITTSProvider(BaseTTSProvider):
             "voai-tw-male-4": "汪一誠",
             "voai-tw-female-6": "璦廷",
         }
-        speaker = speaker_map.get(request.voice_id, "佑希")  # Default to 佑希
+        # Use voice_id directly if it's a speaker name, otherwise map from legacy ID
+        speaker = legacy_speaker_map.get(request.voice_id, request.voice_id)
+        # Validate speaker exists, fallback to 佑希 if not found
+        valid_speakers = {v["name"] for v in VOAI_VOICES.get("zh-TW", [])}
+        if speaker not in valid_speakers:
+            speaker = "佑希"
 
         # Clamp parameters to VoAI API limits
         # VoAI speed range: [0.5, 1.5]
@@ -189,6 +632,17 @@ class VoAITTSProvider(BaseTTSProvider):
                 sample_rate=24000,
             )
 
+    def _get_age_group(self, age: int) -> AgeGroup:
+        """Map age to AgeGroup enum."""
+        if age <= 12:
+            return AgeGroup.CHILD
+        elif age <= 25:
+            return AgeGroup.YOUNG
+        elif age <= 60:
+            return AgeGroup.ADULT
+        else:
+            return AgeGroup.SENIOR
+
     async def list_voices(self, language: str | None = None) -> list[VoiceProfile]:
         """List available VoAI voices.
 
@@ -196,45 +650,38 @@ class VoAITTSProvider(BaseTTSProvider):
         """
         voices = []
 
+        def create_voice_profile(v: dict[str, Any], lang: str) -> VoiceProfile:
+            """Create a VoiceProfile from voice data."""
+            gender = Gender.NEUTRAL
+            if v.get("gender") == "female":
+                gender = Gender.FEMALE
+            elif v.get("gender") == "male":
+                gender = Gender.MALE
+
+            age = v.get("age", 30)
+            age_group = self._get_age_group(age)
+
+            return VoiceProfile(
+                id=v["id"],
+                voice_id=v["id"],
+                display_name=v["name"],
+                provider="voai",
+                language=lang,
+                gender=gender,
+                age_group=age_group,
+                styles=tuple(v.get("styles", ["預設"])),
+                use_cases=tuple(v.get("use_cases", [])),
+            )
+
         if language:
             voice_data = VOAI_VOICES.get(language, [])
             for v in voice_data:
-                gender = Gender.NEUTRAL
-                if v.get("gender") == "female":
-                    gender = Gender.FEMALE
-                elif v.get("gender") == "male":
-                    gender = Gender.MALE
-
-                voices.append(
-                    VoiceProfile(
-                        id=v["id"],
-                        voice_id=v["id"],
-                        display_name=v["name"],
-                        provider="voai",
-                        language=language,
-                        gender=gender,
-                    )
-                )
+                voices.append(create_voice_profile(v, language))
         else:
             # Return all voices for all languages
             for lang, voice_data in VOAI_VOICES.items():
                 for v in voice_data:
-                    gender = Gender.NEUTRAL
-                    if v.get("gender") == "female":
-                        gender = Gender.FEMALE
-                    elif v.get("gender") == "male":
-                        gender = Gender.MALE
-
-                    voices.append(
-                        VoiceProfile(
-                            id=v["id"],
-                            voice_id=v["id"],
-                            display_name=v["name"],
-                            provider="voai",
-                            language=lang,
-                            gender=gender,
-                        )
-                    )
+                    voices.append(create_voice_profile(v, lang))
 
         return voices
 

@@ -200,6 +200,8 @@ export function BGMGeneratorModal({
       hotkey: hotkey || undefined,
       isCustom: true,
       textContent: prompt, // Save prompt for reference
+      source: 'upload', // BGM from Mureka is treated as uploaded audio
+      volume: 1.0, // Default volume
     }
 
     onSave(track, audioBlob)

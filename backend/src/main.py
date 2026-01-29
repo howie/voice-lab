@@ -1,5 +1,6 @@
 """Voice Lab API - Main application entry point."""
 
+import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -12,6 +13,13 @@ from src.config import get_settings
 from src.infrastructure.persistence.database import AsyncSessionLocal
 from src.infrastructure.workers.job_worker import JobWorker
 from src.presentation.api import api_router
+
+# Configure logging to show INFO level from all modules
+# This ensures JobWorker and other module logs are visible
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 settings = get_settings()
 

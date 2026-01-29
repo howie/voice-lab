@@ -15,6 +15,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-16
 - PostgreSQL (工作元資料), Local filesystem / S3 (音檔儲存) (007-async-job-mgmt)
 - Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+, httpx (Mureka API client) (012-music-generation)
 - PostgreSQL (任務元資料), Local filesystem / S3 (音檔儲存) (012-music-generation)
+- Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+, Zustand (013-tts-role-mgmt)
+- PostgreSQL (voice_customization 表), 關聯現有 VoiceCache 表 (013-tts-role-mgmt)
 
 - Python 3.11+ + FastAPI 0.109+, azure-cognitiveservices-speech, google-cloud-texttospeech, elevenlabs, httpx (001-pipecat-tts-server)
 
@@ -34,6 +36,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
+- 013-tts-role-mgmt: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+, Zustand
 - 012-music-generation: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend) + FastAPI 0.109+, SQLAlchemy 2.0+, Pydantic 2.0+, React 18+, httpx (Mureka API client)
 - 007-async-job-mgmt: Added Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
 - 006-gcp-terraform-deploy: Added Terraform 1.6+ (HCL), Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)

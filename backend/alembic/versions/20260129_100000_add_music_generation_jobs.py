@@ -54,7 +54,9 @@ def upgrade() -> None:
         sa.Column(
             "type",
             postgresql.ENUM(
-                "song", "instrumental", "lyrics",
+                "song",
+                "instrumental",
+                "lyrics",
                 name="music_generation_type",
                 create_type=False,
             ),
@@ -63,7 +65,10 @@ def upgrade() -> None:
         sa.Column(
             "status",
             postgresql.ENUM(
-                "pending", "processing", "completed", "failed",
+                "pending",
+                "processing",
+                "completed",
+                "failed",
                 name="music_generation_status",
                 create_type=False,
             ),

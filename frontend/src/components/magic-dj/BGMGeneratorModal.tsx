@@ -82,6 +82,21 @@ export function BGMGeneratorModal({
     }
   }, [audioUrl])
 
+  // Fetch audio from result URL
+  const fetchAudio = useCallback(async (url: string) => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+
+      const newUrl = URL.createObjectURL(blob)
+      setAudioBlob(blob)
+      setAudioUrl(newUrl)
+    } catch (err) {
+      console.error('Failed to fetch audio:', err)
+      setError('無法下載音檔')
+    }
+  }, [])
+
   // Poll for job status
   useEffect(() => {
     if (!currentJob) return
@@ -115,27 +130,7 @@ export function BGMGeneratorModal({
     }, POLLING_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [currentJob, trackName])
-
-  // Fetch audio from result URL
-  const fetchAudio = async (url: string) => {
-    try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-
-      // Revoke old URL
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl)
-      }
-
-      const newUrl = URL.createObjectURL(blob)
-      setAudioBlob(blob)
-      setAudioUrl(newUrl)
-    } catch (err) {
-      console.error('Failed to fetch audio:', err)
-      setError('無法下載音檔')
-    }
-  }
+  }, [currentJob, trackName, fetchAudio])
 
   // Submit generation job
   const handleSubmit = async () => {

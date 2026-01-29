@@ -18,6 +18,7 @@ from src.presentation.api.routes import (
     providers,
     stt,
     tts,
+    voice_customizations,
     voices,
 )
 
@@ -44,5 +45,6 @@ api_router.include_router(jobs.router)  # Jobs routes (async job management)
 api_router.include_router(music.router)  # Music generation routes (Mureka AI)
 api_router.include_router(admin_voices.router)  # Admin voice sync routes
 api_router.include_router(dj.router)  # DJ routes (Magic DJ Controller)
+api_router.include_router(voice_customizations.router)  # Voice customization routes (Feature 013)
 
 __all__ = ["api_router"]

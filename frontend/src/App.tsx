@@ -14,6 +14,7 @@ import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
 import { JobsPage } from '@/routes/jobs'
 import { MagicDJPage } from '@/routes/magic-dj/MagicDJPage'
 import { MusicPage } from '@/routes/music'
+import { VoiceManagementPage } from '@/routes/voice-management'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -74,6 +75,7 @@ function AppContent() {
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
         <Route path="settings/providers" element={<ProviderSettings />} />
+        <Route path="voice-management" element={<VoiceManagementPage />} />
       </Route>
     </Routes>
   )

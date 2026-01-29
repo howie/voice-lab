@@ -13,6 +13,8 @@ import {
   Music,
   ChevronLeft,
   ChevronRight,
+  UserCog,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,10 +24,12 @@ const navigation = [
   { name: '多角色 TTS', href: '/multi-role-tts', icon: Users },
   { name: '背景工作', href: '/jobs', icon: Briefcase },
   { name: 'STT 測試', href: '/stt', icon: Mic },
-  { name: '互動測試 (開發中)', href: '/interaction', icon: MessagesSquare },
-  { name: 'Magic DJ (修改中)', href: '/magic-dj', icon: Disc3 },
-  { name: 'AI 音樂 (開發中)', href: '/music', icon: Music },
-  { name: '歷史紀錄 (開發中)', href: '/history', icon: History },
+  { name: '互動測試', href: '/interaction', icon: MessagesSquare },
+  { name: 'Magic DJ', href: '/magic-dj', icon: Disc3 },
+  { name: 'AI 音樂', href: '/music', icon: Music },
+  { name: '歷史紀錄', href: '/history', icon: History },
+  { name: '進階功能', href: '/advanced', icon: Settings },
+  { name: '角色管理', href: '/voice-management', icon: UserCog },
   { name: 'API 金鑰', href: '/settings/providers', icon: Key },
 ]
 

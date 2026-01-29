@@ -10,12 +10,16 @@ from src.domain.repositories.scenario_template_repository import (
 )
 from src.domain.repositories.test_record_repository import ITestRecordRepository
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
+from src.domain.repositories.voice_customization_repository import (
+    IVoiceCustomizationRepository,
+)
 from src.domain.repositories.voice_repository import IVoiceRepository
 
 __all__ = [
     "IJobRepository",
     "ITestRecordRepository",
     "ITranscriptionRepository",
+    "IVoiceCustomizationRepository",
     "IVoiceRepository",
     "ScenarioTemplateRepository",
 ]

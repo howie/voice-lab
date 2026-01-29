@@ -11,6 +11,7 @@ import {
   Users,
   Briefcase,
   Disc3,
+  Music,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'STT 測試', href: '/stt', icon: Mic },
   { name: '互動測試', href: '/interaction', icon: MessagesSquare },
   { name: 'Magic DJ', href: '/magic-dj', icon: Disc3 },
+  { name: 'AI 音樂', href: '/music', icon: Music },
   { name: '歷史紀錄', href: '/history', icon: History },
   { name: '進階功能', href: '/advanced', icon: Settings },
   { name: 'API 金鑰', href: '/settings/providers', icon: Key },

@@ -1,0 +1,423 @@
+openapi: 3.1.0
+info:
+  title: Voice Customization API
+  description: API for managing TTS voice customizations (custom names, favorites, hidden)
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: Voice Lab API
+
+paths:
+  /voice-customizations:
+    get:
+      summary: List all voice customizations
+      description: Returns all voice customizations for the current user
+      operationId: listVoiceCustomizations
+      tags:
+        - Voice Customization
+      parameters:
+        - name: is_favorite
+          in: query
+          schema:
+            type: boolean
+          description: Filter by favorite status
+        - name: is_hidden
+          in: query
+          schema:
+            type: boolean
+          description: Filter by hidden status
+      responses:
+        '200':
+          description: List of voice customizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VoiceCustomization'
+
+  /voice-customizations/{voice_cache_id}:
+    get:
+      summary: Get voice customization
+      description: Returns customization for a specific voice
+      operationId: getVoiceCustomization
+      tags:
+        - Voice Customization
+      parameters:
+        - $ref: '#/components/parameters/VoiceCacheId'
+      responses:
+        '200':
+          description: Voice customization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceCustomization'
+        '404':
+          description: Customization not found (returns defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceCustomizationDefault'
+
+    put:
+      summary: Update voice customization
+      description: Create or update customization for a voice (upsert)
+      operationId: updateVoiceCustomization
+      tags:
+        - Voice Customization
+      parameters:
+        - $ref: '#/components/parameters/VoiceCacheId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVoiceCustomizationRequest'
+      responses:
+        '200':
+          description: Updated voice customization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceCustomization'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          description: Voice not found in voice_cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+
+    delete:
+      summary: Reset voice customization
+      description: Delete customization and revert to defaults
+      operationId: deleteVoiceCustomization
+      tags:
+        - Voice Customization
+      parameters:
+        - $ref: '#/components/parameters/VoiceCacheId'
+      responses:
+        '204':
+          description: Customization deleted
+        '404':
+          description: Customization not found
+
+  /voice-customizations/bulk:
+    patch:
+      summary: Bulk update voice customizations
+      description: Update multiple voice customizations in a single request
+      operationId: bulkUpdateVoiceCustomizations
+      tags:
+        - Voice Customization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateVoiceCustomizationRequest'
+      responses:
+        '200':
+          description: Bulk update result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateResult'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /voices:
+    get:
+      summary: List voices with customizations
+      description: Returns all voices with their customization data merged
+      operationId: listVoicesWithCustomizations
+      tags:
+        - Voices (Extended)
+      parameters:
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [azure, elevenlabs, gcp, gemini, voai]
+          description: Filter by provider
+        - name: language
+          in: query
+          schema:
+            type: string
+          description: Filter by language (e.g., zh-TW, en-US)
+        - name: gender
+          in: query
+          schema:
+            type: string
+            enum: [male, female, neutral]
+          description: Filter by gender
+        - name: age_group
+          in: query
+          schema:
+            type: string
+            enum: [child, young, adult, senior]
+          description: Filter by age group
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search in name and custom_name
+        - name: exclude_hidden
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Exclude hidden voices (default true)
+        - name: favorites_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Show only favorite voices
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+          description: Maximum results
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: List of voices with customizations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceListResponse'
+
+components:
+  parameters:
+    VoiceCacheId:
+      name: voice_cache_id
+      in: path
+      required: true
+      description: "Voice cache ID (format: provider:voice_id)"
+      schema:
+        type: string
+        example: "gemini:Puck"
+
+  schemas:
+    VoiceCustomization:
+      type: object
+      required:
+        - id
+        - voice_cache_id
+        - is_favorite
+        - is_hidden
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Database ID
+        voice_cache_id:
+          type: string
+          description: Associated voice cache ID
+          example: "gemini:Puck"
+        custom_name:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: User-defined display name
+          example: "陽光男孩聲"
+        is_favorite:
+          type: boolean
+          description: Favorite status
+          default: false
+        is_hidden:
+          type: boolean
+          description: Hidden status
+          default: false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    VoiceCustomizationDefault:
+      type: object
+      description: Default values when no customization exists
+      properties:
+        voice_cache_id:
+          type: string
+        custom_name:
+          type: string
+          nullable: true
+          default: null
+        is_favorite:
+          type: boolean
+          default: false
+        is_hidden:
+          type: boolean
+          default: false
+
+    UpdateVoiceCustomizationRequest:
+      type: object
+      properties:
+        custom_name:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: Set to null to clear custom name
+        is_favorite:
+          type: boolean
+        is_hidden:
+          type: boolean
+
+    BulkUpdateVoiceCustomizationRequest:
+      type: object
+      required:
+        - updates
+      properties:
+        updates:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required:
+              - voice_cache_id
+            properties:
+              voice_cache_id:
+                type: string
+              custom_name:
+                type: string
+                maxLength: 50
+                nullable: true
+              is_favorite:
+                type: boolean
+              is_hidden:
+                type: boolean
+
+    BulkUpdateResult:
+      type: object
+      properties:
+        updated_count:
+          type: integer
+          description: Number of successfully updated records
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              voice_cache_id:
+                type: string
+              error:
+                type: string
+
+    VoiceWithCustomization:
+      type: object
+      description: Voice profile merged with customization data
+      allOf:
+        - $ref: '#/components/schemas/VoiceProfile'
+        - type: object
+          properties:
+            display_name:
+              type: string
+              description: Custom name if set, otherwise original name
+            is_favorite:
+              type: boolean
+              default: false
+            is_hidden:
+              type: boolean
+              default: false
+
+    VoiceProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "gemini:Puck"
+        provider:
+          type: string
+          example: "gemini"
+        voice_id:
+          type: string
+          example: "Puck"
+        name:
+          type: string
+          example: "Puck"
+        language:
+          type: string
+          example: "zh-TW"
+        gender:
+          type: string
+          enum: [male, female, neutral]
+          nullable: true
+        age_group:
+          type: string
+          enum: [child, young, adult, senior]
+          nullable: true
+        styles:
+          type: array
+          items:
+            type: string
+        use_cases:
+          type: array
+          items:
+            type: string
+        sample_audio_url:
+          type: string
+          nullable: true
+        is_deprecated:
+          type: boolean
+
+    VoiceListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoiceWithCustomization'
+        total:
+          type: integer
+          description: Total count (before pagination)
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
+
+    NotFoundError:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Voice not found: gemini:InvalidVoice"

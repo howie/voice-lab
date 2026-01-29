@@ -7,6 +7,7 @@
 **功能目標**：
 1. **Phase 1**: MP3 上傳功能 - 讓使用者除了 TTS 生成外，可以直接上傳 MP3 檔案作為音軌
 2. **Phase 2**: 音量控制功能 - 讓每個音軌可以獨立調整音量，方便同時播放時區分
+3. **Phase 3**: 後端儲存支援 - 將資料從 localStorage 遷移到後端，支援跨裝置、多使用者
 
 ---
 
@@ -481,4 +482,681 @@ frontend/src/
 │   └── useMultiTrackPlayer.ts         # 修改 - 整合持久化音量
 └── stores/
     └── magicDJStore.ts                # 修改 - 新增 setTrackVolume
+```
+
+---
+
+## Phase 3: 後端儲存支援
+
+### 需求描述
+
+Phase 1-2 使用 localStorage 儲存，有以下限制需要解決：
+
+| 問題 | 影響 |
+|------|------|
+| **無法跨裝置** | RD 換電腦要重新設定所有音軌 |
+| **無法區分使用者** | 多人共用電腦會互相覆蓋設定 |
+| **容量限制** | localStorage 5-10MB，多個音檔容易爆掉 |
+| **資料易遺失** | 清快取就沒了 |
+
+Phase 3 透過後端 API + 雲端儲存解決這些問題。
+
+### 使用情境
+
+1. RD 在公司設定好音軌，回家用筆電繼續使用
+2. 多位 RD 各自有獨立的音軌設定
+3. 上傳大量音檔不受 localStorage 限制
+4. 重灌電腦、換瀏覽器資料不遺失
+
+### 系統架構
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              Frontend                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                     Magic DJ Controller                          │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │   │
+│  │  │ TrackList   │  │ TrackEditor │  │ useMultiTrackPlayer     │  │   │
+│  │  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘  │   │
+│  │         │                │                      │                │   │
+│  │         └────────────────┼──────────────────────┘                │   │
+│  │                          │                                       │   │
+│  │                   ┌──────▼──────┐                               │   │
+│  │                   │  DJ Store   │ ◄── Zustand (runtime only)    │   │
+│  │                   └──────┬──────┘                               │   │
+│  │                          │                                       │   │
+│  └──────────────────────────┼───────────────────────────────────────┘   │
+│                             │                                           │
+│                      ┌──────▼──────┐                                   │
+│                      │  API Client │                                   │
+│                      └──────┬──────┘                                   │
+│                             │                                           │
+└─────────────────────────────┼───────────────────────────────────────────┘
+                              │ HTTPS
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              Backend                                     │
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │                      FastAPI Application                          │  │
+│  │                                                                   │  │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │  │
+│  │  │ /api/v1/dj/     │  │ /api/v1/dj/     │  │ /api/v1/dj/     │  │  │
+│  │  │   presets       │  │   tracks        │  │   audio         │  │  │
+│  │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │  │
+│  │           │                    │                     │           │  │
+│  │           └────────────────────┼─────────────────────┘           │  │
+│  │                                │                                  │  │
+│  │                         ┌──────▼──────┐                          │  │
+│  │                         │  DJ Service │                          │  │
+│  │                         └──────┬──────┘                          │  │
+│  │                                │                                  │  │
+│  └────────────────────────────────┼──────────────────────────────────┘  │
+│                                   │                                     │
+│            ┌──────────────────────┼──────────────────────┐             │
+│            │                      │                      │             │
+│     ┌──────▼──────┐        ┌──────▼──────┐       ┌──────▼──────┐      │
+│     │ PostgreSQL  │        │    GCS      │       │   Redis     │      │
+│     │ (metadata)  │        │  (audio)    │       │  (cache)    │      │
+│     └─────────────┘        └─────────────┘       └─────────────┘      │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 技術規格
+
+#### 3.1 資料庫 Schema
+
+```sql
+-- 使用者 DJ 設定預設組
+CREATE TABLE dj_presets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_default BOOLEAN DEFAULT FALSE,
+    settings JSONB NOT NULL DEFAULT '{}',
+    -- settings 包含: masterVolume, timeWarningAt, sessionTimeLimit, etc.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(user_id, name)
+);
+
+-- 音軌資料
+CREATE TABLE dj_tracks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    preset_id UUID NOT NULL REFERENCES dj_presets(id) ON DELETE CASCADE,
+
+    -- 基本資訊
+    name VARCHAR(200) NOT NULL,
+    type VARCHAR(50) NOT NULL,  -- 'intro', 'transition', 'effect', 'song', 'filler', 'rescue'
+    hotkey VARCHAR(10),
+    loop BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+
+    -- 音源資訊
+    source VARCHAR(20) NOT NULL,  -- 'tts' | 'upload'
+
+    -- TTS 相關 (source = 'tts')
+    text_content TEXT,
+    tts_provider VARCHAR(50),
+    tts_voice_id VARCHAR(100),
+    tts_speed DECIMAL(3,2) DEFAULT 1.0,
+
+    -- 上傳相關 (source = 'upload')
+    original_filename VARCHAR(255),
+
+    -- 音檔資訊
+    audio_storage_path VARCHAR(500),  -- GCS path: gs://bucket/dj-audio/{user_id}/{track_id}.mp3
+    audio_url VARCHAR(1000),          -- Signed URL (generated on read)
+    duration_ms INTEGER,
+    file_size_bytes INTEGER,
+    content_type VARCHAR(100) DEFAULT 'audio/mpeg',
+
+    -- Phase 2: 音量
+    volume DECIMAL(3,2) DEFAULT 1.0,  -- 0.0 ~ 1.0
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 索引
+CREATE INDEX idx_dj_presets_user_id ON dj_presets(user_id);
+CREATE INDEX idx_dj_tracks_preset_id ON dj_tracks(preset_id);
+CREATE INDEX idx_dj_tracks_sort_order ON dj_tracks(preset_id, sort_order);
+```
+
+#### 3.2 Domain Models
+
+```python
+# backend/src/domain/models/dj.py
+
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class TrackType(str, Enum):
+    INTRO = "intro"
+    TRANSITION = "transition"
+    EFFECT = "effect"
+    SONG = "song"
+    FILLER = "filler"
+    RESCUE = "rescue"
+
+
+class TrackSource(str, Enum):
+    TTS = "tts"
+    UPLOAD = "upload"
+
+
+class DJSettings(BaseModel):
+    master_volume: float = Field(default=1.0, ge=0.0, le=1.0)
+    time_warning_at: int = Field(default=1500)  # 25 minutes in seconds
+    session_time_limit: int = Field(default=1800)  # 30 minutes
+    ai_response_timeout: int = Field(default=10)  # seconds
+    auto_play_filler: bool = Field(default=True)
+
+
+class DJPreset(BaseModel):
+    id: UUID
+    user_id: UUID
+    name: str
+    description: str | None = None
+    is_default: bool = False
+    settings: DJSettings
+    created_at: datetime
+    updated_at: datetime
+
+
+class DJTrack(BaseModel):
+    id: UUID
+    preset_id: UUID
+    name: str
+    type: TrackType
+    hotkey: str | None = None
+    loop: bool = False
+    sort_order: int = 0
+
+    # Source
+    source: TrackSource
+
+    # TTS fields
+    text_content: str | None = None
+    tts_provider: str | None = None
+    tts_voice_id: str | None = None
+    tts_speed: Decimal = Decimal("1.0")
+
+    # Upload fields
+    original_filename: str | None = None
+
+    # Audio info
+    audio_storage_path: str | None = None
+    audio_url: str | None = None  # Signed URL
+    duration_ms: int | None = None
+    file_size_bytes: int | None = None
+    content_type: str = "audio/mpeg"
+
+    # Volume
+    volume: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    created_at: datetime
+    updated_at: datetime
+```
+
+#### 3.3 API Endpoints
+
+```yaml
+# Preset 管理
+GET    /api/v1/dj/presets                    # 列出使用者所有預設組
+POST   /api/v1/dj/presets                    # 建立新預設組
+GET    /api/v1/dj/presets/{preset_id}        # 取得預設組詳情（含所有音軌）
+PUT    /api/v1/dj/presets/{preset_id}        # 更新預設組設定
+DELETE /api/v1/dj/presets/{preset_id}        # 刪除預設組
+POST   /api/v1/dj/presets/{preset_id}/clone  # 複製預設組
+
+# Track 管理
+GET    /api/v1/dj/presets/{preset_id}/tracks              # 列出預設組所有音軌
+POST   /api/v1/dj/presets/{preset_id}/tracks              # 新增音軌
+GET    /api/v1/dj/presets/{preset_id}/tracks/{track_id}   # 取得音軌詳情
+PUT    /api/v1/dj/presets/{preset_id}/tracks/{track_id}   # 更新音軌
+DELETE /api/v1/dj/presets/{preset_id}/tracks/{track_id}   # 刪除音軌
+PUT    /api/v1/dj/presets/{preset_id}/tracks/reorder      # 重新排序音軌
+
+# Audio 管理
+POST   /api/v1/dj/audio/upload                # 上傳音檔（multipart/form-data）
+GET    /api/v1/dj/audio/{track_id}            # 取得音檔（redirect to signed URL）
+DELETE /api/v1/dj/audio/{track_id}            # 刪除音檔
+
+# 資料遷移
+POST   /api/v1/dj/import                      # 從 localStorage JSON 匯入
+GET    /api/v1/dj/export/{preset_id}          # 匯出預設組為 JSON
+```
+
+#### 3.4 API Request/Response 範例
+
+**建立預設組**
+```http
+POST /api/v1/dj/presets
+Content-Type: application/json
+
+{
+  "name": "兒童互動測試",
+  "description": "4-6歲兒童語音互動研究",
+  "settings": {
+    "master_volume": 0.8,
+    "time_warning_at": 1500,
+    "session_time_limit": 1800
+  }
+}
+```
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "user-uuid",
+  "name": "兒童互動測試",
+  "description": "4-6歲兒童語音互動研究",
+  "is_default": false,
+  "settings": {
+    "master_volume": 0.8,
+    "time_warning_at": 1500,
+    "session_time_limit": 1800,
+    "ai_response_timeout": 10,
+    "auto_play_filler": true
+  },
+  "created_at": "2026-01-29T10:00:00Z",
+  "updated_at": "2026-01-29T10:00:00Z"
+}
+```
+
+**新增 TTS 音軌**
+```http
+POST /api/v1/dj/presets/{preset_id}/tracks
+Content-Type: application/json
+
+{
+  "name": "開場白",
+  "type": "intro",
+  "hotkey": "1",
+  "source": "tts",
+  "text_content": "嗨！小朋友你好，我是魔法 DJ！",
+  "tts_provider": "voai",
+  "tts_voice_id": "voai-tw-female-1",
+  "tts_speed": 1.0,
+  "volume": 1.0
+}
+```
+
+**上傳音檔**
+```http
+POST /api/v1/dj/audio/upload
+Content-Type: multipart/form-data
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="background.mp3"
+Content-Type: audio/mpeg
+
+[binary data]
+------WebKitFormBoundary
+Content-Disposition: form-data; name="track_id"
+
+550e8400-e29b-41d4-a716-446655440000
+------WebKitFormBoundary--
+```
+
+```json
+{
+  "track_id": "550e8400-e29b-41d4-a716-446655440000",
+  "storage_path": "gs://voice-lab-audio/dj-audio/user-123/550e8400.mp3",
+  "audio_url": "https://storage.googleapis.com/...",
+  "duration_ms": 180000,
+  "file_size_bytes": 2457600,
+  "content_type": "audio/mpeg"
+}
+```
+
+**從 localStorage 匯入**
+```http
+POST /api/v1/dj/import
+Content-Type: application/json
+
+{
+  "preset_name": "匯入的設定",
+  "data": {
+    "settings": { ... },
+    "masterVolume": 0.8,
+    "tracks": [
+      {
+        "id": "track_01",
+        "name": "開場白",
+        "type": "intro",
+        "audioBase64": "data:audio/mpeg;base64,..."
+      }
+    ]
+  }
+}
+```
+
+#### 3.5 GCS 音檔儲存
+
+```python
+# backend/src/infrastructure/storage/gcs.py
+
+from google.cloud import storage
+from datetime import timedelta
+
+class DJAudioStorage:
+    BUCKET_NAME = "voice-lab-audio"
+    PATH_PREFIX = "dj-audio"
+
+    def __init__(self):
+        self.client = storage.Client()
+        self.bucket = self.client.bucket(self.BUCKET_NAME)
+
+    def upload(
+        self,
+        user_id: str,
+        track_id: str,
+        audio_data: bytes,
+        content_type: str = "audio/mpeg"
+    ) -> str:
+        """上傳音檔，回傳 storage path"""
+        path = f"{self.PATH_PREFIX}/{user_id}/{track_id}.mp3"
+        blob = self.bucket.blob(path)
+        blob.upload_from_string(audio_data, content_type=content_type)
+        return f"gs://{self.BUCKET_NAME}/{path}"
+
+    def get_signed_url(self, storage_path: str, expiration: int = 3600) -> str:
+        """產生 signed URL for download"""
+        # 解析 gs:// path
+        path = storage_path.replace(f"gs://{self.BUCKET_NAME}/", "")
+        blob = self.bucket.blob(path)
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(seconds=expiration),
+            method="GET"
+        )
+
+    def delete(self, storage_path: str) -> None:
+        """刪除音檔"""
+        path = storage_path.replace(f"gs://{self.BUCKET_NAME}/", "")
+        blob = self.bucket.blob(path)
+        blob.delete()
+```
+
+#### 3.6 Frontend 整合
+
+```typescript
+// frontend/src/lib/api/dj.ts
+
+export interface DJPreset {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  settings: DJSettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DJTrackDTO {
+  id: string;
+  presetId: string;
+  name: string;
+  type: TrackType;
+  hotkey?: string;
+  loop: boolean;
+  sortOrder: number;
+  source: 'tts' | 'upload';
+  textContent?: string;
+  ttsProvider?: string;
+  ttsVoiceId?: string;
+  ttsSpeed?: number;
+  originalFilename?: string;
+  audioUrl?: string;  // Signed URL from backend
+  durationMs?: number;
+  fileSizeBytes?: number;
+  volume: number;
+}
+
+// API Client
+export const djApi = {
+  // Presets
+  listPresets: () =>
+    api.get<DJPreset[]>('/dj/presets'),
+
+  getPreset: (presetId: string) =>
+    api.get<DJPreset & { tracks: DJTrackDTO[] }>(`/dj/presets/${presetId}`),
+
+  createPreset: (data: CreatePresetRequest) =>
+    api.post<DJPreset>('/dj/presets', data),
+
+  updatePreset: (presetId: string, data: UpdatePresetRequest) =>
+    api.put<DJPreset>(`/dj/presets/${presetId}`, data),
+
+  deletePreset: (presetId: string) =>
+    api.delete(`/dj/presets/${presetId}`),
+
+  // Tracks
+  createTrack: (presetId: string, data: CreateTrackRequest) =>
+    api.post<DJTrackDTO>(`/dj/presets/${presetId}/tracks`, data),
+
+  updateTrack: (presetId: string, trackId: string, data: UpdateTrackRequest) =>
+    api.put<DJTrackDTO>(`/dj/presets/${presetId}/tracks/${trackId}`, data),
+
+  deleteTrack: (presetId: string, trackId: string) =>
+    api.delete(`/dj/presets/${presetId}/tracks/${trackId}`),
+
+  reorderTracks: (presetId: string, trackIds: string[]) =>
+    api.put(`/dj/presets/${presetId}/tracks/reorder`, { trackIds }),
+
+  // Audio
+  uploadAudio: (trackId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('track_id', trackId);
+    return api.post<AudioUploadResponse>('/dj/audio/upload', formData);
+  },
+
+  // Import/Export
+  importFromLocalStorage: (presetName: string, data: LocalStorageData) =>
+    api.post<DJPreset>('/dj/import', { preset_name: presetName, data }),
+
+  exportPreset: (presetId: string) =>
+    api.get<ExportData>(`/dj/export/${presetId}`),
+};
+```
+
+#### 3.7 Store 改造
+
+```typescript
+// frontend/src/stores/magicDJStore.ts
+
+// Phase 3: 改為 API-backed store（移除 persist middleware）
+
+interface MagicDJStoreState {
+  // Current loaded preset
+  currentPreset: DJPreset | null;
+  tracks: Track[];
+  trackStates: Record<string, TrackPlaybackState>;
+
+  // UI state (not persisted)
+  masterVolume: number;
+  currentMode: OperationMode;
+  isLoading: boolean;
+  error: string | null;
+
+  // Session state (not persisted)
+  isSessionActive: boolean;
+  // ...
+
+  // Actions
+  loadPreset: (presetId: string) => Promise<void>;
+  saveTrack: (track: Track) => Promise<void>;
+  deleteTrack: (trackId: string) => Promise<void>;
+  uploadAudio: (trackId: string, file: File) => Promise<void>;
+  // ...
+}
+
+export const useMagicDJStore = create<MagicDJStoreState>()((set, get) => ({
+  // ... state
+
+  loadPreset: async (presetId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const preset = await djApi.getPreset(presetId);
+      set({
+        currentPreset: preset,
+        tracks: preset.tracks.map(dtoToTrack),
+        trackStates: createInitialTrackStates(preset.tracks),
+        masterVolume: preset.settings.masterVolume,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  saveTrack: async (track) => {
+    const preset = get().currentPreset;
+    if (!preset) return;
+
+    try {
+      const dto = await djApi.updateTrack(preset.id, track.id, trackToDto(track));
+      set((state) => ({
+        tracks: state.tracks.map(t => t.id === track.id ? dtoToTrack(dto) : t),
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  // ... other actions
+}));
+```
+
+#### 3.8 UI 變更
+
+**Preset 選擇器**
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  Magic DJ Controller                                                    │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  預設組: [兒童互動測試 ▼]  [+ 新增]  [複製]  [刪除]  [匯入/匯出]       │
+│                                                                        │
+│  ────────────────────────────────────────────────────────────────────  │
+│                                                                        │
+│  （現有的 TrackList + Controls）                                        │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**匯入對話框**
+```
+┌─────────────────────────────────────────────────────┐
+│  匯入設定                                      [X]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  偵測到本地設定：                                   │
+│                                                     │
+│  ┌───────────────────────────────────────────────┐ │
+│  │  8 個音軌                                      │ │
+│  │  總計 4.2 MB 音檔                              │ │
+│  │  最後修改: 2026-01-28 15:30                    │ │
+│  └───────────────────────────────────────────────┘ │
+│                                                     │
+│  預設組名稱: [匯入的設定____________]              │
+│                                                     │
+│  ⚠️ 匯入後，本地設定將被清除                       │
+│                                                     │
+│                        [取消]    [匯入到雲端]       │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### 驗收標準 (Phase 3)
+
+**後端 API**
+- [ ] 可建立/讀取/更新/刪除預設組
+- [ ] 可建立/讀取/更新/刪除音軌
+- [ ] 可上傳音檔到 GCS
+- [ ] 可產生有時效的 signed URL
+- [ ] 音軌排序功能正常
+- [ ] 資料存取有使用者權限驗證
+
+**前端整合**
+- [ ] 可選擇不同預設組
+- [ ] 新增/編輯/刪除預設組
+- [ ] 音軌 CRUD 透過 API
+- [ ] 音檔上傳直接到後端
+- [ ] 播放時使用 signed URL
+
+**資料遷移**
+- [ ] 可從 localStorage 匯入到後端
+- [ ] 匯入包含音檔上傳
+- [ ] 匯入成功後清除 localStorage
+- [ ] 可匯出預設組為 JSON
+
+**效能**
+- [ ] Signed URL 有適當快取
+- [ ] 音檔播放無明顯延遲
+- [ ] 大量音軌列表載入流暢
+
+### 實作任務分解
+
+| 任務 | 預估複雜度 | 相依性 |
+|-----|----------|--------|
+| 3.1 設計並建立資料庫 Schema | 中 | - |
+| 3.2 實作 Domain Models | 低 | 3.1 |
+| 3.3 實作 GCS 音檔儲存服務 | 中 | - |
+| 3.4 實作 Preset CRUD API | 中 | 3.2 |
+| 3.5 實作 Track CRUD API | 中 | 3.2, 3.4 |
+| 3.6 實作音檔上傳 API | 中 | 3.3, 3.5 |
+| 3.7 實作匯入/匯出 API | 中 | 3.4, 3.5, 3.6 |
+| 3.8 Frontend API Client | 低 | 3.4-3.7 |
+| 3.9 改造 Store（移除 persist） | 中 | 3.8 |
+| 3.10 Preset 選擇器 UI | 中 | 3.9 |
+| 3.11 匯入對話框 UI | 中 | 3.9, 3.10 |
+| 3.12 整合測試 | 高 | All |
+
+### Phase 3 新增/修改檔案
+
+```
+backend/src/
+├── domain/models/
+│   └── dj.py                              # 新增 - DJ Domain Models
+├── domain/services/
+│   └── dj_service.py                      # 新增 - DJ 業務邏輯
+├── infrastructure/
+│   ├── persistence/
+│   │   └── dj_repository.py               # 新增 - DB 存取
+│   └── storage/
+│       └── gcs.py                         # 修改 - 新增 DJ 音檔儲存
+├── presentation/api/routes/
+│   └── dj.py                              # 新增 - DJ API Routes
+└── presentation/api/schemas/
+    └── dj.py                              # 新增 - Request/Response Schemas
+
+frontend/src/
+├── lib/api/
+│   └── dj.ts                              # 新增 - DJ API Client
+├── components/magic-dj/
+│   ├── PresetSelector.tsx                 # 新增 - 預設組選擇器
+│   ├── ImportDialog.tsx                   # 新增 - 匯入對話框
+│   └── ExportButton.tsx                   # 新增 - 匯出按鈕
+├── stores/
+│   └── magicDJStore.ts                    # 修改 - API-backed store
+└── routes/magic-dj/
+    └── MagicDJPage.tsx                    # 修改 - 整合 Preset 選擇
+
+migrations/
+└── versions/
+    └── xxxx_add_dj_tables.py              # 新增 - Alembic migration
 ```

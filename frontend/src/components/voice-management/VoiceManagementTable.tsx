@@ -54,8 +54,16 @@ export function VoiceManagementTable() {
 
       {/* Error message */}
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg dark:bg-red-900/20 dark:text-red-300">
-          {error}
+        <div className="flex items-center justify-between p-4 bg-red-50 text-red-700 rounded-lg dark:bg-red-900/20 dark:text-red-300">
+          <span>{error}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadVoices()}
+              className="text-sm font-medium text-red-700 hover:text-red-900 underline dark:text-red-300 dark:hover:text-red-100"
+            >
+              重試
+            </button>
+          </div>
         </div>
       )}
 

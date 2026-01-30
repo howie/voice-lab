@@ -59,6 +59,14 @@ PROVIDER_CAPABILITIES: dict[str, ProviderMultiRoleCapability] = {
         advanced_features=[],
         notes="Requires segmented synthesis with audio merging",
     ),
+    "voai": ProviderMultiRoleCapability(
+        provider_name="voai",
+        support_type=MultiRoleSupportType.SEGMENTED,
+        max_speakers=6,
+        character_limit=3000,
+        advanced_features=["style prompts"],
+        notes="VoAI 台灣語音，支援多種語氣風格，使用分段合成模式",
+    ),
 }
 
 

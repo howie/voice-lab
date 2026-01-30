@@ -209,6 +209,7 @@ export function ChannelBoard({
         {/* Leading Channel (e.g. AI Voice, only in AI mode) */}
         {leadingChannel}
 
+
         {/* 4 Channel Strips */}
         <div className="flex gap-2">
           {CHANNEL_CONFIGS.map((config) => (

@@ -1,10 +1,12 @@
 /**
  * VoiceSelector Component
  * T061: Create VoiceSelector component (dynamic voice list from API)
+ * T025: Display display_name, exclude hidden, sort favorites first
  */
 
 import { useEffect, useState } from 'react'
-import { ttsApi, VoiceProfile } from '@/lib/api'
+import { voiceCustomizationApi } from '@/lib/voiceCustomizationApi'
+import type { VoiceWithCustomization } from '@/types/voice-customization'
 import { Spinner } from './LoadingIndicator'
 
 export type AgeGroup = 'child' | 'young' | 'adult' | 'senior'
@@ -46,27 +48,29 @@ export function VoiceSelector({
   showAgeFilter = false,
   showStyleFilter = false,
 }: VoiceSelectorProps) {
-  const [voices, setVoices] = useState<VoiceProfile[]>([])
+  const [voices, setVoices] = useState<VoiceWithCustomization[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroup | undefined>(ageGroup)
   const [selectedStyle, setSelectedStyle] = useState<string | undefined>(style)
 
-  // Load voices when filters change
+  // Load voices when filters change (uses /voices with customization data)
   useEffect(() => {
     const loadVoices = async () => {
       setIsLoading(true)
       setError(null)
 
       try {
-        const filters: { language?: string; gender?: string; age_group?: string; style?: string } = {}
-        if (language) filters.language = language
-        if (gender) filters.gender = gender
-        if (selectedAgeGroup) filters.age_group = selectedAgeGroup
-        if (selectedStyle) filters.style = selectedStyle
+        const response = await voiceCustomizationApi.listVoicesWithCustomizations({
+          provider,
+          language,
+          gender: gender as 'male' | 'female' | 'neutral' | undefined,
+          ageGroup: selectedAgeGroup,
+          excludeHidden: true,
+          limit: 500,
+        })
 
-        const response = await ttsApi.getVoices(provider, filters)
-        setVoices(response.data)
+        setVoices(response.items)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load voices'
         setError(message)
@@ -88,14 +92,14 @@ export function VoiceSelector({
     }
   }, [voices, value, onChange])
 
-  // Group voices by gender
-  const groupedVoices = voices.reduce<Record<string, VoiceProfile[]>>(
+  // Group voices by gender (favorites always first within each group)
+  const groupedVoices = voices.reduce<Record<string, VoiceWithCustomization[]>>(
     (acc, voice) => {
-      const gender = voice.gender || 'other'
-      if (!acc[gender]) {
-        acc[gender] = []
+      const genderKey = voice.gender || 'other'
+      if (!acc[genderKey]) {
+        acc[genderKey] = []
       }
-      acc[gender].push(voice)
+      acc[genderKey].push(voice)
       return acc
     },
     {}
@@ -188,8 +192,7 @@ export function VoiceSelector({
             <optgroup key={genderKey} label={genderLabels[genderKey] || genderKey}>
               {genderVoices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
-                  {voice.name}
-                  {voice.age_group && ` (${ageGroupLabels[voice.age_group]})`}
+                  {voice.isFavorite ? '★ ' : ''}{voice.displayName || voice.display_name}
                 </option>
               ))}
             </optgroup>

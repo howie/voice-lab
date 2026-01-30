@@ -424,7 +424,7 @@ class TestCascadeModeServiceE2E:
         from src.domain.services.interaction.base import AudioChunk
 
         audio_data = b"\x00\x01" * 1600
-        chunk = AudioChunk(data=audio_data, sample_rate=16000)
+        chunk = AudioChunk(data=audio_data, format="pcm16", sample_rate=16000)
         await service.send_audio(chunk)
 
         # Trigger pipeline
@@ -462,14 +462,15 @@ class TestCascadeModeServiceE2E:
 class TestInteractionModeFactoryIntegration:
     """Integration tests for InteractionModeFactory in WebSocket routes."""
 
-    @patch("src.domain.services.interaction.cascade_mode_factory.STTProviderFactory")
-    @patch("src.domain.services.interaction.cascade_mode_factory.LLMProviderFactory")
-    @patch("src.domain.services.interaction.cascade_mode_factory.TTSProviderFactory")
-    def test_websocket_creates_cascade_service_correctly(
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.providers.stt.factory.STTProviderFactory.create")
+    @patch("src.infrastructure.providers.llm.factory.LLMProviderFactory.create_default")
+    @patch("src.infrastructure.providers.tts.factory.TTSProviderFactory.create_default")
+    async def test_websocket_creates_cascade_service_correctly(
         self,
-        mock_tts_factory: MagicMock,
-        mock_llm_factory: MagicMock,
-        mock_stt_factory: MagicMock,
+        mock_tts_create_default: MagicMock,
+        mock_llm_create_default: MagicMock,
+        mock_stt_create: MagicMock,
     ) -> None:
         """Verify WebSocket route creates cascade service with factory."""
         from src.application.interfaces.llm_provider import ILLMProvider
@@ -480,11 +481,10 @@ class TestInteractionModeFactoryIntegration:
         mock_llm = MagicMock(spec=ILLMProvider)
         mock_tts = MagicMock(spec=ITTSProvider)
 
-        mock_stt_factory.create.return_value = mock_stt
-        mock_llm_factory.create.return_value = mock_llm
-        mock_tts_factory.create_default.return_value = mock_tts
+        mock_stt_create.return_value = mock_stt
+        mock_llm_create_default.return_value = mock_llm
+        mock_tts_create_default.return_value = mock_tts
 
-        # Simulate what interaction_ws.py now does (after fix)
         from src.presentation.api.routes.interaction_ws import InteractionModeFactory
 
         config = {
@@ -493,13 +493,12 @@ class TestInteractionModeFactoryIntegration:
             "tts_provider": "azure",
         }
 
-        service = InteractionModeFactory.create("cascade", config)
+        service = await InteractionModeFactory.create("cascade", config)
 
         # Verify service is created correctly
         assert isinstance(service, InteractionModeService)
         assert service.mode_name == "cascade"
 
         # Verify providers were created
-        mock_stt_factory.create.assert_called_once()
-        mock_llm_factory.create.assert_called_once()
-        mock_tts_factory.create_default.assert_called_once()
+        mock_stt_create.assert_called_once()
+        mock_tts_create_default.assert_called_once()

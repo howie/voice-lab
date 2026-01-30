@@ -98,6 +98,7 @@ export function MagicDJPage() {
   const user = useAuthStore((state) => state.user)
   const userId = user?.id || '00000000-0000-0000-0000-000000000001'
 
+
   // WebSocket for Gemini
   const wsUrl = buildWebSocketUrl('realtime', userId)
 

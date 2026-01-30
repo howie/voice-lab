@@ -727,6 +727,54 @@ class DJTrackModel(Base):
 
 
 # =============================================================================
+# Voice Customization Models (Feature 013 - TTS Role Management)
+# =============================================================================
+
+
+class VoiceCustomizationModel(Base):
+    """SQLAlchemy model for voice customization settings.
+
+    Feature: 013-tts-role-mgmt
+    Stores user preferences for TTS voices including custom names,
+    favorite status, and hidden status.
+    """
+
+    __tablename__ = "voice_customization"
+    __table_args__ = (
+        Index(
+            "ix_voice_customization_is_favorite",
+            "is_favorite",
+            postgresql_where="is_favorite = true",
+        ),
+        Index(
+            "ix_voice_customization_is_hidden",
+            "is_hidden",
+            postgresql_where="is_hidden = true",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    voice_cache_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("voice_cache.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    custom_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    voice_cache: Mapped["VoiceCache"] = relationship("VoiceCache")
+
+
+# =============================================================================
 # Music Generation Models (Feature 012)
 # =============================================================================
 
@@ -793,51 +841,3 @@ class MusicGenerationJobModel(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User")
-
-
-# =============================================================================
-# Voice Customization Models (Feature 013 - TTS Role Management)
-# =============================================================================
-
-
-class VoiceCustomizationModel(Base):
-    """SQLAlchemy model for voice customization settings.
-
-    Feature: 013-tts-role-mgmt
-    Stores user preferences for TTS voices including custom names,
-    favorite status, and hidden status.
-    """
-
-    __tablename__ = "voice_customization"
-    __table_args__ = (
-        Index(
-            "ix_voice_customization_is_favorite",
-            "is_favorite",
-            postgresql_where="is_favorite = true",
-        ),
-        Index(
-            "ix_voice_customization_is_hidden",
-            "is_hidden",
-            postgresql_where="is_hidden = true",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    voice_cache_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("voice_cache.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
-    custom_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    # Relationships
-    voice_cache: Mapped["VoiceCache"] = relationship("VoiceCache")

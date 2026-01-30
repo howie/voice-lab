@@ -20,6 +20,7 @@ export type MultiRoleTTSProvider =
   | 'openai'
   | 'cartesia'
   | 'deepgram'
+  | 'voai'
 
 /**
  * Represents a single turn in a dialogue.

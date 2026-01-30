@@ -17,7 +17,7 @@ from pydub import AudioSegment
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
-from src.domain.errors import QuotaExceededError
+from src.domain.errors import QuotaExceededError, RateLimitError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -82,7 +82,7 @@ class GeminiTTSProvider(BaseTTSProvider):
         super().__init__("gemini")
         self._api_key = api_key
         self._model = model
-        self._client = httpx.AsyncClient(timeout=60.0)
+        self._client = httpx.AsyncClient(timeout=180.0)
 
     async def _do_synthesize(self, request: TTSRequest) -> AudioData:
         """Synthesize speech using Gemini TTS API.
@@ -128,15 +128,23 @@ class GeminiTTSProvider(BaseTTSProvider):
             except Exception:
                 error_message = response.text
 
-            # T008: Detect 429 quota exceeded
-            if response.status_code == 429 or (
-                "exceeded your current quota" in error_message.lower()
-            ):
+            # T008: Detect 429 rate limit / quota exceeded
+            is_quota_exhausted = "exceeded your current quota" in error_message.lower()
+            if response.status_code == 429 or is_quota_exhausted:
                 retry_after = None
                 if "retry-after" in response.headers:
                     with contextlib.suppress(ValueError, TypeError):
                         retry_after = int(response.headers["retry-after"])
-                raise QuotaExceededError(
+
+                if is_quota_exhausted:
+                    raise QuotaExceededError(
+                        provider="gemini",
+                        retry_after=retry_after,
+                        original_error=error_message,
+                    )
+
+                # 429 without quota exhaustion message → rate limit
+                raise RateLimitError(
                     provider="gemini",
                     retry_after=retry_after,
                     original_error=error_message,

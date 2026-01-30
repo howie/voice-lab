@@ -39,6 +39,8 @@ export interface ChannelBoardProps {
   onGenerateBGM?: () => void
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
+  /** Optional leading channel rendered before the 4 standard channels (e.g. AI Voice) */
+  leadingChannel?: React.ReactNode
   /** Whether to show the cue list panel */
   showCueList?: boolean
   /** Cue list event handlers */
@@ -73,6 +75,7 @@ export function ChannelBoard({
   onGenerateBGM,
   onEditTrack,
   onDeleteTrack,
+  leadingChannel,
   showCueList = false,
   onPlayNextCue,
   onRemoveFromCueList,
@@ -203,6 +206,10 @@ export function ChannelBoard({
       onDragEnd={handleDragEnd}
     >
       <div className="flex flex-1 gap-3 overflow-x-auto">
+        {/* Leading Channel (e.g. AI Voice, only in AI mode) */}
+        {leadingChannel}
+
+
         {/* 4 Channel Strips */}
         <div className="flex gap-2">
           {CHANNEL_CONFIGS.map((config) => (

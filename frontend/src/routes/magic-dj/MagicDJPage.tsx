@@ -7,17 +7,36 @@
  * Enhanced: Dynamic track management with TTS integration.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
 import { useMagicDJStore } from '@/stores/magicDJStore'
+import { useAuthStore } from '@/stores/authStore'
+import { useInteractionStore } from '@/stores/interactionStore'
 import { useMultiTrackPlayer } from '@/hooks/useMultiTrackPlayer'
 import { useDJHotkeys } from '@/hooks/useDJHotkeys'
 import { useCueList } from '@/hooks/useCueList'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useMicrophone } from '@/hooks/useMicrophone'
+import { buildWebSocketUrl } from '@/services/interactionApi'
 import type { Track } from '@/types/magic-dj'
+
+// =============================================================================
+// Utilities
+// =============================================================================
+
+/** Convert Float32 audio samples to PCM16 ArrayBuffer */
+function float32ToPCM16(input: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(input.length * 2)
+  const view = new DataView(buffer)
+  for (let i = 0; i < input.length; i++) {
+    const s = Math.max(-1, Math.min(1, input[i]))
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+  }
+  return buffer
+}
 
 // =============================================================================
 // Component
@@ -52,8 +71,8 @@ export function MagicDJPage() {
     updateTrack,
   } = useMagicDJStore()
 
-  // Note: interactionOptions available for future Gemini integration
-  // const { options: interactionOptions } = useInteractionStore()
+  // Interaction options for Gemini AI config
+  const { options: interactionOptions } = useInteractionStore()
 
   // Multi-track player
   const {
@@ -75,8 +94,13 @@ export function MagicDJPage() {
     currentItem: currentCueItem,
   } = useCueList()
 
+  // Auth store for user ID
+  const user = useAuthStore((state) => state.user)
+  const userId = user?.id || '00000000-0000-0000-0000-000000000001'
+
+
   // WebSocket for Gemini
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws`
+  const wsUrl = buildWebSocketUrl('realtime', userId)
 
   const handleWSMessage = useCallback(
     (message: { type: string; data: unknown }) => {
@@ -98,12 +122,79 @@ export function MagicDJPage() {
     [setAIConnected]
   )
 
-  const { status: wsStatus, connect, disconnect, sendMessage } = useWebSocket({
+  const { status: wsStatus, connect, disconnect, sendMessage, sendBinary } = useWebSocket({
     url: wsUrl,
     autoConnect: false,
     onMessage: handleWSMessage,
     onStatusChange: handleWSStatusChange,
   })
+
+  // === Microphone for AI mode ===
+
+  const [micVolume, setMicVolume] = useState(0)
+  const audioSampleRateLoggedRef = useRef(false)
+  const configSentRef = useRef(false)
+
+  const {
+    isRecording: isListening,
+    startRecording: startListening,
+    stopRecording: stopListening,
+  } = useMicrophone({
+    onAudioChunk: (chunk: Float32Array, actualSampleRate: number) => {
+      if (wsStatus !== 'connected' || !configSentRef.current) return
+
+      if (!audioSampleRateLoggedRef.current) {
+        console.log(`[MagicDJ Audio] Sample rate: ${actualSampleRate}Hz`)
+        audioSampleRateLoggedRef.current = true
+      }
+
+      // Convert Float32 to PCM16
+      const pcm16Buffer = float32ToPCM16(chunk)
+
+      // Binary format: [4 bytes sample_rate (uint32 LE)] + [PCM16 audio data]
+      const headerSize = 4
+      const binaryMessage = new ArrayBuffer(headerSize + pcm16Buffer.byteLength)
+      const view = new DataView(binaryMessage)
+      view.setUint32(0, actualSampleRate, true)
+      new Uint8Array(binaryMessage, headerSize).set(new Uint8Array(pcm16Buffer))
+
+      sendBinary(binaryMessage)
+    },
+    onVolumeChange: (vol: number) => {
+      setMicVolume(vol)
+    },
+  })
+
+  // Send config message when WebSocket connects (must run before microphone starts)
+  useEffect(() => {
+    if (wsStatus !== 'connected') {
+      configSentRef.current = false
+      return
+    }
+    if (currentMode === 'ai-conversation' && !configSentRef.current) {
+      sendMessage('config', {
+        config: interactionOptions.providerConfig,
+        system_prompt: interactionOptions.systemPrompt,
+        lightweight_mode: true,
+      })
+      configSentRef.current = true
+    }
+  }, [wsStatus, currentMode, sendMessage, interactionOptions])
+
+  // Auto-start listening when WebSocket connects in AI mode (after config sent)
+  useEffect(() => {
+    if (wsStatus === 'connected' && currentMode === 'ai-conversation' && !isListening && configSentRef.current) {
+      startListening()
+    }
+  }, [wsStatus, currentMode, isListening, startListening])
+
+  const handleToggleListening = useCallback(() => {
+    if (isListening) {
+      stopListening()
+    } else {
+      startListening()
+    }
+  }, [isListening, startListening, stopListening])
 
   // === Hotkey Actions ===
 
@@ -389,8 +480,9 @@ export function MagicDJPage() {
   const handleStopSession = useCallback(() => {
     stopSession()
     stopAll()
+    stopListening()
     disconnect()
-  }, [stopSession, stopAll, disconnect])
+  }, [stopSession, stopAll, stopListening, disconnect])
 
   // === Render ===
 
@@ -433,6 +525,9 @@ export function MagicDJPage() {
         onRemoveFromCueList={removeFromCueList}
         onResetCueList={resetCuePosition}
         onClearCueList={clearCueList}
+        micVolume={micVolume}
+        isListening={isListening}
+        onToggleListening={handleToggleListening}
       />
 
       {/* Track Editor Modal */}

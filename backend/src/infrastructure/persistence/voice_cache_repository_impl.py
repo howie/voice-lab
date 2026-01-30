@@ -230,6 +230,19 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
         result = await self._session.execute(query)
         return [row[0] for row in result.all()]
 
+    async def update_sample_audio_url(
+        self,
+        voice_cache_id: str,
+        sample_audio_url: str,
+    ) -> None:
+        """Update the sample audio URL for a voice."""
+        await self._session.execute(
+            update(VoiceCache)
+            .where(VoiceCache.id == voice_cache_id)
+            .values(sample_audio_url=sample_audio_url)
+        )
+        await self._session.flush()
+
     def _apply_filters(
         self,
         query,

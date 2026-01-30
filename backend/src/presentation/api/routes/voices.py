@@ -2,11 +2,16 @@
 
 T055: Add GET /voices endpoint (list all voices with filters)
 T056: Add GET /voices/{provider}/{voice_id} endpoint
+T059: Add POST /{voice_cache_id}/preview endpoint (voice preview)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.interfaces.storage_service import IStorageService
+from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.voice_cache_repository import IVoiceCacheRepository
+from src.application.use_cases.generate_voice_preview import GenerateVoicePreview
 from src.application.use_cases.list_voices import (
     VoiceFilter,
     VoiceProfile,
@@ -19,7 +24,10 @@ from src.application.use_cases.list_voices_with_customization import (
 from src.domain.repositories.voice_customization_repository import (
     IVoiceCustomizationRepository,
 )
+from src.infrastructure.persistence.database import get_db_session
 from src.presentation.api.dependencies import (
+    get_storage_service,
+    get_tts_providers,
     get_voice_cache_repository,
     get_voice_customization_repository,
 )
@@ -112,6 +120,31 @@ async def list_voices(
         "limit": result.limit,
         "offset": result.offset,
     }
+
+
+@router.post("/{voice_cache_id}/preview")
+async def generate_voice_preview(
+    voice_cache_id: str,
+    voice_cache_repo: IVoiceCacheRepository = Depends(get_voice_cache_repository),
+    providers: dict[str, ITTSProvider] = Depends(get_tts_providers),
+    storage: IStorageService = Depends(get_storage_service),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Generate or retrieve a preview audio URL for a voice.
+
+    If the voice already has a cached preview URL, returns it immediately.
+    Otherwise, synthesizes a short preview clip and stores it.
+
+    Args:
+        voice_cache_id: Voice cache ID (format: provider:voice_id)
+
+    Returns:
+        Dictionary with preview_url
+    """
+    use_case = GenerateVoicePreview(providers, storage, voice_cache_repo)
+    preview_url = await use_case.execute(voice_cache_id)
+    await session.commit()
+    return {"preview_url": preview_url}
 
 
 @router.get("/{provider}", response_model=list[dict])

@@ -33,6 +33,8 @@ export interface VoiceWithCustomization extends VoiceProfile {
   isHidden: boolean
   /** The customization record if one exists, null for defaults */
   customization: VoiceCustomization | null
+  /** Sample audio URL (camelCase from toCamelCase conversion) */
+  sampleAudioUrl?: string
 }
 
 /**

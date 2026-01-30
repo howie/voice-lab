@@ -183,23 +183,35 @@ async def bulk_update_voice_customizations(
     Processes up to 50 updates in a single request.
     Returns the count of successful updates and any failures.
     """
-    from src.domain.entities.voice_customization import VoiceCustomization
-
-    # Convert request items to domain entities
-    customizations = []
-    for item in request.updates:
-        c = VoiceCustomization(
-            voice_cache_id=item.voice_cache_id,
-            custom_name=item.custom_name,
-            is_favorite=item.is_favorite if item.is_favorite is not None else False,
-            is_hidden=item.is_hidden if item.is_hidden is not None else False,
-        )
-        customizations.append(c)
-
-    success_count, failures = await repo.bulk_update(customizations)
-    await session.commit()
-
-    return BulkUpdateResultSchema(
-        updated_count=success_count,
-        failed=[{"voice_cache_id": vid, "error": err} for vid, err in failures],
+    from src.application.use_cases.bulk_update_voice_customization import (
+        BulkUpdateInput,
+        BulkUpdateItem,
+        BulkUpdateVoiceCustomizationUseCase,
     )
+
+    use_case = BulkUpdateVoiceCustomizationUseCase(repo)
+
+    try:
+        result = await use_case.execute(
+            BulkUpdateInput(
+                updates=[
+                    BulkUpdateItem(
+                        voice_cache_id=item.voice_cache_id,
+                        custom_name=item.custom_name,
+                        is_favorite=item.is_favorite,
+                        is_hidden=item.is_hidden,
+                    )
+                    for item in request.updates
+                ]
+            )
+        )
+        await session.commit()
+
+        return BulkUpdateResultSchema(
+            updated_count=result.updated_count,
+            failed=[
+                {"voice_cache_id": f.voice_cache_id, "error": f.error} for f in result.failed
+            ],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e

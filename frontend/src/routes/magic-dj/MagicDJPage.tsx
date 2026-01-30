@@ -14,6 +14,7 @@ import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useInteractionStore } from '@/stores/interactionStore'
 import { useMultiTrackPlayer } from '@/hooks/useMultiTrackPlayer'
 import { useDJHotkeys } from '@/hooks/useDJHotkeys'
 import { useCueList } from '@/hooks/useCueList'
@@ -70,8 +71,8 @@ export function MagicDJPage() {
     updateTrack,
   } = useMagicDJStore()
 
-  // Note: interactionOptions available for future Gemini integration
-  // const { options: interactionOptions } = useInteractionStore()
+  // Interaction options for Gemini AI config
+  const { options: interactionOptions } = useInteractionStore()
 
   // Multi-track player
   const {
@@ -131,6 +132,7 @@ export function MagicDJPage() {
 
   const [micVolume, setMicVolume] = useState(0)
   const audioSampleRateLoggedRef = useRef(false)
+  const configSentRef = useRef(false)
 
   const {
     isRecording: isListening,
@@ -138,7 +140,7 @@ export function MagicDJPage() {
     stopRecording: stopListening,
   } = useMicrophone({
     onAudioChunk: (chunk: Float32Array, actualSampleRate: number) => {
-      if (wsStatus !== 'connected') return
+      if (wsStatus !== 'connected' || !configSentRef.current) return
 
       if (!audioSampleRateLoggedRef.current) {
         console.log(`[MagicDJ Audio] Sample rate: ${actualSampleRate}Hz`)
@@ -162,9 +164,25 @@ export function MagicDJPage() {
     },
   })
 
-  // Auto-start listening when WebSocket connects in AI mode
+  // Send config message when WebSocket connects (must run before microphone starts)
   useEffect(() => {
-    if (wsStatus === 'connected' && currentMode === 'ai-conversation' && !isListening) {
+    if (wsStatus !== 'connected') {
+      configSentRef.current = false
+      return
+    }
+    if (currentMode === 'ai-conversation' && !configSentRef.current) {
+      sendMessage('config', {
+        config: interactionOptions.providerConfig,
+        system_prompt: interactionOptions.systemPrompt,
+        lightweight_mode: true,
+      })
+      configSentRef.current = true
+    }
+  }, [wsStatus, currentMode, sendMessage, interactionOptions])
+
+  // Auto-start listening when WebSocket connects in AI mode (after config sent)
+  useEffect(() => {
+    if (wsStatus === 'connected' && currentMode === 'ai-conversation' && !isListening && configSentRef.current) {
       startListening()
     }
   }, [wsStatus, currentMode, isListening, startListening])

@@ -22,6 +22,48 @@ export type TrackType =
   | 'filler' // 填補音效（思考中）
   | 'rescue' // 救場語音
 
+// =============================================================================
+// Channel Types (DD-001: 4-Channel Vertical Layout)
+// =============================================================================
+
+/**
+ * Playback channel type - 4 vertical channels in DJ Mixer layout
+ */
+export type ChannelType = 'rescue' | 'voice' | 'sfx' | 'music'
+
+/**
+ * Channel configuration - defines which track types belong to each channel
+ */
+export interface ChannelConfig {
+  type: ChannelType
+  label: string
+  description: string
+  /** Track types accepted by this channel */
+  acceptTypes: TrackType[]
+}
+
+/**
+ * A queued item in a channel (same track can appear multiple times)
+ */
+export interface ChannelQueueItem {
+  /** Unique instance ID (UUID) */
+  id: string
+  /** Reference to Sound Library track ID */
+  trackId: string
+}
+
+/**
+ * Per-channel playback state
+ */
+export interface ChannelState {
+  /** Current playback position index in queue (-1 = none) */
+  currentIndex: number
+  /** Channel volume 0.0 ~ 1.0 */
+  volume: number
+  /** Whether channel is muted */
+  isMuted: boolean
+}
+
 /**
  * Track source type (011-T001)
  * - tts: 透過 TTS 服務生成
@@ -272,10 +314,14 @@ export interface PresetSummary {
  * Magic DJ Store state
  */
 export interface MagicDJState {
-  // === 音軌管理 ===
+  // === 音軌管理 (Sound Library) ===
   tracks: Track[]
   trackStates: Record<string, TrackPlaybackState>
   masterVolume: number
+
+  // === 頻道佇列 (DD-001: 4-Channel Layout) ===
+  channelQueues: Record<ChannelType, ChannelQueueItem[]>
+  channelStates: Record<ChannelType, ChannelState>
 
   // === 操作模式 ===
   currentMode: OperationMode
@@ -431,4 +477,65 @@ export const DEFAULT_DJ_SETTINGS: DJSettings = {
   aiResponseTimeout: 4, // 4 秒
   hotkeys: DEFAULT_HOTKEYS,
   childFriendlyPrompt: DEFAULT_CHILD_FRIENDLY_PROMPT,
+}
+
+// =============================================================================
+// Channel Configuration (DD-001)
+// =============================================================================
+
+/** 4-channel configuration ordered left to right */
+export const CHANNEL_CONFIGS: ChannelConfig[] = [
+  {
+    type: 'rescue',
+    label: '救場語音',
+    description: '等待填補、緊急結束等',
+    acceptTypes: ['filler', 'rescue'],
+  },
+  {
+    type: 'voice',
+    label: '主語音',
+    description: 'TTS 語音',
+    acceptTypes: ['intro', 'transition'],
+  },
+  {
+    type: 'sfx',
+    label: '音效',
+    description: '串場音效',
+    acceptTypes: ['effect'],
+  },
+  {
+    type: 'music',
+    label: '音樂',
+    description: '背景音樂',
+    acceptTypes: ['song'],
+  },
+]
+
+/** Map TrackType to its default ChannelType */
+export const TRACK_TYPE_TO_CHANNEL: Record<TrackType, ChannelType> = {
+  filler: 'rescue',
+  rescue: 'rescue',
+  intro: 'voice',
+  transition: 'voice',
+  effect: 'sfx',
+  song: 'music',
+}
+
+/** All channel types in display order */
+export const ALL_CHANNEL_TYPES: ChannelType[] = ['rescue', 'voice', 'sfx', 'music']
+
+/** Default empty channel queues */
+export const DEFAULT_CHANNEL_QUEUES: Record<ChannelType, ChannelQueueItem[]> = {
+  rescue: [],
+  voice: [],
+  sfx: [],
+  music: [],
+}
+
+/** Default channel states */
+export const DEFAULT_CHANNEL_STATES: Record<ChannelType, ChannelState> = {
+  rescue: { currentIndex: -1, volume: 1.0, isMuted: false },
+  voice: { currentIndex: -1, volume: 1.0, isMuted: false },
+  sfx: { currentIndex: -1, volume: 1.0, isMuted: false },
+  music: { currentIndex: -1, volume: 1.0, isMuted: false },
 }

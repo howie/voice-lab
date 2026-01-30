@@ -15,6 +15,11 @@ export { RescuePanel } from './RescuePanel'
 export { SessionTimer } from './SessionTimer'
 export { ExportPanel } from './ExportPanel'
 
+// DD-001: 4-Channel Vertical Layout
+export { ChannelStrip } from './ChannelStrip'
+export { ChannelBoard } from './ChannelBoard'
+export { SoundLibrary } from './SoundLibrary'
+
 // 011-magic-dj-audio-features
 export { AudioDropzone } from './AudioDropzone'
 export { VolumeSlider } from './VolumeSlider'

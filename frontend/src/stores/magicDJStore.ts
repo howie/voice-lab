@@ -12,6 +12,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import type {
+  ChannelQueueItem,
+  ChannelType,
   DJSettings,
   MagicDJState,
   OperationLog,
@@ -23,6 +25,8 @@ import type {
   TrackSource,
 } from '@/types/magic-dj'
 import {
+  DEFAULT_CHANNEL_QUEUES,
+  DEFAULT_CHANNEL_STATES,
   DEFAULT_DJ_SETTINGS,
   DEFAULT_TRACKS,
   OperationPriority,
@@ -52,6 +56,16 @@ interface MagicDJStoreState extends MagicDJState {
   // === 011 Audio Features: Volume Actions (T007, T008) ===
   setTrackVolume: (trackId: string, volume: number) => void
   toggleTrackMute: (trackId: string) => void
+
+  // === Channel Queue Actions (DD-001) ===
+  addToChannel: (channelType: ChannelType, trackId: string) => void
+  removeFromChannel: (channelType: ChannelType, itemId: string) => void
+  reorderChannel: (channelType: ChannelType, activeId: string, overId: string) => void
+  setChannelVolume: (channelType: ChannelType, volume: number) => void
+  toggleChannelMute: (channelType: ChannelType) => void
+  advanceChannel: (channelType: ChannelType) => void
+  resetChannelPosition: (channelType: ChannelType) => void
+  clearChannel: (channelType: ChannelType) => void
 
   // === Mode Actions ===
   setMode: (mode: OperationMode) => void
@@ -152,6 +166,9 @@ const initialState: MagicDJState & {
   tracks: DEFAULT_TRACKS,
   trackStates: createInitialTrackStates(DEFAULT_TRACKS),
   masterVolume: 1,
+  // Channel queues (DD-001)
+  channelQueues: DEFAULT_CHANNEL_QUEUES,
+  channelStates: DEFAULT_CHANNEL_STATES,
   currentMode: 'prerecorded',
   isAIConnected: false,
   isSessionActive: false,
@@ -384,6 +401,130 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             },
           }
         }),
+
+      // === Channel Queue Actions (DD-001) ===
+      addToChannel: (channelType, trackId) =>
+        set((prev) => {
+          const newItem: ChannelQueueItem = {
+            id: crypto.randomUUID(),
+            trackId,
+          }
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: [...prev.channelQueues[channelType], newItem],
+            },
+          }
+        }),
+
+      removeFromChannel: (channelType, itemId) =>
+        set((prev) => {
+          const queue = prev.channelQueues[channelType]
+          const removedIndex = queue.findIndex((item) => item.id === itemId)
+          const newQueue = queue.filter((item) => item.id !== itemId)
+          const channelState = prev.channelStates[channelType]
+
+          // Adjust currentIndex if needed
+          let newIndex = channelState.currentIndex
+          if (removedIndex !== -1 && removedIndex <= newIndex) {
+            newIndex = Math.max(-1, newIndex - 1)
+          }
+
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: newQueue,
+            },
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: { ...channelState, currentIndex: newIndex },
+            },
+          }
+        }),
+
+      reorderChannel: (channelType, activeId, overId) =>
+        set((prev) => {
+          const queue = [...prev.channelQueues[channelType]]
+          const oldIndex = queue.findIndex((item) => item.id === activeId)
+          const newIndex = queue.findIndex((item) => item.id === overId)
+
+          if (oldIndex === -1 || newIndex === -1) return prev
+
+          const [movedItem] = queue.splice(oldIndex, 1)
+          queue.splice(newIndex, 0, movedItem)
+
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: queue,
+            },
+          }
+        }),
+
+      setChannelVolume: (channelType, volume) =>
+        set((prev) => ({
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              volume: Math.max(0, Math.min(1, volume)),
+            },
+          },
+        })),
+
+      toggleChannelMute: (channelType) =>
+        set((prev) => {
+          const state = prev.channelStates[channelType]
+          return {
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: { ...state, isMuted: !state.isMuted },
+            },
+          }
+        }),
+
+      advanceChannel: (channelType) =>
+        set((prev) => {
+          const queue = prev.channelQueues[channelType]
+          const state = prev.channelStates[channelType]
+          const nextIndex = state.currentIndex + 1
+
+          return {
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: {
+                ...state,
+                currentIndex: nextIndex < queue.length ? nextIndex : -1,
+              },
+            },
+          }
+        }),
+
+      resetChannelPosition: (channelType) =>
+        set((prev) => ({
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              currentIndex: prev.channelQueues[channelType].length > 0 ? 0 : -1,
+            },
+          },
+        })),
+
+      clearChannel: (channelType) =>
+        set((prev) => ({
+          channelQueues: {
+            ...prev.channelQueues,
+            [channelType]: [],
+          },
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              currentIndex: -1,
+            },
+          },
+        })),
 
       // === Mode Actions ===
       setMode: (mode) => {
@@ -894,6 +1035,9 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           // Flag to indicate audio is in IndexedDB
           hasLocalAudio: track.source === 'upload' || !!track.hasLocalAudio,
         })),
+        // Persist channel queues and states (DD-001)
+        channelQueues: state.channelQueues,
+        channelStates: state.channelStates,
       }),
       // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
@@ -916,6 +1060,9 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           masterVolume: persisted.masterVolume ?? currentState.masterVolume,
           tracks,
           trackStates: createInitialTrackStates(tracks),
+          // Restore channel data (DD-001)
+          channelQueues: persisted.channelQueues ?? DEFAULT_CHANNEL_QUEUES,
+          channelStates: persisted.channelStates ?? DEFAULT_CHANNEL_STATES,
         }
       },
     }
@@ -956,6 +1103,23 @@ export const selectIsAITimeout = (state: MagicDJStoreState) => {
   const waitingSeconds = selectAIWaitingSeconds(state)
   return waitingSeconds >= state.settings.aiResponseTimeout
 }
+
+// === Channel Selectors (DD-001) ===
+
+export const selectChannelQueue = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => state.channelQueues[channelType]
+
+export const selectChannelState = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => state.channelStates[channelType]
+
+export const selectChannelTracks = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => {
+    const queue = state.channelQueues[channelType]
+    return queue.map((item) => ({
+      ...item,
+      track: state.tracks.find((t) => t.id === item.trackId),
+    }))
+  }
 
 // Export helper for operation priority
 export { OperationPriority }

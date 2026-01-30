@@ -10,6 +10,10 @@ from httpx import ASGITransport, AsyncClient
 
 from src.application.use_cases.list_voices import VoiceProfile
 from src.main import app
+from src.presentation.api.dependencies import (
+    get_voice_cache_repository,
+    get_voice_customization_repository,
+)
 
 # Mock voice data as VoiceProfile objects
 MOCK_VOICES = [
@@ -60,114 +64,155 @@ MOCK_VOICES = [
 ]
 
 
+def _build_voice_cache_entry(vp: VoiceProfile):
+    """Build a mock VoiceCache-like object from a VoiceProfile."""
+    from unittest.mock import MagicMock
+
+    entry = MagicMock()
+    entry.id = f"{vp.provider}:{vp.id}"
+    entry.provider = vp.provider
+    entry.voice_id = vp.id
+    entry.display_name = vp.name
+    entry.language = vp.language
+    entry.gender = MagicMock(value=vp.gender) if vp.gender else None
+    entry.age_group = None
+    entry.styles = []
+    entry.use_cases = []
+    entry.sample_audio_url = None
+    entry.is_deprecated = False
+    return entry
+
+
+@pytest.fixture
+def mock_repos():
+    """Create mock voice_cache and customization repos and override deps."""
+    mock_cache_repo = AsyncMock()
+    mock_customization_repo = AsyncMock()
+
+    # Default: return empty customization map
+    mock_customization_repo.get_customization_map = AsyncMock(return_value={})
+
+    app.dependency_overrides[get_voice_cache_repository] = lambda: mock_cache_repo
+    app.dependency_overrides[get_voice_customization_repository] = lambda: mock_customization_repo
+
+    yield mock_cache_repo, mock_customization_repo
+
+    app.dependency_overrides.pop(get_voice_cache_repository, None)
+    app.dependency_overrides.pop(get_voice_customization_repository, None)
+
+
 class TestListVoicesEndpoint:
     """Contract tests for GET /api/v1/voices endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_all_voices(self):
+    async def test_list_all_voices(self, mock_repos):
         """Test listing all voices without filters."""
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES)
+        mock_cache_repo, _mock_cust_repo = mock_repos
+        cache_entries = [_build_voice_cache_entry(v) for v in MOCK_VOICES]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices")
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert isinstance(data, list)
-            assert len(data) > 0
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) > 0
+        assert "total" in data
 
     @pytest.mark.asyncio
-    async def test_list_voices_by_provider(self):
+    async def test_list_voices_by_provider(self, mock_repos):
         """Test listing voices filtered by provider."""
+        mock_cache_repo, _mock_cust_repo = mock_repos
         azure_voices = [v for v in MOCK_VOICES if v.provider == "azure"]
+        cache_entries = [_build_voice_cache_entry(v) for v in azure_voices]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=azure_voices)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?provider=azure")
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?provider=azure")
-
-            assert response.status_code == 200
-            data = response.json()
-            for voice in data:
-                assert voice["provider"] == "azure"
+        assert response.status_code == 200
+        data = response.json()
+        for voice in data["items"]:
+            assert voice["provider"] == "azure"
 
     @pytest.mark.asyncio
-    async def test_list_voices_by_language(self):
+    async def test_list_voices_by_language(self, mock_repos):
         """Test listing voices filtered by language."""
+        mock_cache_repo, _mock_cust_repo = mock_repos
         zh_tw_voices = [v for v in MOCK_VOICES if v.language == "zh-TW"]
+        cache_entries = [_build_voice_cache_entry(v) for v in zh_tw_voices]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=zh_tw_voices)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?language=zh-TW")
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?language=zh-TW")
-
-            assert response.status_code == 200
-            data = response.json()
-            for voice in data:
-                assert voice["language"] == "zh-TW"
+        assert response.status_code == 200
+        data = response.json()
+        for voice in data["items"]:
+            assert voice["language"] == "zh-TW"
 
     @pytest.mark.asyncio
-    async def test_list_voices_by_gender(self):
+    async def test_list_voices_by_gender(self, mock_repos):
         """Test listing voices filtered by gender."""
+        mock_cache_repo, _mock_cust_repo = mock_repos
         female_voices = [v for v in MOCK_VOICES if v.gender == "female"]
+        cache_entries = [_build_voice_cache_entry(v) for v in female_voices]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=female_voices)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?gender=female")
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?gender=female")
-
-            assert response.status_code == 200
-            data = response.json()
-            for voice in data:
-                assert voice.get("gender") == "female"
+        assert response.status_code == 200
+        data = response.json()
+        for voice in data["items"]:
+            assert voice.get("gender") == "female"
 
     @pytest.mark.asyncio
-    async def test_list_voices_combined_filters(self):
+    async def test_list_voices_combined_filters(self, mock_repos):
         """Test listing voices with multiple filters."""
-        filtered_voices = [
+        mock_cache_repo, _mock_cust_repo = mock_repos
+        filtered = [
             v for v in MOCK_VOICES if v.provider == "azure" and v.language == "zh-TW"
         ]
+        cache_entries = [_build_voice_cache_entry(v) for v in filtered]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=filtered_voices)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?provider=azure&language=zh-TW")
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?provider=azure&language=zh-TW")
-
-            assert response.status_code == 200
-            data = response.json()
-            for voice in data:
-                assert voice["provider"] == "azure"
-                assert voice["language"] == "zh-TW"
+        assert response.status_code == 200
+        data = response.json()
+        for voice in data["items"]:
+            assert voice["provider"] == "azure"
+            assert voice["language"] == "zh-TW"
 
     @pytest.mark.asyncio
-    async def test_voice_response_schema(self):
+    async def test_voice_response_schema(self, mock_repos):
         """Test voice response has correct schema."""
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES[:1])
+        mock_cache_repo, _mock_cust_repo = mock_repos
+        cache_entries = [_build_voice_cache_entry(MOCK_VOICES[0])]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices")
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data) > 0
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) > 0
 
-            voice = data[0]
-            assert "id" in voice
-            assert "name" in voice
-            assert "provider" in voice
-            assert "language" in voice
+        voice = data["items"][0]
+        assert "id" in voice
+        assert "name" in voice
+        assert "provider" in voice
+        assert "language" in voice
 
 
 class TestGetVoiceByProviderEndpoint:
@@ -265,33 +310,35 @@ class TestVoiceSearchEndpoint:
     """Contract tests for voice search functionality."""
 
     @pytest.mark.asyncio
-    async def test_search_voices_by_name(self):
+    async def test_search_voices_by_name(self, mock_repos):
         """Test searching voices by name."""
-        matching_voices = [v for v in MOCK_VOICES if "Chen" in v.name]
+        mock_cache_repo, _mock_cust_repo = mock_repos
+        # Return all voices; the use case filters by search term
+        cache_entries = [_build_voice_cache_entry(v) for v in MOCK_VOICES]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=matching_voices)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?search=Chen")
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?search=Chen")
-
-            if response.status_code == 200:
-                data = response.json()
-                # Verify search functionality if implemented
-                assert isinstance(data, list)
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data["items"], list)
 
     @pytest.mark.asyncio
-    async def test_voices_pagination(self):
+    async def test_voices_pagination(self, mock_repos):
         """Test voices endpoint supports pagination."""
-        with patch("src.presentation.api.routes.voices.list_voices_use_case") as mock_use_case:
-            mock_use_case.execute = AsyncMock(return_value=MOCK_VOICES[:2])
+        mock_cache_repo, _mock_cust_repo = mock_repos
+        cache_entries = [_build_voice_cache_entry(v) for v in MOCK_VOICES[:2]]
+        mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                response = await ac.get("/api/v1/voices?limit=2&offset=0")
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/voices?limit=2&offset=0")
 
-            if response.status_code == 200:
-                data = response.json()
-                assert isinstance(data, list)
-                assert len(data) <= 2
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data["items"], list)
+            assert len(data["items"]) <= 2
+            assert "limit" in data
+            assert "offset" in data

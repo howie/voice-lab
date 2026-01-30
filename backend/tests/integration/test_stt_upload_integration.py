@@ -8,7 +8,7 @@ Tests the complete flow from file upload to transcription result.
 
 import io
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 from src.application.interfaces.storage_service import StoredFile
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
+from src.infrastructure.persistence.database import get_db_session
 from src.main import app
 from src.presentation.api.dependencies import (
     get_storage_service,
@@ -584,33 +585,50 @@ class TestSTTUploadIntegration:
             test_result_id,
         )
 
+        # Mock DB session for list_providers endpoint (uses get_db_session)
+        mock_session = MagicMock()
+
+        # Mock credential repo to avoid real DB calls in list_providers
+        mock_credential_repo = AsyncMock()
+        mock_credential_repo.list_by_user = AsyncMock(return_value=[])
+
+        async def override_get_db_session():
+            return mock_session
+
         app.dependency_overrides[get_stt_providers] = lambda: mock_providers_dict
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
         app.dependency_overrides[get_transcription_repository] = lambda: mock_repo
         app.dependency_overrides[get_stt_service] = lambda: mock_stt_service
+        app.dependency_overrides[get_db_session] = override_get_db_session
 
         try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                # Step 1: List available providers
-                list_response = await ac.get("/api/v1/stt/providers")
-                assert list_response.status_code == 200
-                providers = list_response.json()["providers"]
+            with patch(
+                "src.presentation.api.routes.stt.SQLAlchemyProviderCredentialRepository",
+                return_value=mock_credential_repo,
+            ):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                    # Step 1: List available providers
+                    list_response = await ac.get("/api/v1/stt/providers")
+                    assert list_response.status_code == 200
+                    providers = list_response.json()["providers"]
 
-                # Find Azure provider
-                azure_provider = next((p for p in providers if p["name"] == "azure"), None)
-                assert azure_provider is not None
+                    # Find Azure provider
+                    azure_provider = next(
+                        (p for p in providers if p["name"] == "azure"), None
+                    )
+                    assert azure_provider is not None
 
-                # Step 2: Use selected provider to transcribe
-                files = {"audio": ("test.wav", io.BytesIO(mock_wav_audio), "audio/wav")}
-                data = {
-                    "provider": azure_provider["name"],
-                    "language": "en-US",
-                }
+                    # Step 2: Use selected provider to transcribe
+                    files = {"audio": ("test.wav", io.BytesIO(mock_wav_audio), "audio/wav")}
+                    data = {
+                        "provider": azure_provider["name"],
+                        "language": "en-US",
+                    }
 
-                transcribe_response = await ac.post(
-                    "/api/v1/stt/transcribe", files=files, data=data
-                )
+                    transcribe_response = await ac.post(
+                        "/api/v1/stt/transcribe", files=files, data=data
+                    )
 
             assert transcribe_response.status_code == 200
             result = transcribe_response.json()
@@ -621,3 +639,4 @@ class TestSTTUploadIntegration:
             app.dependency_overrides.pop(get_storage_service, None)
             app.dependency_overrides.pop(get_transcription_repository, None)
             app.dependency_overrides.pop(get_stt_service, None)
+            app.dependency_overrides.pop(get_db_session, None)

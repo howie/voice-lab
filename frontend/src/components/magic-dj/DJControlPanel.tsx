@@ -8,13 +8,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { ForceSubmitButton } from './ForceSubmitButton'
-import { InterruptButton } from './InterruptButton'
-import { FillerSoundTrigger } from './FillerSoundTrigger'
-import { TrackList } from './TrackList'
 import { ChannelBoard } from './ChannelBoard'
+import { AIVoiceChannelStrip } from './AIVoiceChannelStrip'
 import { ModeSwitch } from './ModeSwitch'
-import { RescuePanel } from './RescuePanel'
 import { SessionTimer } from './SessionTimer'
 import { ExportPanel } from './ExportPanel'
 import { TrackConfigPanel } from './TrackConfigPanel'
@@ -48,6 +44,10 @@ export interface DJControlPanelProps {
   onRemoveFromCueList?: (cueItemId: string) => void
   onResetCueList?: () => void
   onClearCueList?: () => void
+  /** Microphone audio input state (AI mode) */
+  micVolume?: number
+  isListening?: boolean
+  onToggleListening?: () => void
 }
 
 // =============================================================================
@@ -74,6 +74,9 @@ export function DJControlPanel({
   onRemoveFromCueList,
   onResetCueList,
   onClearCueList,
+  micVolume = 0,
+  isListening = false,
+  onToggleListening,
 }: DJControlPanelProps) {
   const { currentMode, isSessionActive, isWaitingForAI, settings } =
     useMagicDJStore()
@@ -153,83 +156,33 @@ export function DJControlPanel({
           />
         </div>
       ) : (
-        /* AI Conversation Mode: Track List + AI Controls */
-        <div className="flex flex-1 gap-4">
-          {/* Left: Track List */}
-          <div className="w-80 shrink-0 rounded-lg border bg-card p-4 overflow-y-auto">
-            <h2 className="mb-4 text-lg font-semibold">音軌列表</h2>
-            <TrackList
-              onPlayTrack={onPlayTrack}
-              onStopTrack={onStopTrack}
-              onAddTrack={onAddTrack}
-              onEditTrack={onEditTrack}
-              onDeleteTrack={onDeleteTrack}
-            />
-          </div>
-
-          {/* Center: Main Controls */}
-          <div className="flex flex-1 flex-col gap-4">
-            {/* AI Control Buttons */}
-            <div className="rounded-lg border bg-card p-4">
-              <h2 className="mb-4 text-lg font-semibold">AI 控制</h2>
-              <div className="flex flex-wrap gap-4">
-                <ForceSubmitButton
-                  onClick={onForceSubmit}
-                  disabled={!isSessionActive || wsStatus !== 'connected'}
-                />
-                <InterruptButton
-                  onClick={onInterrupt}
-                  disabled={!isSessionActive}
-                />
-                <FillerSoundTrigger
-                  onClick={onFillerSound}
-                  disabled={!isSessionActive}
-                />
-              </div>
-            </div>
-
-            {/* Rescue Panel */}
-            <div className="rounded-lg border bg-card p-4">
-              <h2 className="mb-4 text-lg font-semibold">救場語音</h2>
-              <RescuePanel
+        /* AI Conversation Mode: AI Channel + 4 Channels + Sound Library (no CueList) */
+        <div className="flex flex-1 min-h-0">
+          <ChannelBoard
+            leadingChannel={
+              <AIVoiceChannelStrip
+                wsStatus={wsStatus}
+                isSessionActive={isSessionActive}
+                isWaitingForAI={isWaitingForAI}
+                isAITimeout={isAITimeout}
+                onForceSubmit={onForceSubmit}
+                onInterrupt={onInterrupt}
+                onFillerSound={onFillerSound}
                 onRescueWait={onRescueWait}
                 onRescueEnd={onRescueEnd}
-                isAITimeout={isAITimeout}
-                disabled={!isSessionActive}
-                onEditRescue={onEditTrack}
+                micVolume={micVolume}
+                isListening={isListening}
+                onToggleListening={onToggleListening}
               />
-            </div>
-
-            {/* Keyboard Shortcuts Reference (T037) */}
-            <div className="rounded-lg border bg-muted/50 p-4">
-              <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                快捷鍵
-              </h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">Space</kbd> 強制送出
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">Esc</kbd> 中斷 AI
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">M</kbd> 切換模式
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">F</kbd> 思考音效
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">W</kbd> 等待填補
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">E</kbd> 緊急結束
-                </div>
-                <div>
-                  <kbd className="rounded bg-muted px-2 py-1">1-5</kbd> 播放音軌
-                </div>
-              </div>
-            </div>
-          </div>
+            }
+            onPlayTrack={onPlayTrack}
+            onStopTrack={onStopTrack}
+            onAddTrack={onAddTrack}
+            onGenerateBGM={onGenerateBGM}
+            onEditTrack={onEditTrack}
+            onDeleteTrack={onDeleteTrack}
+            showCueList={false}
+          />
         </div>
       )}
 

@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
-import type { Track } from '@/types/magic-dj'
+import type { ChannelType, Track } from '@/types/magic-dj'
 import { MAX_CONCURRENT_TRACKS } from '@/types/magic-dj'
 
 // =============================================================================
@@ -66,7 +66,42 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
   const tracksRef = useRef<Map<string, TrackAudioNode>>(new Map())
   const trackConfigRef = useRef<Map<string, Track>>(new Map())
 
-  const { masterVolume, tracks, trackStates, updateTrackState } = useMagicDJStore()
+  const { masterVolume, tracks, trackStates, channelQueues, channelStates, updateTrackState } = useMagicDJStore()
+
+  // Find which channel a track belongs to
+  const findChannelForTrack = useCallback(
+    (trackId: string): ChannelType | null => {
+      for (const [channelType, queue] of Object.entries(channelQueues)) {
+        if (queue.some((item) => item.trackId === trackId)) {
+          return channelType as ChannelType
+        }
+      }
+      return null
+    },
+    [channelQueues]
+  )
+
+  // Compute effective volume: trackVolume * channelVolume (respecting mute flags)
+  const getEffectiveVolume = useCallback(
+    (trackId: string): number => {
+      const track = tracks.find((t) => t.id === trackId)
+      const trackState = trackStates[trackId]
+      const trackVolume = track?.volume ?? 1
+      const trackMuted = trackState?.isMuted ?? false
+
+      if (trackMuted) return 0
+
+      const channelType = findChannelForTrack(trackId)
+      if (channelType) {
+        const cs = channelStates[channelType]
+        if (cs.isMuted) return 0
+        return trackVolume * cs.volume
+      }
+
+      return trackVolume
+    },
+    [tracks, trackStates, channelStates, findChannelForTrack]
+  )
 
   // Initialize AudioContext lazily (requires user interaction)
   const getAudioContext = useCallback(() => {
@@ -239,12 +274,8 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       source.loop = loop
       source.connect(node.gainNode)
 
-      // 011-T028: Apply persistent volume from track config
-      const track = tracks.find((t) => t.id === trackId)
-      const trackState = trackStates[trackId]
-      const persistedVolume = track?.volume ?? 1
-      const isMuted = trackState?.isMuted ?? false
-      node.gainNode.gain.value = isMuted ? 0 : persistedVolume
+      // 011-T028: Apply effective volume (track × channel)
+      node.gainNode.gain.value = getEffectiveVolume(trackId)
 
       // Handle track end
       source.onended = () => {
@@ -259,7 +290,7 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
 
       updateTrackState(trackId, { isPlaying: true, currentTime: 0, error: null })
     },
-    [getAudioContext, updateTrackState, getPlayingCount, tracks, trackStates]
+    [getAudioContext, updateTrackState, getPlayingCount, getEffectiveVolume]
   )
 
   // Stop a track
@@ -359,6 +390,16 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       masterGainRef.current.gain.value = masterVolume
     }
   }, [masterVolume])
+
+  // Sync channel volume/mute changes to playing tracks in real-time
+  useEffect(() => {
+    const currentTime = audioContextRef.current?.currentTime ?? 0
+    for (const [trackId, node] of tracksRef.current) {
+      if (!node.isPlaying) continue
+      const vol = getEffectiveVolume(trackId)
+      node.gainNode.gain.setTargetAtTime(vol, currentTime, 0.02)
+    }
+  }, [channelStates, trackStates, getEffectiveVolume])
 
   // Cleanup on unmount
   useEffect(() => {

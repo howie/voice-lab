@@ -19,6 +19,7 @@ export { ExportPanel } from './ExportPanel'
 export { ChannelStrip } from './ChannelStrip'
 export { ChannelBoard } from './ChannelBoard'
 export { SoundLibrary } from './SoundLibrary'
+export { AIVoiceChannelStrip } from './AIVoiceChannelStrip'
 
 // US3: Cue List
 export { CueListPanel } from './CueListPanel'

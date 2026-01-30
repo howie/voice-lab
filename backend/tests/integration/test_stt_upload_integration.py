@@ -614,9 +614,7 @@ class TestSTTUploadIntegration:
                     providers = list_response.json()["providers"]
 
                     # Find Azure provider
-                    azure_provider = next(
-                        (p for p in providers if p["name"] == "azure"), None
-                    )
+                    azure_provider = next((p for p in providers if p["name"] == "azure"), None)
                     assert azure_provider is not None
 
                     # Step 2: Use selected provider to transcribe

@@ -177,9 +177,7 @@ class TestListVoicesEndpoint:
     async def test_list_voices_combined_filters(self, mock_repos):
         """Test listing voices with multiple filters."""
         mock_cache_repo, _mock_cust_repo = mock_repos
-        filtered = [
-            v for v in MOCK_VOICES if v.provider == "azure" and v.language == "zh-TW"
-        ]
+        filtered = [v for v in MOCK_VOICES if v.provider == "azure" and v.language == "zh-TW"]
         cache_entries = [_build_voice_cache_entry(v) for v in filtered]
         mock_cache_repo.list_all = AsyncMock(return_value=cache_entries)
 

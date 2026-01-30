@@ -24,6 +24,7 @@ interface SoundItem {
   id: string                    // 唯一識別碼，如 'sound_intro_01'
   name: string                  // 顯示名稱，如 '開場白'
   channel: ChannelType          // 播放時使用的頻道
+  priority: SoundPriority       // 播放優先級
   url: string                   // 音檔 URL，如 '/audio/intro.mp3'
   hotkey?: string               // 熱鍵，如 '1'
   loop?: boolean                // 是否循環播放
@@ -36,6 +37,11 @@ type ChannelType =
   | 'voice'     // 說話頻道：AI 回應、預錄台詞、救場語音
   | 'music'     // 音樂頻道：背景音樂、歌曲
   | 'sfx'       // 音效頻道：音效、提示音、思考音效
+
+// 播放優先級 - 控制同頻道內的中斷規則
+type SoundPriority =
+  | 'rescue'    // 救場語音：可中斷任何 voice 內容，不會被一般語音中斷
+  | 'normal'    // 一般語音：可互相中斷，但不能中斷正在播放的救場語音
 ```
 
 **Validation Rules**:
@@ -43,6 +49,7 @@ type ChannelType =
 - `url` 必須是有效路徑
 - `hotkey` 若設定，必須是單一字元或特殊鍵名
 - `channel` 必須是 'voice' | 'music' | 'sfx' 之一
+- `priority` 必須是 'rescue' | 'normal'
 
 ---
 
@@ -64,9 +71,13 @@ const CHANNELS: ChannelType[] = ['voice', 'music', 'sfx']
 ```
 
 **播放規則**:
-- 播放新聲音時，自動停止該頻道正在播放的聲音（即時中斷）
 - 每個頻道獨立控制，互不影響
 - 最多同時播放 3 個聲音（每頻道最多 1 個）
+- **Voice 頻道優先級規則**：
+  - `rescue` 優先：可無條件中斷當前 voice 內容
+  - `normal` 優先：可中斷其他 `normal`，但不能中斷正在播放的 `rescue`
+  - 當 `normal` 嘗試中斷 `rescue` 時，播放請求被忽略
+- Music / SFX 頻道：播放新聲音時，自動停止該頻道正在播放的聲音（即時中斷）
 
 ---
 
@@ -94,6 +105,91 @@ type OperationMode = 'prerecorded' | 'ai-conversation'
 
 ---
 
+## Default Sound Library
+
+預設聲音庫提供常用的聲音項目，RD 可自由新增更多。
+
+```typescript
+const DEFAULT_SOUND_LIBRARY: SoundItem[] = [
+  // Voice 頻道 - 救場語音（priority: 'rescue'）
+  { id: 'voice_wait', name: '等待填補', channel: 'voice', priority: 'rescue', url: '/audio/wait.mp3', hotkey: 'w' },
+  { id: 'voice_end', name: '緊急結束', channel: 'voice', priority: 'rescue', url: '/audio/end.mp3', hotkey: 'e' },
+
+  // Voice 頻道 - 一般語音（priority: 'normal'）
+  { id: 'voice_intro', name: '開場白', channel: 'voice', priority: 'normal', url: '/audio/intro.mp3', hotkey: '1' },
+
+  // Music 頻道
+  { id: 'music_cleanup', name: '收玩具歌', channel: 'music', priority: 'normal', url: '/audio/cleanup.mp3', hotkey: '2', loop: true },
+  { id: 'music_book', name: '魔法書過場', channel: 'music', priority: 'normal', url: '/audio/book.mp3', hotkey: '4' },
+  { id: 'music_forest', name: '迷霧森林', channel: 'music', priority: 'normal', url: '/audio/forest.mp3', hotkey: '5' },
+
+  // SFX 頻道
+  { id: 'sfx_thinking', name: '思考音效', channel: 'sfx', priority: 'normal', url: '/audio/thinking.mp3', hotkey: 'f' },
+  { id: 'sfx_success', name: '成功獎勵', channel: 'sfx', priority: 'normal', url: '/audio/success.mp3', hotkey: '3' },
+]
+```
+
+**說明**：
+- 以上僅為預設範例，RD 可新增任意數量的聲音項目
+- 聲音庫沒有數量上限
+- 熱鍵為可選設定，RD 可自行配置
+
+---
+
+### CueItem (播放清單項目)
+
+代表播放清單中的一個項目。參照聲音庫中的 SoundItem，同一個 SoundItem 可在播放清單中出現多次。
+
+```typescript
+interface CueItem {
+  id: string                    // 唯一識別碼，如 'cue_001'
+  soundId: string               // 參照的 SoundItem ID
+  order: number                 // 播放順序（1-based）
+  status: CueItemStatus         // 項目狀態
+}
+
+type CueItemStatus =
+  | 'pending'                   // 等待播放
+  | 'playing'                   // 正在播放
+  | 'played'                    // 已播放完成
+  | 'invalid'                   // 來源已刪除或無效
+
+// 狀態轉換
+// pending -> playing: 開始播放
+// playing -> played: 播放完成或被停止
+// any -> invalid: 當 SoundItem 被刪除時
+```
+
+**Validation Rules**:
+- `id` 必須唯一
+- `soundId` 必須參照有效的 SoundItem（但可標記為 invalid）
+- `order` 必須為正整數，在清單中唯一
+
+---
+
+### CueList (播放清單)
+
+預錄模式下的播放順序清單。儲存於 localStorage。
+
+```typescript
+interface CueList {
+  id: string                    // 清單識別碼，如 'default'
+  name: string                  // 清單名稱，如 '預設播放清單'
+  items: CueItem[]              // 播放清單項目
+  currentPosition: number       // 當前播放位置（0-based index，-1 表示未開始）
+  createdAt: number             // 建立時間 (timestamp)
+  updatedAt: number             // 更新時間 (timestamp)
+}
+```
+
+**播放規則**:
+- 點擊「播放下一個」時，播放 `items[currentPosition + 1]` 並更新 currentPosition
+- 音軌播放結束時，自動將 currentPosition 移至下一項（但不自動播放）
+- 當 currentPosition 到達最後一項且播放結束時，重設為 0
+- 從聲音庫拖曳項目到播放清單時，加入 items 尾端
+
+---
+
 ## State Management (Zustand Store)
 
 ### magicDJStore
@@ -111,6 +207,10 @@ interface MagicDJState {
     sfx: PlaybackChannel
   }
   masterVolume: number
+
+  // === 播放清單 (Cue List) ===
+  cueList: CueList                             // 當前播放清單
+  isDragging: boolean                          // 是否正在拖曳
 
   // === 操作模式 ===
   currentMode: OperationMode
@@ -145,37 +245,16 @@ interface MagicDJActions {
   stopChannel: (channel: ChannelType) => void // 停止指定頻道
   stopAllChannels: () => void                 // 停止所有頻道
   setChannelVolume: (channel: ChannelType, volume: number) => void
+
+  // 播放清單控制
+  addToCueList: (soundId: string) => void     // 將聲音加入播放清單尾端
+  removeFromCueList: (cueItemId: string) => void  // 從播放清單移除項目
+  reorderCueList: (fromIndex: number, toIndex: number) => void  // 重新排序
+  playNextCue: () => void                     // 播放下一個 Cue
+  resetCuePosition: () => void                // 重設播放位置
+  clearCueList: () => void                    // 清空播放清單
 }
 ```
-
----
-
-## Default Sound Library
-
-預設聲音庫提供常用的聲音項目，RD 可自由新增更多。
-
-```typescript
-const DEFAULT_SOUND_LIBRARY: SoundItem[] = [
-  // Voice 頻道 - 說話類
-  { id: 'voice_intro', name: '開場白', channel: 'voice', url: '/audio/intro.mp3', hotkey: '1' },
-  { id: 'voice_wait', name: '等待填補', channel: 'voice', url: '/audio/wait.mp3', hotkey: 'w' },
-  { id: 'voice_end', name: '緊急結束', channel: 'voice', url: '/audio/end.mp3', hotkey: 'e' },
-
-  // Music 頻道 - 音樂類
-  { id: 'music_cleanup', name: '收玩具歌', channel: 'music', url: '/audio/cleanup.mp3', hotkey: '2', loop: true },
-  { id: 'music_book', name: '魔法書過場', channel: 'music', url: '/audio/book.mp3', hotkey: '4' },
-  { id: 'music_forest', name: '迷霧森林', channel: 'music', url: '/audio/forest.mp3', hotkey: '5' },
-
-  // SFX 頻道 - 音效類
-  { id: 'sfx_thinking', name: '思考音效', channel: 'sfx', url: '/audio/thinking.mp3', hotkey: 'f' },
-  { id: 'sfx_success', name: '成功獎勵', channel: 'sfx', url: '/audio/success.mp3', hotkey: '3' },
-]
-```
-
-**說明**：
-- 以上僅為預設範例，RD 可新增任意數量的聲音項目
-- 聲音庫沒有數量上限
-- 熱鍵為可選設定，RD 可自行配置
 
 ---
 

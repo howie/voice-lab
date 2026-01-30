@@ -46,7 +46,9 @@ class UpdateVoiceCustomizationUseCase:
         """
         self._repository = repository
 
-    async def execute(self, input_data: UpdateVoiceCustomizationInput) -> UpdateVoiceCustomizationOutput:
+    async def execute(
+        self, input_data: UpdateVoiceCustomizationInput
+    ) -> UpdateVoiceCustomizationOutput:
         """Update or create a voice customization.
 
         Args:

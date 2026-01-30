@@ -82,7 +82,7 @@ class GeminiTTSProvider(BaseTTSProvider):
         super().__init__("gemini")
         self._api_key = api_key
         self._model = model
-        self._client = httpx.AsyncClient(timeout=60.0)
+        self._client = httpx.AsyncClient(timeout=180.0)
 
     async def _do_synthesize(self, request: TTSRequest) -> AudioData:
         """Synthesize speech using Gemini TTS API.

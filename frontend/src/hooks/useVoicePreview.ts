@@ -45,8 +45,10 @@ function getSharedAudio(): HTMLAudioElement {
   return sharedAudio
 }
 
+const DEFAULT_STATE: VoicePreviewEntry = { state: 'idle', url: null, error: null }
+
 function getVoiceState(voiceId: string): VoicePreviewEntry {
-  return voiceStates.get(voiceId) ?? { state: 'idle', url: null, error: null }
+  return voiceStates.get(voiceId) ?? DEFAULT_STATE
 }
 
 function setVoiceState(voiceId: string, partial: Partial<VoicePreviewEntry>) {

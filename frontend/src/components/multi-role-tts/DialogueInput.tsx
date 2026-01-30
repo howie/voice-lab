@@ -4,13 +4,15 @@
  */
 
 import { ChangeEvent } from 'react'
-import { AlertCircle, HelpCircle } from 'lucide-react'
+import { AlertCircle, HelpCircle, Sparkles } from 'lucide-react'
+import type { MultiRoleTTSProvider } from '@/types/multi-role-tts'
 
 interface DialogueInputProps {
   value: string
   onChange: (value: string) => void
   characterLimit: number
   disabled?: boolean
+  provider?: MultiRoleTTSProvider
 }
 
 export function DialogueInput({
@@ -18,6 +20,7 @@ export function DialogueInput({
   onChange,
   characterLimit,
   disabled = false,
+  provider,
 }: DialogueInputProps) {
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value)
@@ -50,6 +53,50 @@ export function DialogueInput({
           </div>
         </div>
       </div>
+
+      {/* Gemini TTS specific guidance */}
+      {provider === 'gemini' && (
+        <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600" />
+            <div className="text-xs text-purple-800">
+              <p className="font-medium">Gemini TTS 語音調教技巧：</p>
+              <div className="mt-1.5 space-y-1.5">
+                <div>
+                  <p className="font-medium">1. Style Prompt（語氣描述）</p>
+                  <p className="opacity-80">
+                    在對話文字前加入自然語言的風格指令，例如：
+                  </p>
+                  <code className="mt-0.5 block rounded bg-purple-100 px-1.5 py-0.5">
+                    A: 用溫暖友善的語氣說: 歡迎收聽今天的節目
+                  </code>
+                </div>
+                <div>
+                  <p className="font-medium">2. SSML 標記（精確控制）</p>
+                  <p className="opacity-80">
+                    在文字中使用 SSML 控制語速、停頓、強調：
+                  </p>
+                  <code className="mt-0.5 block rounded bg-purple-100 px-1.5 py-0.5">
+                    {'A: <prosody rate="slow">慢慢說</prosody> <break time="1s"/> 接下來...'}
+                  </code>
+                </div>
+                <div>
+                  <p className="font-medium">3. 行內情緒標籤（局部情緒）</p>
+                  <p className="opacity-80">
+                    用方括號標記情緒或動作：
+                  </p>
+                  <code className="mt-0.5 block rounded bg-purple-100 px-1.5 py-0.5">
+                    A: [excited] 太棒了！ [whispering] 這是祕密...
+                  </code>
+                </div>
+              </div>
+              <p className="mt-2 opacity-60">
+                Pro 模型對指令遵循度較高；英文 prompt 效果通常優於中文
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Textarea */}
       <textarea

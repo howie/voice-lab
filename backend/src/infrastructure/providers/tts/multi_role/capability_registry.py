@@ -32,8 +32,8 @@ PROVIDER_CAPABILITIES: dict[str, ProviderMultiRoleCapability] = {
         support_type=MultiRoleSupportType.SEGMENTED,
         max_speakers=6,
         character_limit=4000,
-        advanced_features=["style prompts"],
-        notes="Requires segmented synthesis with audio merging",
+        advanced_features=["style prompts", "SSML", "inline emotions"],
+        notes="支援 Style Prompt（自然語言語氣描述）、SSML 標記及行內情緒標籤 [tag]",
     ),
     "openai": ProviderMultiRoleCapability(
         provider_name="openai",

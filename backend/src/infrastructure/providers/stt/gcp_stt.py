@@ -2,10 +2,12 @@
 
 from collections.abc import AsyncIterator
 
+from google.api_core.exceptions import ResourceExhausted
 from google.cloud import speech_v1 as speech
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
 
 
@@ -89,11 +91,18 @@ class GCPSTTProvider(BaseSTTProvider):
             audio = speech.RecognitionAudio(uri=request.audio_url)
 
         # Call API
-        response = await asyncio.to_thread(
-            self._client.recognize,
-            config=config,
-            audio=audio,
-        )
+        try:
+            response = await asyncio.to_thread(
+                self._client.recognize,
+                config=config,
+                audio=audio,
+            )
+        except ResourceExhausted as e:
+            # T016: Detect gRPC RESOURCE_EXHAUSTED (quota exceeded)
+            raise QuotaExceededError(
+                provider="gcp",
+                original_error=str(e),
+            ) from e
 
         # Process results
         if not response.results:

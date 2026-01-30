@@ -1,5 +1,6 @@
 """VoAI Text-to-Speech Provider."""
 
+import contextlib
 from typing import Any
 
 import httpx
@@ -7,6 +8,7 @@ import httpx
 from src.domain.entities.audio import AudioData
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import AgeGroup, Gender, VoiceProfile
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 # VoAI voice mappings (using actual VoAI speaker names)
@@ -621,6 +623,19 @@ class VoAITTSProvider(BaseTTSProvider):
 
             if response.status_code != 200:
                 error_detail = response.text
+
+                # T012: Detect 429 quota exceeded
+                if response.status_code == 429:
+                    retry_after = None
+                    if "retry-after" in response.headers:
+                        with contextlib.suppress(ValueError, TypeError):
+                            retry_after = int(response.headers["retry-after"])
+                    raise QuotaExceededError(
+                        provider="voai",
+                        retry_after=retry_after,
+                        original_error=error_detail,
+                    )
+
                 raise RuntimeError(
                     f"VoAI TTS failed with status {response.status_code}: {error_detail}"
                 )

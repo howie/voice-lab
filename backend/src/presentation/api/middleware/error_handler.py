@@ -16,6 +16,7 @@ from src.domain.errors import (
     ErrorCode,
     ForbiddenError,
     NotFoundError,
+    QuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
     ValidationError,
@@ -134,6 +135,33 @@ def setup_error_handlers(app: FastAPI) -> None:
         request_id = getattr(request.state, "request_id", None)
         headers = {}
 
+        if exc.details and "retry_after" in exc.details:
+            headers["Retry-After"] = str(exc.details["retry_after"])
+
+        return JSONResponse(
+            status_code=429,
+            content=ErrorResponse.create(
+                code=exc.code.value,
+                message=exc.message,
+                details=exc.details if exc.details else None,
+                request_id=request_id,
+            ),
+            headers=headers,
+        )
+
+    @app.exception_handler(QuotaExceededError)
+    async def quota_exceeded_error_handler(
+        request: Request, exc: QuotaExceededError
+    ) -> JSONResponse:
+        """Handle API quota exceeded errors.
+
+        T003: QuotaExceededError handler
+        T004: Retry-After header support
+        """
+        request_id = getattr(request.state, "request_id", None)
+        headers = {}
+
+        # T004: Add Retry-After header if available
         if exc.details and "retry_after" in exc.details:
             headers["Retry-After"] = str(exc.details["retry_after"])
 

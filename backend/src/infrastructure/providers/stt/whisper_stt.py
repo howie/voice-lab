@@ -1,8 +1,11 @@
 """OpenAI Whisper Speech-to-Text Provider."""
 
+import contextlib
+
 import httpx
 
 from src.domain.entities.stt import STTRequest, WordTiming
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
 
 
@@ -71,6 +74,19 @@ class WhisperSTTProvider(BaseSTTProvider):
 
             if response.status_code != 200:
                 error_detail = response.text
+
+                # T013: Detect 429 quota exceeded
+                if response.status_code == 429:
+                    retry_after = None
+                    if "retry-after" in response.headers:
+                        with contextlib.suppress(ValueError, TypeError):
+                            retry_after = int(response.headers["retry-after"])
+                    raise QuotaExceededError(
+                        provider="openai",
+                        retry_after=retry_after,
+                        original_error=error_detail,
+                    )
+
                 raise RuntimeError(
                     f"Whisper STT failed with status {response.status_code}: {error_detail}"
                 )

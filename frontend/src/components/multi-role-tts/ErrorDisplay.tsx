@@ -1,25 +1,46 @@
 /**
  * ErrorDisplay Component
  * T048: Enhanced error handling with friendly messages and retry support
+ * T019-T021: Quota error display with suggestions and help links
+ * T024-T025: Retry countdown and provider switch
  */
 
-import { AlertCircle, RefreshCw, FileText, Wifi, Server } from 'lucide-react'
+import { AlertCircle, Clock, ExternalLink, FileText, RefreshCw, Server, ShieldAlert, Wifi } from 'lucide-react'
+
+import { formatRetryAfter } from '@/lib/error-messages'
+import type { QuotaErrorDetails } from '@/lib/error-types'
+import { parseQuotaErrorFromMessage } from '@/lib/error-types'
 
 interface ErrorDisplayProps {
   error: string | null
   onRetry?: () => void
   showFormatHint?: boolean
+  onSwitchProvider?: () => void
 }
 
 // Error categories with friendly messages
 const ERROR_PATTERNS: Array<{
   pattern: RegExp
-  category: 'network' | 'parse' | 'api' | 'validation'
+  category: 'network' | 'parse' | 'api' | 'validation' | 'quota'
   icon: React.ElementType
   title: string
   getMessage: (error: string) => string
   hint?: string
 }> = [
+  // T019: Quota error pattern - must be before generic API errors
+  {
+    pattern: /QUOTA_EXCEEDED|配額已用盡|quota.*exceeded/i,
+    category: 'quota',
+    icon: ShieldAlert,
+    title: 'API 配額已用盡',
+    getMessage: (error) => {
+      const details = parseQuotaErrorFromMessage(error)
+      if (details) {
+        return `${details.provider_display_name} API 配額已用盡`
+      }
+      return error
+    },
+  },
   {
     pattern: /network|fetch|timeout|連線|ERR_NETWORK/i,
     category: 'network',
@@ -86,8 +107,100 @@ function categorizeError(error: string) {
   }
 }
 
-export function ErrorDisplay({ error, onRetry, showFormatHint }: ErrorDisplayProps) {
+/**
+ * T021: Quota error card with suggestions, help links, and retry info.
+ */
+function QuotaErrorCard({
+  details,
+  onRetry,
+  onSwitchProvider,
+}: {
+  details: QuotaErrorDetails
+  onRetry?: () => void
+  onSwitchProvider?: () => void
+}) {
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-4 dark:bg-amber-950/20">
+      <div className="flex items-start gap-3">
+        <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="flex-1 space-y-3">
+          <h4 className="font-medium text-amber-800 dark:text-amber-200">
+            {details.provider_display_name} API 配額已用盡
+          </h4>
+
+          {/* T024: Retry countdown display */}
+          {details.retry_after != null && details.retry_after > 0 && (
+            <div className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{formatRetryAfter(details.retry_after)}</span>
+            </div>
+          )}
+
+          {/* T020: Suggestions display */}
+          {details.suggestions && details.suggestions.length > 0 && (
+            <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+              {details.suggestions.map((suggestion, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-amber-500" />
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* T020: Help URL link */}
+          {details.help_url && (
+            <a
+              href={details.help_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-amber-700 underline hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              查看用量與配額設定
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* T025: Action buttons */}
+      <div className="mt-4 flex justify-end gap-2">
+        {onSwitchProvider && (
+          <button
+            onClick={onSwitchProvider}
+            className="flex items-center gap-1.5 rounded-md bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-200 transition-colors dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50"
+          >
+            切換供應商
+          </button>
+        )}
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="flex items-center gap-1.5 rounded-md bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-200 transition-colors dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            重試
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function ErrorDisplay({ error, onRetry, showFormatHint, onSwitchProvider }: ErrorDisplayProps) {
   if (!error) return null
+
+  // T019: Check for quota error first
+  const quotaDetails = parseQuotaErrorFromMessage(error)
+  if (quotaDetails) {
+    return (
+      <QuotaErrorCard
+        details={quotaDetails}
+        onRetry={onRetry}
+        onSwitchProvider={onSwitchProvider}
+      />
+    )
+  }
 
   const errorInfo = categorizeError(error)
   const Icon = errorInfo.icon

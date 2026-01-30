@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 import azure.cognitiveservices.speech as speechsdk
 
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
 
 
@@ -154,7 +155,15 @@ class AzureSTTProvider(BaseSTTProvider):
         def on_canceled(evt):
             nonlocal error
             if evt.reason == speechsdk.CancellationReason.Error:
-                error = RuntimeError(f"Azure STT error: {evt.error_details}")
+                error_details = evt.error_details or ""
+                # T015: Detect 429 quota exceeded from Azure error details
+                if "429" in error_details or "quota" in error_details.lower():
+                    error = QuotaExceededError(
+                        provider="azure",
+                        original_error=error_details,
+                    )
+                else:
+                    error = RuntimeError(f"Azure STT error: {error_details}")
             done.set()
 
         def on_session_stopped(_evt):

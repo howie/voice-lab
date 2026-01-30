@@ -5,6 +5,7 @@ import asyncio
 from deepgram import DeepgramClient  # type: ignore[import-not-found]
 
 from src.domain.entities.stt import STTRequest, WordTiming
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
 
 
@@ -80,6 +81,13 @@ class DeepgramSTTProvider(BaseSTTProvider):
             return transcript, word_timings, confidence
 
         except Exception as e:
+            # T014: Detect quota exceeded from Deepgram errors
+            error_str = str(e).lower()
+            if "429" in error_str or "quota" in error_str:
+                raise QuotaExceededError(
+                    provider="deepgram",
+                    original_error=str(e),
+                ) from e
             raise RuntimeError(f"Deepgram transcription failed: {str(e)}") from e
 
     def _map_language(self, language: str) -> str:

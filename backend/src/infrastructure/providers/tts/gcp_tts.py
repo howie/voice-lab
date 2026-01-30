@@ -8,11 +8,13 @@ import asyncio
 import math
 import os
 
+from google.api_core.exceptions import ResourceExhausted
 from google.cloud import texttospeech_v1 as texttospeech
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -88,12 +90,19 @@ class GCPTTSProvider(BaseTTSProvider):
         )
 
         # Call API (sync client, but we're in async context)
-        response = await asyncio.to_thread(
-            client.synthesize_speech,
-            input=synthesis_input,
-            voice=voice,
-            audio_config=audio_config,
-        )
+        try:
+            response = await asyncio.to_thread(
+                client.synthesize_speech,
+                input=synthesis_input,
+                voice=voice,
+                audio_config=audio_config,
+            )
+        except ResourceExhausted as e:
+            # T011: Detect gRPC RESOURCE_EXHAUSTED (quota exceeded)
+            raise QuotaExceededError(
+                provider="gcp",
+                original_error=str(e),
+            ) from e
 
         return AudioData(
             data=response.audio_content,

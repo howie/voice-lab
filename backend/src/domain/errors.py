@@ -296,3 +296,155 @@ class StorageError(AppError):
             details={"error": error_message},
             status_code=500,
         )
+
+
+class ProviderQuotaInfo:
+    """Provider-specific quota information and suggestions.
+
+    T001: Provides display names, help URLs, and actionable suggestions
+    for each supported TTS/STT provider.
+    """
+
+    PROVIDERS: dict[str, dict[str, Any]] = {
+        "gemini": {
+            "display_name": "Gemini TTS",
+            "help_url": "https://ai.google.dev/pricing",
+            "default_retry_after": 3600,  # 1 hour
+            "suggestions": [
+                "檢查您的 Google AI Studio 用量統計",
+                "考慮升級至付費方案",
+                "暫時切換到其他 TTS 供應商",
+            ],
+        },
+        "elevenlabs": {
+            "display_name": "ElevenLabs",
+            "help_url": "https://elevenlabs.io/subscription",
+            "default_retry_after": 3600,
+            "suggestions": [
+                "檢查您的 ElevenLabs 用量統計",
+                "購買額外的字元配額",
+                "暫時切換到其他 TTS 供應商",
+            ],
+        },
+        "azure": {
+            "display_name": "Azure Speech",
+            "help_url": "https://portal.azure.com",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 Azure Portal 用量統計",
+                "考慮升級服務層級",
+                "暫時切換到其他語音服務",
+            ],
+        },
+        "gcp": {
+            "display_name": "Google Cloud Speech",
+            "help_url": "https://console.cloud.google.com/apis",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 GCP Console 配額用量",
+                "申請增加配額限制",
+                "暫時切換到其他語音服務",
+            ],
+        },
+        "openai": {
+            "display_name": "OpenAI Whisper",
+            "help_url": "https://platform.openai.com/usage",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 OpenAI 用量統計",
+                "考慮升級方案",
+                "暫時切換到其他 STT 供應商",
+            ],
+        },
+        "deepgram": {
+            "display_name": "Deepgram",
+            "help_url": "https://console.deepgram.com",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 Deepgram Console 用量",
+                "考慮升級方案",
+                "暫時切換到其他 STT 供應商",
+            ],
+        },
+        "voai": {
+            "display_name": "VoAI TTS",
+            "help_url": "https://voai.ai",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 VoAI 帳戶用量",
+                "考慮升級方案",
+                "暫時切換到其他 TTS 供應商",
+            ],
+        },
+    }
+
+    @classmethod
+    def get(cls, provider: str) -> dict[str, Any]:
+        """Get quota info for a provider, with fallback defaults."""
+        return cls.PROVIDERS.get(
+            provider,
+            {
+                "display_name": provider.title(),
+                "help_url": None,
+                "default_retry_after": 60,
+                "suggestions": ["請稍後再試或切換到其他供應商"],
+            },
+        )
+
+
+class QuotaExceededError(AppError):
+    """API quota exceeded error (429).
+
+    T001: Raised when an API provider reports that the usage quota has been exceeded.
+    Provides provider-specific information and actionable suggestions.
+    """
+
+    def __init__(
+        self,
+        provider: str,
+        provider_display_name: str | None = None,
+        quota_type: str | None = None,
+        retry_after: int | None = None,
+        help_url: str | None = None,
+        suggestions: list[str] | None = None,
+        original_error: str | None = None,
+    ) -> None:
+        # Get provider-specific defaults
+        provider_info = ProviderQuotaInfo.get(provider)
+
+        # Use provided values or fall back to defaults
+        display_name = provider_display_name or provider_info["display_name"]
+        final_retry_after = retry_after or provider_info["default_retry_after"]
+        final_help_url = help_url or provider_info["help_url"]
+        final_suggestions = suggestions or provider_info["suggestions"]
+
+        # Build details dict
+        details: dict[str, Any] = {
+            "provider": provider,
+            "provider_display_name": display_name,
+        }
+
+        if final_retry_after is not None:
+            details["retry_after"] = final_retry_after
+
+        if quota_type:
+            details["quota_type"] = quota_type
+
+        if final_help_url:
+            details["help_url"] = final_help_url
+
+        if final_suggestions:
+            details["suggestions"] = final_suggestions
+
+        if original_error:
+            details["original_error"] = original_error
+
+        # Generate Chinese message
+        message = f"{display_name} API 配額已用盡"
+
+        super().__init__(
+            code=ErrorCode.QUOTA_EXCEEDED,
+            message=message,
+            details=details,
+            status_code=429,
+        )

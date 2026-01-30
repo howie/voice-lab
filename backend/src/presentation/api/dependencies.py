@@ -31,6 +31,9 @@ from src.domain.repositories.provider_credential_repository import (
 )
 from src.domain.repositories.test_record_repository import ITestRecordRepository
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
+from src.domain.repositories.voice_customization_repository import (
+    IVoiceCustomizationRepository,
+)
 from src.domain.repositories.voice_repository import IVoiceRepository
 
 # Infrastructure
@@ -38,6 +41,7 @@ from src.infrastructure.persistence import (
     InMemoryTestRecordRepository,
     InMemoryVoiceRepository,
     VoiceCacheRepositoryImpl,
+    VoiceCustomizationRepositoryImpl,
     VoiceSyncJobRepositoryImpl,
 )
 from src.infrastructure.persistence.credential_repository import (
@@ -372,6 +376,13 @@ def get_voice_sync_job_repository(
 ) -> IVoiceSyncJobRepository:
     """FastAPI dependency for voice sync job repository."""
     return VoiceSyncJobRepositoryImpl(session)
+
+
+def get_voice_customization_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IVoiceCustomizationRepository:
+    """FastAPI dependency for voice customization repository."""
+    return VoiceCustomizationRepositoryImpl(session)
 
 
 def get_stt_service(

@@ -459,14 +459,25 @@ async def list_providers(
         return result
 
     # Mapping from cascade provider names to credential provider names
-    stt_mapping = {"azure": "azure", "gcp": "gcp", "whisper": "openai"}
+    stt_mapping = {
+        "azure": "azure",
+        "gcp": "gcp",
+        "whisper": "openai",
+        "speechmatics": "speechmatics",
+    }
     llm_mapping = {
         "openai": "openai",
         "anthropic": "anthropic",
         "gemini": "gemini",
         "azure-openai": "azure",
     }
-    tts_mapping = {"azure": "azure", "gemini": "gemini", "elevenlabs": "elevenlabs", "voai": "voai"}
+    tts_mapping = {
+        "azure": "azure",
+        "gcp": "gcp",
+        "gemini": "gemini",
+        "elevenlabs": "elevenlabs",
+        "voai": "voai",
+    }
 
     return {
         "stt_providers": add_credential_status(provider_info["stt"], stt_mapping),

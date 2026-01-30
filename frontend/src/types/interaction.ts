@@ -15,9 +15,9 @@ export type SessionStatus = 'active' | 'completed' | 'disconnected' | 'error'
 
 export type RealtimeProvider = 'openai' | 'gemini'
 
-export type CascadeSTTProvider = 'azure' | 'gcp' | 'whisper'
+export type CascadeSTTProvider = 'azure' | 'gcp' | 'whisper' | 'speechmatics'
 export type CascadeLLMProvider = 'openai' | 'anthropic' | 'gemini' | 'azure-openai'
-export type CascadeTTSProvider = 'azure' | 'gcp' | 'elevenlabs' | 'voai'
+export type CascadeTTSProvider = 'azure' | 'gcp' | 'elevenlabs' | 'gemini' | 'voai'
 
 // WebSocket message types
 export type WSMessageType =

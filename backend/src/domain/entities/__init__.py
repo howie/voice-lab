@@ -28,6 +28,7 @@ from src.domain.entities.system_prompt_template import SystemPromptTemplate
 from src.domain.entities.test_record import TestRecord, TestType
 from src.domain.entities.tts import TTSRequest, TTSResult
 from src.domain.entities.voice import VoiceProfile
+from src.domain.entities.voice_customization import VoiceCustomization
 from src.domain.entities.wer_analysis import (
     AlignmentItem,
     AlignmentOperation,
@@ -74,4 +75,6 @@ __all__ = [
     "DJTrack",
     "DJTrackSource",
     "DJTrackType",
+    # Voice Customization (Feature 013)
+    "VoiceCustomization",
 ]

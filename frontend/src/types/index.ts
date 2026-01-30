@@ -1,6 +1,9 @@
 // Re-export multi-role TTS types
 export * from './multi-role-tts'
 
+// Re-export voice customization types
+export * from './voice-customization'
+
 // Provider types
 export type TTSProvider = 'gcp' | 'gemini' | 'azure' | 'elevenlabs' | 'voai'
 export type STTProvider = 'gcp' | 'azure' | 'voai'

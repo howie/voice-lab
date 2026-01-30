@@ -10,7 +10,7 @@ from src.application.interfaces.storage_service import IStorageService
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.application.interfaces.voice_cache_repository import IVoiceCacheRepository
 from src.domain.entities.tts import TTSRequest
-from src.domain.errors import ProviderError, SynthesisError, VoiceNotFoundError
+from src.domain.errors import AppError, ProviderError, SynthesisError, VoiceNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,8 @@ class GenerateVoicePreview:
 
         try:
             result = await provider.synthesize(request)
+        except AppError:
+            raise
         except Exception as e:
             error_msg = str(e)
             if "unavailable" in error_msg.lower() or "timeout" in error_msg.lower():

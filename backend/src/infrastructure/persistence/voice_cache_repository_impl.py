@@ -7,7 +7,7 @@ T008: Implement VoiceCacheRepositoryImpl (DB-backed)
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -255,7 +255,13 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
         """Apply common filters to a query."""
         if language is not None:
             # Support prefix matching (e.g., "zh" matches "zh-TW", "zh-CN")
-            query = query.where(VoiceCache.language.startswith(language))
+            # Always include multilingual voices (e.g., Gemini, ElevenLabs)
+            query = query.where(
+                or_(
+                    VoiceCache.language.startswith(language),
+                    VoiceCache.language == "multilingual",
+                )
+            )
 
         if gender is not None:
             query = query.where(VoiceCache.gender == gender)

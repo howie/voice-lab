@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCog,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: '背景工作', href: '/jobs', icon: Briefcase },
   { name: 'STT 測試', href: '/stt', icon: Mic, label: '開發中' },
   { name: '互動測試', href: '/interaction', icon: MessagesSquare, label: '調教中' },
+  { name: 'Gemini 直連', href: '/gemini-live-test', icon: Zap, label: '實驗' },
   { name: 'Magic DJ', href: '/magic-dj', icon: Disc3, label: '實驗中' },
   { name: 'AI 音樂', href: '/music', icon: Music, label: '開發中' },
   { name: '角色管理', href: '/voice-management', icon: UserCog },

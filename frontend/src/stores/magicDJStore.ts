@@ -12,6 +12,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import type {
+  ChannelQueueItem,
+  ChannelType,
+  CueItem,
+  CueList,
   DJSettings,
   MagicDJState,
   OperationLog,
@@ -23,6 +27,9 @@ import type {
   TrackSource,
 } from '@/types/magic-dj'
 import {
+  DEFAULT_CHANNEL_QUEUES,
+  DEFAULT_CHANNEL_STATES,
+  DEFAULT_CUE_LIST,
   DEFAULT_DJ_SETTINGS,
   DEFAULT_TRACKS,
   OperationPriority,
@@ -53,6 +60,16 @@ interface MagicDJStoreState extends MagicDJState {
   setTrackVolume: (trackId: string, volume: number) => void
   toggleTrackMute: (trackId: string) => void
 
+  // === Channel Queue Actions (DD-001) ===
+  addToChannel: (channelType: ChannelType, trackId: string) => void
+  removeFromChannel: (channelType: ChannelType, itemId: string) => void
+  reorderChannel: (channelType: ChannelType, activeId: string, overId: string) => void
+  setChannelVolume: (channelType: ChannelType, volume: number) => void
+  toggleChannelMute: (channelType: ChannelType) => void
+  advanceChannel: (channelType: ChannelType) => void
+  resetChannelPosition: (channelType: ChannelType) => void
+  clearChannel: (channelType: ChannelType) => void
+
   // === Mode Actions ===
   setMode: (mode: OperationMode) => void
   setAIConnected: (connected: boolean) => void
@@ -78,6 +95,18 @@ interface MagicDJStoreState extends MagicDJState {
   queueOperation: (operation: Omit<PendingOperation, 'timestamp'>) => boolean
   processOperationQueue: () => PendingOperation | null
   clearOperationQueue: () => void
+
+  // === Cue List Actions (US3: FR-028~FR-037) ===
+  addToCueList: (trackId: string) => void
+  removeFromCueList: (cueItemId: string) => void
+  reorderCueList: (activeId: string, overId: string) => void
+  playNextCue: () => CueItem | null
+  resetCuePosition: () => void
+  clearCueList: () => void
+  setCueItemStatus: (cueItemId: string, status: CueItem['status']) => void
+  advanceCuePosition: () => void
+  validateCueList: () => void
+  setCueList: (cueList: CueList) => void
 
   // === Backend Sync Actions (011 Phase 3) ===
   setAuthenticated: (authenticated: boolean) => void
@@ -152,6 +181,11 @@ const initialState: MagicDJState & {
   tracks: DEFAULT_TRACKS,
   trackStates: createInitialTrackStates(DEFAULT_TRACKS),
   masterVolume: 1,
+  // Channel queues (DD-001)
+  channelQueues: DEFAULT_CHANNEL_QUEUES,
+  channelStates: DEFAULT_CHANNEL_STATES,
+  // Cue List (US3)
+  cueList: DEFAULT_CUE_LIST,
   currentMode: 'prerecorded',
   isAIConnected: false,
   isSessionActive: false,
@@ -385,6 +419,130 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           }
         }),
 
+      // === Channel Queue Actions (DD-001) ===
+      addToChannel: (channelType, trackId) =>
+        set((prev) => {
+          const newItem: ChannelQueueItem = {
+            id: crypto.randomUUID(),
+            trackId,
+          }
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: [...prev.channelQueues[channelType], newItem],
+            },
+          }
+        }),
+
+      removeFromChannel: (channelType, itemId) =>
+        set((prev) => {
+          const queue = prev.channelQueues[channelType]
+          const removedIndex = queue.findIndex((item) => item.id === itemId)
+          const newQueue = queue.filter((item) => item.id !== itemId)
+          const channelState = prev.channelStates[channelType]
+
+          // Adjust currentIndex if needed
+          let newIndex = channelState.currentIndex
+          if (removedIndex !== -1 && removedIndex <= newIndex) {
+            newIndex = Math.max(-1, newIndex - 1)
+          }
+
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: newQueue,
+            },
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: { ...channelState, currentIndex: newIndex },
+            },
+          }
+        }),
+
+      reorderChannel: (channelType, activeId, overId) =>
+        set((prev) => {
+          const queue = [...prev.channelQueues[channelType]]
+          const oldIndex = queue.findIndex((item) => item.id === activeId)
+          const newIndex = queue.findIndex((item) => item.id === overId)
+
+          if (oldIndex === -1 || newIndex === -1) return prev
+
+          const [movedItem] = queue.splice(oldIndex, 1)
+          queue.splice(newIndex, 0, movedItem)
+
+          return {
+            channelQueues: {
+              ...prev.channelQueues,
+              [channelType]: queue,
+            },
+          }
+        }),
+
+      setChannelVolume: (channelType, volume) =>
+        set((prev) => ({
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              volume: Math.max(0, Math.min(1, volume)),
+            },
+          },
+        })),
+
+      toggleChannelMute: (channelType) =>
+        set((prev) => {
+          const state = prev.channelStates[channelType]
+          return {
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: { ...state, isMuted: !state.isMuted },
+            },
+          }
+        }),
+
+      advanceChannel: (channelType) =>
+        set((prev) => {
+          const queue = prev.channelQueues[channelType]
+          const state = prev.channelStates[channelType]
+          const nextIndex = state.currentIndex + 1
+
+          return {
+            channelStates: {
+              ...prev.channelStates,
+              [channelType]: {
+                ...state,
+                currentIndex: nextIndex < queue.length ? nextIndex : -1,
+              },
+            },
+          }
+        }),
+
+      resetChannelPosition: (channelType) =>
+        set((prev) => ({
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              currentIndex: prev.channelQueues[channelType].length > 0 ? 0 : -1,
+            },
+          },
+        })),
+
+      clearChannel: (channelType) =>
+        set((prev) => ({
+          channelQueues: {
+            ...prev.channelQueues,
+            [channelType]: [],
+          },
+          channelStates: {
+            ...prev.channelStates,
+            [channelType]: {
+              ...prev.channelStates[channelType],
+              currentIndex: -1,
+            },
+          },
+        })),
+
       // === Mode Actions ===
       setMode: (mode) => {
         const prev = get()
@@ -548,6 +706,192 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
       },
 
       clearOperationQueue: () => set({ pendingOperations: [] }),
+
+      // === Cue List Actions (US3: FR-028~FR-037) ===
+
+      addToCueList: (trackId) =>
+        set((prev) => {
+          const newItem: CueItem = {
+            id: crypto.randomUUID(),
+            trackId,
+            order: prev.cueList.items.length + 1,
+            status: 'pending',
+          }
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: [...prev.cueList.items, newItem],
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      removeFromCueList: (cueItemId) =>
+        set((prev) => {
+          const removedIndex = prev.cueList.items.findIndex((item) => item.id === cueItemId)
+          const newItems = prev.cueList.items
+            .filter((item) => item.id !== cueItemId)
+            .map((item, i) => ({ ...item, order: i + 1 }))
+
+          // Adjust currentPosition if needed
+          let newPosition = prev.cueList.currentPosition
+          if (removedIndex !== -1 && removedIndex <= newPosition) {
+            newPosition = Math.max(-1, newPosition - 1)
+          }
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: newItems,
+              currentPosition: newPosition,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      reorderCueList: (activeId, overId) =>
+        set((prev) => {
+          const items = [...prev.cueList.items]
+          const oldIndex = items.findIndex((item) => item.id === activeId)
+          const newIndex = items.findIndex((item) => item.id === overId)
+
+          if (oldIndex === -1 || newIndex === -1) return prev
+
+          const [movedItem] = items.splice(oldIndex, 1)
+          items.splice(newIndex, 0, movedItem)
+
+          // Re-number orders
+          const reordered = items.map((item, i) => ({ ...item, order: i + 1 }))
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: reordered,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      playNextCue: () => {
+        const prev = get()
+        const { items, currentPosition } = prev.cueList
+        const nextIndex = currentPosition + 1
+
+        if (nextIndex >= items.length) {
+          return null // End of list
+        }
+
+        const nextItem = items[nextIndex]
+        if (!nextItem || nextItem.status === 'invalid') {
+          // Skip invalid, try next
+          set((state) => ({
+            cueList: {
+              ...state.cueList,
+              currentPosition: nextIndex,
+            },
+          }))
+          return get().playNextCue()
+        }
+
+        // Update statuses
+        set((state) => ({
+          cueList: {
+            ...state.cueList,
+            currentPosition: nextIndex,
+            items: state.cueList.items.map((item, i) => {
+              if (i === nextIndex) return { ...item, status: 'playing' as const }
+              if (i < nextIndex && item.status === 'playing') return { ...item, status: 'played' as const }
+              return item
+            }),
+          },
+        }))
+
+        return nextItem
+      },
+
+      resetCuePosition: () =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            currentPosition: -1,
+            items: prev.cueList.items.map((item) =>
+              item.status !== 'invalid' ? { ...item, status: 'pending' as const } : item
+            ),
+            updatedAt: Date.now(),
+          },
+        })),
+
+      clearCueList: () =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            items: [],
+            currentPosition: -1,
+            updatedAt: Date.now(),
+          },
+        })),
+
+      setCueItemStatus: (cueItemId, status) =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            items: prev.cueList.items.map((item) =>
+              item.id === cueItemId ? { ...item, status } : item
+            ),
+          },
+        })),
+
+      advanceCuePosition: () =>
+        set((prev) => {
+          const { items, currentPosition } = prev.cueList
+
+          // Mark current item as played
+          const updatedItems = items.map((item, i) =>
+            i === currentPosition && item.status === 'playing'
+              ? { ...item, status: 'played' as const }
+              : item
+          )
+
+          // Check if we're at the end
+          if (currentPosition >= items.length - 1) {
+            // End of list - reset position to start (EC-007)
+            return {
+              cueList: {
+                ...prev.cueList,
+                items: updatedItems.map((item) =>
+                  item.status !== 'invalid' ? { ...item, status: 'pending' as const } : item
+                ),
+                currentPosition: -1,
+                updatedAt: Date.now(),
+              },
+            }
+          }
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: updatedItems,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      validateCueList: () =>
+        set((prev) => {
+          const trackIds = new Set(prev.tracks.map((t) => t.id))
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: prev.cueList.items.map((item) =>
+                !trackIds.has(item.trackId) && item.status !== 'invalid'
+                  ? { ...item, status: 'invalid' as const }
+                  : item
+              ),
+            },
+          }
+        }),
+
+      setCueList: (cueList) => set({ cueList }),
 
       // === Backend Sync Actions (011 Phase 3) ===
       setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
@@ -894,6 +1238,11 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           // Flag to indicate audio is in IndexedDB
           hasLocalAudio: track.source === 'upload' || !!track.hasLocalAudio,
         })),
+        // Persist channel queues and states (DD-001)
+        channelQueues: state.channelQueues,
+        channelStates: state.channelStates,
+        // Persist cue list (FR-037)
+        cueList: state.cueList,
       }),
       // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
@@ -916,6 +1265,11 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           masterVolume: persisted.masterVolume ?? currentState.masterVolume,
           tracks,
           trackStates: createInitialTrackStates(tracks),
+          // Restore channel data (DD-001)
+          channelQueues: persisted.channelQueues ?? DEFAULT_CHANNEL_QUEUES,
+          channelStates: persisted.channelStates ?? DEFAULT_CHANNEL_STATES,
+          // Restore cue list (FR-037)
+          cueList: persisted.cueList ?? DEFAULT_CUE_LIST,
         }
       },
     }
@@ -955,6 +1309,39 @@ export const selectAIWaitingSeconds = (state: MagicDJStoreState) => {
 export const selectIsAITimeout = (state: MagicDJStoreState) => {
   const waitingSeconds = selectAIWaitingSeconds(state)
   return waitingSeconds >= state.settings.aiResponseTimeout
+}
+
+// === Channel Selectors (DD-001) ===
+
+export const selectChannelQueue = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => state.channelQueues[channelType]
+
+export const selectChannelState = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => state.channelStates[channelType]
+
+export const selectChannelTracks = (channelType: ChannelType) =>
+  (state: MagicDJStoreState) => {
+    const queue = state.channelQueues[channelType]
+    return queue.map((item) => ({
+      ...item,
+      track: state.tracks.find((t) => t.id === item.trackId),
+    }))
+  }
+
+// === Cue List Selectors (US3) ===
+
+export const selectCueList = (state: MagicDJStoreState) => state.cueList
+
+export const selectCueItems = (state: MagicDJStoreState) => state.cueList.items
+
+export const selectCurrentCuePosition = (state: MagicDJStoreState) =>
+  state.cueList.currentPosition
+
+export const selectCueListRemainingCount = (state: MagicDJStoreState) => {
+  const { items, currentPosition } = state.cueList
+  const validItems = items.filter((item) => item.status !== 'invalid')
+  if (currentPosition === -1) return validItems.length
+  return Math.max(0, validItems.length - currentPosition - 1)
 }
 
 // Export helper for operation priority

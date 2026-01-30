@@ -13,10 +13,9 @@ import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
 import { useMagicDJStore } from '@/stores/magicDJStore'
-// Note: interactionStore imported for future Gemini integration
-// import { useInteractionStore } from '@/stores/interactionStore'
 import { useMultiTrackPlayer } from '@/hooks/useMultiTrackPlayer'
 import { useDJHotkeys } from '@/hooks/useDJHotkeys'
+import { useCueList } from '@/hooks/useCueList'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import type { Track } from '@/types/magic-dj'
 
@@ -65,6 +64,16 @@ export function MagicDJPage() {
     stopAll,
     getLoadingProgress,
   } = useMultiTrackPlayer()
+
+  // Cue List (US3)
+  const {
+    playNextCue,
+    removeFromCueList,
+    resetCuePosition,
+    clearCueList,
+    advanceCuePosition,
+    currentItem: currentCueItem,
+  } = useCueList()
 
   // WebSocket for Gemini
   const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/interaction/ws`
@@ -184,6 +193,27 @@ export function MagicDJPage() {
     [playTrack, logOperation]
   )
 
+  // === Cue List Handlers (US3) ===
+
+  const handlePlayNextCue = useCallback(() => {
+    const cueItem = playNextCue()
+    if (cueItem) {
+      playTrack(cueItem.trackId)
+      logOperation('play_track', { trackId: cueItem.trackId, source: 'cue_list' })
+    }
+  }, [playNextCue, playTrack, logOperation])
+
+  // Auto-advance: when current cue item finishes playing (T035)
+  useEffect(() => {
+    if (!currentCueItem || currentCueItem.status !== 'playing') return
+
+    const trackState = useMagicDJStore.getState().trackStates[currentCueItem.trackId]
+    if (trackState && !trackState.isPlaying && trackState.isLoaded) {
+      // Track finished playing - advance position
+      advanceCuePosition()
+    }
+  }, [currentCueItem, advanceCuePosition])
+
   // Handle hotkey track play (by index)
   const handleHotkeyPlayTrack = useCallback(
     (trackIndex: number) => {
@@ -208,6 +238,7 @@ export function MagicDJPage() {
     onRescueEnd: handleRescueEnd,
     onToggleMode: handleToggleMode,
     onPlayTrack: handleHotkeyPlayTrack,
+    onPlayNextCue: handlePlayNextCue,
   })
 
   // === Track Preloading (T018) ===
@@ -398,6 +429,10 @@ export function MagicDJPage() {
         onEditTrack={handleEditTrack}
         onDeleteTrack={handleDeleteTrack}
         wsStatus={wsStatus}
+        onPlayNextCue={handlePlayNextCue}
+        onRemoveFromCueList={removeFromCueList}
+        onResetCueList={resetCuePosition}
+        onClearCueList={clearCueList}
       />
 
       {/* Track Editor Modal */}

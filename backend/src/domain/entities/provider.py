@@ -11,7 +11,7 @@ class Provider:
     id: str
     name: str
     display_name: str
-    type: list[str]  # ['tts'], ['stt'], or ['tts', 'stt']
+    type: list[str]  # ['tts'], ['stt'], ['llm'], or combinations
     is_active: bool = True
     supported_models: dict | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -24,8 +24,8 @@ class Provider:
             raise ValueError("Provider name cannot be empty")
         if not self.display_name:
             raise ValueError("Provider display_name cannot be empty")
-        if not self.type or not all(t in ("tts", "stt") for t in self.type):
-            raise ValueError("Provider type must be a list containing 'tts' and/or 'stt'")
+        if not self.type or not all(t in ("tts", "stt", "llm") for t in self.type):
+            raise ValueError("Provider type must be a list containing 'tts', 'stt', and/or 'llm'")
 
     @property
     def supports_tts(self) -> bool:
@@ -36,3 +36,8 @@ class Provider:
     def supports_stt(self) -> bool:
         """Check if provider supports STT."""
         return "stt" in self.type
+
+    @property
+    def supports_llm(self) -> bool:
+        """Check if provider supports LLM."""
+        return "llm" in self.type

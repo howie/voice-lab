@@ -10,7 +10,7 @@ export interface Provider {
   id: string
   name: string
   display_name: string
-  type: ('tts' | 'stt')[]
+  type: ('tts' | 'stt' | 'llm')[]
   is_active: boolean
 }
 
@@ -202,6 +202,11 @@ export function getProviderDisplayName(providerId: string): string {
     elevenlabs: 'ElevenLabs',
     azure: 'Azure Cognitive Services',
     gemini: 'Google Gemini',
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    gcp: 'Google Cloud Platform',
+    voai: 'VoAI',
+    speechmatics: 'Speechmatics',
   }
   return displayNames[providerId] ?? providerId
 }
@@ -216,6 +221,11 @@ export function getProviderTheme(
     elevenlabs: { color: '#000000', bgColor: '#f3f3f3' },
     azure: { color: '#0078d4', bgColor: '#e8f4fd' },
     gemini: { color: '#4285f4', bgColor: '#e8f0fe' },
+    openai: { color: '#10a37f', bgColor: '#e6f7f1' },
+    anthropic: { color: '#d97757', bgColor: '#fdf0eb' },
+    gcp: { color: '#4285f4', bgColor: '#e8f0fe' },
+    voai: { color: '#6366f1', bgColor: '#eef2ff' },
+    speechmatics: { color: '#1e40af', bgColor: '#dbeafe' },
   }
   return themes[providerId] ?? { color: '#6b7280', bgColor: '#f3f4f6' }
 }

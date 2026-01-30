@@ -1,18 +1,30 @@
 """Provider Validators Registry."""
 
+from src.infrastructure.providers.validators.anthropic_validator import (
+    AnthropicValidator,
+)
 from src.infrastructure.providers.validators.azure import AzureValidator
 from src.infrastructure.providers.validators.base import (
     BaseProviderValidator,
     ValidationResult,
 )
 from src.infrastructure.providers.validators.elevenlabs import ElevenLabsValidator
+from src.infrastructure.providers.validators.gcp import GCPValidator
 from src.infrastructure.providers.validators.gemini import GeminiValidator
+from src.infrastructure.providers.validators.openai import OpenAIValidator
+from src.infrastructure.providers.validators.speechmatics import SpeechmaticsValidator
+from src.infrastructure.providers.validators.voai import VoAIValidator
 
 # Registry of all available provider validators
 PROVIDER_VALIDATORS: dict[str, type[BaseProviderValidator]] = {
     "elevenlabs": ElevenLabsValidator,
     "azure": AzureValidator,
     "gemini": GeminiValidator,
+    "openai": OpenAIValidator,
+    "anthropic": AnthropicValidator,
+    "gcp": GCPValidator,
+    "voai": VoAIValidator,
+    "speechmatics": SpeechmaticsValidator,
 }
 
 
@@ -74,6 +86,11 @@ __all__ = [
     "ElevenLabsValidator",
     "AzureValidator",
     "GeminiValidator",
+    "OpenAIValidator",
+    "AnthropicValidator",
+    "GCPValidator",
+    "VoAIValidator",
+    "SpeechmaticsValidator",
     "ProviderValidatorRegistry",
     "PROVIDER_VALIDATORS",
 ]

@@ -79,6 +79,4 @@ def downgrade() -> None:
     )
 
     # Recreate old index
-    op.create_index(
-        "idx_voice_sync_jobs_provider", "voice_sync_jobs", ["provider"]
-    )
+    op.create_index("idx_voice_sync_jobs_provider", "voice_sync_jobs", ["provider"])

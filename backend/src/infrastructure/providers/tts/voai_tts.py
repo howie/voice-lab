@@ -585,7 +585,7 @@ class VoAITTSProvider(BaseTTSProvider):
         # Strip the provider prefix if present.
         voice_id = request.voice_id
         if voice_id.startswith("voai:"):
-            voice_id = voice_id[len("voai:"):]
+            voice_id = voice_id[len("voai:") :]
 
         # Also support legacy IDs for backward compatibility
         legacy_speaker_map = {

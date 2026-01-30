@@ -20,6 +20,13 @@ export { ChannelStrip } from './ChannelStrip'
 export { ChannelBoard } from './ChannelBoard'
 export { SoundLibrary } from './SoundLibrary'
 
+// US3: Cue List
+export { CueListPanel } from './CueListPanel'
+export { CueItemComponent } from './CueItem'
+
+// T063/T064: Config Export/Import
+export { ConfigExport, ConfigImport } from './ConfigExportImport'
+
 // 011-magic-dj-audio-features
 export { AudioDropzone } from './AudioDropzone'
 export { VolumeSlider } from './VolumeSlider'

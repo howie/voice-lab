@@ -24,9 +24,9 @@
 
 **Purpose**: Project initialization and basic structure for Magic DJ module
 
-- [ ] T001 Create magic-dj component directory at `frontend/src/components/magic-dj/`
-- [ ] T002 [P] Create magic-dj route directory at `frontend/src/routes/magic-dj/`
-- [ ] T003 [P] Define TypeScript types and interfaces in `frontend/src/types/magic-dj.ts` including SoundItem, ChannelType, SoundPriority, PlaybackChannel, SoundItemLoadState, CueItem, CueItemStatus, CueList, OperationMode, MagicDJState, DJSettings per data-model.md
+- [x] T001 Create magic-dj component directory at `frontend/src/components/magic-dj/`
+- [x] T002 [P] Create magic-dj route directory at `frontend/src/routes/magic-dj/`
+- [x] T003 [P] Define TypeScript types and interfaces in `frontend/src/types/magic-dj.ts` including SoundItem, ChannelType, SoundPriority, PlaybackChannel, SoundItemLoadState, CueItem, CueItemStatus, CueList, OperationMode, MagicDJState, DJSettings per data-model.md
 
 ---
 
@@ -36,14 +36,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create magicDJStore with Zustand in `frontend/src/stores/magicDJStore.ts` including soundLibrary, soundLoadStates, channels (voice/music/sfx), cueList, currentMode, isAIConnected, elapsedTime, settings state and actions per data-model.md MagicDJState/MagicDJActions
-- [ ] T005 Create useMultiTrackPlayer hook in `frontend/src/hooks/useMultiTrackPlayer.ts` implementing Web Audio API multi-channel playback with AudioContext, 3 GainNodes (voice/music/sfx), preloading to AudioBuffer, play/stop/volume per channel, voice channel priority rules (rescue > normal)
-- [ ] T006 [P] Create useDJHotkeys hook in `frontend/src/hooks/useDJHotkeys.ts` implementing keydown event listeners for Space (forceSubmit), Escape (interrupt/stopAll), M (toggleMode), N (playNextCue), plus dynamic hotkeys from SoundItem.hotkey field
-- [ ] T007 Create MagicDJPage route component in `frontend/src/routes/magic-dj/MagicDJPage.tsx` as main page container
-- [ ] T008 Add Magic DJ route to `frontend/src/App.tsx` at path `/magic-dj`
-- [ ] T009 Add Magic DJ navigation item to `frontend/src/components/layout/Sidebar.tsx` with appropriate icon
-- [ ] T010 Implement operation priority queue in magicDJStore with debounce logic (100ms window) and priority levels: interrupt > emergency > forceSubmit > playback (EC-002)
-- [ ] T011 [P] Add visual feedback for ignored operations (grey flash on deprioritized buttons) per EC-002 SHOULD
+- [x] T004 Create magicDJStore with Zustand in `frontend/src/stores/magicDJStore.ts` including soundLibrary, soundLoadStates, channels (voice/music/sfx), cueList, currentMode, isAIConnected, elapsedTime, settings state and actions per data-model.md MagicDJState/MagicDJActions
+- [x] T005 Create useMultiTrackPlayer hook in `frontend/src/hooks/useMultiTrackPlayer.ts` implementing Web Audio API multi-channel playback with AudioContext, 3 GainNodes (voice/music/sfx), preloading to AudioBuffer, play/stop/volume per channel, voice channel priority rules (rescue > normal)
+- [x] T006 [P] Create useDJHotkeys hook in `frontend/src/hooks/useDJHotkeys.ts` implementing keydown event listeners for Space (forceSubmit), Escape (interrupt/stopAll), M (toggleMode), N (playNextCue), plus dynamic hotkeys from SoundItem.hotkey field
+- [x] T007 Create MagicDJPage route component in `frontend/src/routes/magic-dj/MagicDJPage.tsx` as main page container
+- [x] T008 Add Magic DJ route to `frontend/src/App.tsx` at path `/magic-dj`
+- [x] T009 Add Magic DJ navigation item to `frontend/src/components/layout/Sidebar.tsx` with appropriate icon
+- [x] T010 Implement operation priority queue in magicDJStore with debounce logic (100ms window) and priority levels: interrupt > emergency > forceSubmit > playback (EC-002)
+- [x] T011 [P] Add visual feedback for ignored operations (grey flash on deprioritized buttons) per EC-002 SHOULD
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -57,16 +57,16 @@
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Unit test for ForceSubmitButton behavior in `frontend/tests/unit/magic-dj/ForceSubmitButton.test.ts` covering click trigger, Space hotkey, visual feedback, auto-filler option
+- [x] T012 [P] [US1] Unit test for ForceSubmitButton behavior in `frontend/tests/unit/magic-dj/ForceSubmitButton.test.ts` covering click trigger, Space hotkey, visual feedback, auto-filler option
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Create ForceSubmitButton component in `frontend/src/components/magic-dj/ForceSubmitButton.tsx` that triggers end_turn via existing useWebSocket, shows visual feedback on click/Space key (FR-001)
-- [ ] T014 [P] [US1] Create InterruptButton component in `frontend/src/components/magic-dj/InterruptButton.tsx` that sends interrupt message via WebSocket, stops AI audio playback (FR-003)
-- [ ] T015 [P] [US1] Create FillerSoundTrigger component in `frontend/src/components/magic-dj/FillerSoundTrigger.tsx` that plays thinking sound effect via useMultiTrackPlayer on F key or click (FR-002)
-- [ ] T016 [US1] Integrate ForceSubmitButton with magicDJStore to auto-trigger filler sound when autoPlayFillerOnSubmit is enabled
-- [ ] T017 [US1] Connect US1 components to existing interactionStore for Gemini WebSocket connection management (FR-010)
-- [ ] T018 [US1] Add US1 components to DJControlPanel layout in `frontend/src/components/magic-dj/DJControlPanel.tsx`
+- [x] T013 [P] [US1] Create ForceSubmitButton component in `frontend/src/components/magic-dj/ForceSubmitButton.tsx` that triggers end_turn via existing useWebSocket, shows visual feedback on click/Space key (FR-001)
+- [x] T014 [P] [US1] Create InterruptButton component in `frontend/src/components/magic-dj/InterruptButton.tsx` that sends interrupt message via WebSocket, stops AI audio playback (FR-003)
+- [x] T015 [P] [US1] Create FillerSoundTrigger component in `frontend/src/components/magic-dj/FillerSoundTrigger.tsx` that plays thinking sound effect via useMultiTrackPlayer on F key or click (FR-002)
+- [x] T016 [US1] Integrate ForceSubmitButton with magicDJStore to auto-trigger filler sound when autoPlayFillerOnSubmit is enabled
+- [x] T017 [US1] Connect US1 components to existing interactionStore for Gemini WebSocket connection management (FR-010)
+- [x] T018 [US1] Add US1 components to DJControlPanel layout in `frontend/src/components/magic-dj/DJControlPanel.tsx`
 
 **Checkpoint**: User Story 1 fully functional - RD can force submit, play filler, and interrupt AI
 
@@ -80,18 +80,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Unit test for useMultiTrackPlayer in `frontend/tests/unit/magic-dj/useMultiTrackPlayer.test.ts` covering multi-channel playback, voice priority (rescue/normal), stop channel, stop all, volume control, preload, load error/retry
-- [ ] T020 [P] [US2] Unit test for magicDJStore sound library actions in `frontend/tests/unit/magic-dj/magicDJStore.test.ts` covering addSound, updateSound, deleteSound, reorderSounds, playSound channel routing
+- [x] T019 [P] [US2] Unit test for useMultiTrackPlayer in `frontend/tests/unit/magic-dj/useMultiTrackPlayer.test.ts` covering multi-channel playback, voice priority (rescue/normal), stop channel, stop all, volume control, preload, load error/retry
+- [x] T020 [P] [US2] Unit test for magicDJStore sound library actions in `frontend/tests/unit/magic-dj/magicDJStore.test.ts` covering addSound, updateSound, deleteSound, reorderSounds, playSound channel routing
 
 ### Implementation for User Story 2
 
-- [ ] T021 [P] [US2] Create SoundLibrary component in `frontend/src/components/magic-dj/SoundLibrary.tsx` displaying all sound items grouped by channel (rescue voice / voice / sfx / music), with hotkey labels and play status indicators (FR-005, FR-006)
-- [ ] T022 [P] [US2] Create SoundItemCard component in `frontend/src/components/magic-dj/SoundItemCard.tsx` with play/stop button, hotkey badge, channel indicator, drag handle (draggable for US3)
-- [ ] T023 [P] [US2] Create ChannelStrip component in `frontend/src/components/magic-dj/ChannelStrip.tsx` showing per-channel playback status, volume slider, stop button per DD-001 four-column layout
-- [ ] T024 [US2] Implement sound preloading on MagicDJPage mount using useMultiTrackPlayer.loadSound() for all DEFAULT_SOUND_LIBRARY items
-- [ ] T025 [US2] Implement sound load error state in useMultiTrackPlayer with per-sound error flag, retry capability, red indicator (EC-001)
-- [ ] T026 [US2] Add hotkey bindings for sound items in useDJHotkeys to trigger playback based on SoundItem.hotkey field
-- [ ] T027 [US2] Add US2 components to DJControlPanel layout, ensure playback latency < 100ms (SC-003)
+- [x] T021 [P] [US2] Create SoundLibrary component in `frontend/src/components/magic-dj/SoundLibrary.tsx` displaying all sound items grouped by channel (rescue voice / voice / sfx / music), with hotkey labels and play status indicators (FR-005, FR-006)
+- [x] T022 [P] [US2] Create SoundItemCard component in `frontend/src/components/magic-dj/SoundItemCard.tsx` with play/stop button, hotkey badge, channel indicator, drag handle (draggable for US3)
+- [x] T023 [P] [US2] Create ChannelStrip component in `frontend/src/components/magic-dj/ChannelStrip.tsx` showing per-channel playback status, volume slider, stop button per DD-001 four-column layout
+- [x] T024 [US2] Implement sound preloading on MagicDJPage mount using useMultiTrackPlayer.loadSound() for all DEFAULT_SOUND_LIBRARY items
+- [x] T025 [US2] Implement sound load error state in useMultiTrackPlayer with per-sound error flag, retry capability, red indicator (EC-001)
+- [x] T026 [US2] Add hotkey bindings for sound items in useDJHotkeys to trigger playback based on SoundItem.hotkey field
+- [x] T027 [US2] Add US2 components to DJControlPanel layout, ensure playback latency < 100ms (SC-003)
 
 **Checkpoint**: User Story 2 fully functional - RD can play/stop sounds via click or hotkey, layer multiple channels
 
@@ -105,23 +105,23 @@
 
 ### Tests for User Story 3
 
-- [ ] T028 [P] [US3] Unit test for useCueList hook in `frontend/tests/unit/magic-dj/useCueList.test.ts` covering addToCueList, removeFromCueList, reorderCueList, playNextCue, resetCuePosition, clearCueList, auto-advance position, end-of-list reset, invalid item detection
-- [ ] T029 [P] [US3] Unit test for useDragAndDrop hook in `frontend/tests/unit/magic-dj/useDragAndDrop.test.ts` covering cross-container drag (Sound Library → Cue List), intra-list reorder
+- [x] T028 [P] [US3] Unit test for useCueList hook in `frontend/tests/unit/magic-dj/useCueList.test.ts` covering addToCueList, removeFromCueList, reorderCueList, playNextCue, resetCuePosition, clearCueList, auto-advance position, end-of-list reset, invalid item detection
+- [x] T029 [P] [US3] Unit test for useDragAndDrop hook in `frontend/tests/unit/magic-dj/useDragAndDrop.test.ts` covering cross-container drag (Sound Library → Cue List), intra-list reorder
 
 ### Implementation for User Story 3
 
-- [ ] T030 [P] [US3] Create useCueList hook in `frontend/src/hooks/useCueList.ts` managing CueList state per data-model.md: addToCueList, removeFromCueList, reorderCueList, playNextCue, resetCuePosition, clearCueList, currentPosition tracking, auto-advance on playback end
-- [ ] T031 [P] [US3] Create useDragAndDrop hook in `frontend/src/hooks/useDragAndDrop.ts` implementing HTML5 Drag and Drop API for cross-container drag (Sound Library → Cue List) and intra-list reorder per research.md decision
-- [ ] T032 [P] [US3] Create CueList component in `frontend/src/components/magic-dj/CueList.tsx` displaying ordered items with sequence numbers (FR-031), current position highlight (FR-033), remove button per item (FR-032), drop zone for drag targets (FR-029)
-- [ ] T033 [P] [US3] Create CueItem component in `frontend/src/components/magic-dj/CueItem.tsx` showing sound name, sequence number, play status (pending/playing/played/invalid), drag handle for reorder (FR-030), remove button
-- [ ] T034 [US3] Create PlayNextButton component in `frontend/src/components/magic-dj/PlayNextButton.tsx` that calls useCueList.playNextCue() and displays remaining count (FR-034)
-- [ ] T035 [US3] Implement auto-advance logic: when sound finishes playing, move cueList.currentPosition to next item without auto-playing (FR-035)
-- [ ] T036 [US3] Implement end-of-list handling: when currentPosition reaches last item and playback ends, show "播放清單已結束" toast and reset position to first item (EC-007)
-- [ ] T037 [US3] Implement invalid item detection: when SoundItem is deleted from sound library, mark referencing CueItems as 'invalid' status with visual warning (EC-006)
-- [ ] T038 [US3] Implement same-sound-multiple-times support: allow CueList to contain multiple CueItems referencing the same SoundItem ID (FR-036)
-- [ ] T039 [US3] Implement CueList localStorage persistence: save/load cueList on change using localStorage key 'magic-dj-cue-list' (FR-037)
-- [ ] T040 [US3] Integrate Cue List into prerecorded mode layout: left panel = SoundLibrary, right panel = CueList per FR-028 dual-panel design
-- [ ] T041 [US3] Add N hotkey for "play next cue" in useDJHotkeys
+- [x] T030 [P] [US3] Create useCueList hook in `frontend/src/hooks/useCueList.ts` managing CueList state per data-model.md: addToCueList, removeFromCueList, reorderCueList, playNextCue, resetCuePosition, clearCueList, currentPosition tracking, auto-advance on playback end
+- [x] T031 [P] [US3] Create useDragAndDrop hook in `frontend/src/hooks/useDragAndDrop.ts` implementing HTML5 Drag and Drop API for cross-container drag (Sound Library → Cue List) and intra-list reorder per research.md decision
+- [x] T032 [P] [US3] Create CueList component in `frontend/src/components/magic-dj/CueList.tsx` displaying ordered items with sequence numbers (FR-031), current position highlight (FR-033), remove button per item (FR-032), drop zone for drag targets (FR-029)
+- [x] T033 [P] [US3] Create CueItem component in `frontend/src/components/magic-dj/CueItem.tsx` showing sound name, sequence number, play status (pending/playing/played/invalid), drag handle for reorder (FR-030), remove button
+- [x] T034 [US3] Create PlayNextButton component in `frontend/src/components/magic-dj/PlayNextButton.tsx` that calls useCueList.playNextCue() and displays remaining count (FR-034)
+- [x] T035 [US3] Implement auto-advance logic: when sound finishes playing, move cueList.currentPosition to next item without auto-playing (FR-035)
+- [x] T036 [US3] Implement end-of-list handling: when currentPosition reaches last item and playback ends, show "播放清單已結束" toast and reset position to first item (EC-007)
+- [x] T037 [US3] Implement invalid item detection: when SoundItem is deleted from sound library, mark referencing CueItems as 'invalid' status with visual warning (EC-006)
+- [x] T038 [US3] Implement same-sound-multiple-times support: allow CueList to contain multiple CueItems referencing the same SoundItem ID (FR-036)
+- [x] T039 [US3] Implement CueList localStorage persistence: save/load cueList on change using localStorage key 'magic-dj-cue-list' (FR-037)
+- [x] T040 [US3] Integrate Cue List into prerecorded mode layout: left panel = SoundLibrary, right panel = CueList per FR-028 dual-panel design
+- [x] T041 [US3] Add N hotkey for "play next cue" in useDJHotkeys
 
 **Checkpoint**: User Story 3 fully functional - RD can build, reorder, and play through Cue List
 
@@ -135,11 +135,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T042 [P] [US4] Create ModeSwitch component in `frontend/src/components/magic-dj/ModeSwitch.tsx` showing current mode (prerecorded/ai-conversation), toggle button/indicator with visual state
-- [ ] T043 [US4] Implement mode switching logic in magicDJStore.setMode() that updates currentMode, toggles UI panels (prerecorded shows Cue List; AI shows conversation controls), manages WebSocket connection state
-- [ ] T044 [US4] Ensure AI connection persists in standby when switching to prerecorded mode - no WebSocket disconnect/reconnect (FR-009)
-- [ ] T045 [US4] Add M hotkey for mode toggle in useDJHotkeys (already defined in T006, verify integration)
-- [ ] T046 [US4] Add ModeSwitch to DJControlPanel header, ensure mode switch completes in < 500ms (SC-004)
+- [x] T042 [P] [US4] Create ModeSwitch component in `frontend/src/components/magic-dj/ModeSwitch.tsx` showing current mode (prerecorded/ai-conversation), toggle button/indicator with visual state
+- [x] T043 [US4] Implement mode switching logic in magicDJStore.setMode() that updates currentMode, toggles UI panels (prerecorded shows Cue List; AI shows conversation controls), manages WebSocket connection state
+- [x] T044 [US4] Ensure AI connection persists in standby when switching to prerecorded mode - no WebSocket disconnect/reconnect (FR-009)
+- [x] T045 [US4] Add M hotkey for mode toggle in useDJHotkeys (already defined in T006, verify integration)
+- [x] T046 [US4] Add ModeSwitch to DJControlPanel header, ensure mode switch completes in < 500ms (SC-004)
 
 **Checkpoint**: User Story 4 fully functional - RD can switch modes instantly without losing AI connection
 
@@ -153,11 +153,11 @@
 
 ### Implementation for User Story 5
 
-- [ ] T047 [P] [US5] Create RescuePanel component in `frontend/src/components/magic-dj/RescuePanel.tsx` with two prominent buttons: 「等待填補」(W key) and 「緊急結束」(E key) (FR-013)
-- [ ] T048 [US5] Implement rescue sound playback in RescuePanel using useMultiTrackPlayer for voice_wait (priority: rescue) and voice_end (priority: rescue) - rescue sounds MUST interrupt current voice channel content
-- [ ] T049 [US5] Add visual indicator in DJControlPanel when AI response exceeds 4 seconds (pulsing warning based on magicDJStore timing) (FR-014)
-- [ ] T050 [US5] Add W and E hotkeys for rescue sounds in useDJHotkeys (already defined in T006, verify integration)
-- [ ] T051 [US5] Add RescuePanel to DJControlPanel layout with prominent emergency styling
+- [x] T047 [P] [US5] Create RescuePanel component in `frontend/src/components/magic-dj/RescuePanel.tsx` with two prominent buttons: 「等待填補」(W key) and 「緊急結束」(E key) (FR-013)
+- [x] T048 [US5] Implement rescue sound playback in RescuePanel using useMultiTrackPlayer for voice_wait (priority: rescue) and voice_end (priority: rescue) - rescue sounds MUST interrupt current voice channel content
+- [x] T049 [US5] Add visual indicator in DJControlPanel when AI response exceeds 4 seconds (pulsing warning based on magicDJStore timing) (FR-014)
+- [x] T050 [US5] Add W and E hotkeys for rescue sounds in useDJHotkeys (already defined in T006, verify integration)
+- [x] T051 [US5] Add RescuePanel to DJControlPanel layout with prominent emergency styling
 
 **Checkpoint**: User Story 5 fully functional - RD can quickly rescue from AI delays or errors
 
@@ -169,37 +169,37 @@
 
 ### Session & Timer
 
-- [ ] T052 [P] Create SessionTimer component in `frontend/src/components/magic-dj/SessionTimer.tsx` showing elapsed time, warning at 25 min, alert at 30 min (FR-015, EC-004)
-- [ ] T053 Implement session timing logic in magicDJStore with start/stop/reset actions
-- [ ] T054 [P] Define Session and export data types in `frontend/src/types/magic-dj.ts` including SessionRecord, OperationLog
-- [ ] T055 Create useSessionStorage hook in `frontend/src/hooks/useSessionStorage.ts` implementing localStorage read/write for session data with auto-save on operation (FR-016)
+- [x] T052 [P] Create SessionTimer component in `frontend/src/components/magic-dj/SessionTimer.tsx` showing elapsed time, warning at 25 min, alert at 30 min (FR-015, EC-004)
+- [x] T053 Implement session timing logic in magicDJStore with start/stop/reset actions
+- [x] T054 [P] Define Session and export data types in `frontend/src/types/magic-dj.ts` including SessionRecord, OperationLog
+- [x] T055 Create useSessionStorage hook in `frontend/src/hooks/useSessionStorage.ts` implementing localStorage read/write for session data with auto-save on operation (FR-016)
 
 ### Data Export
 
-- [ ] T056 [P] Create ExportPanel component in `frontend/src/components/magic-dj/ExportPanel.tsx` with JSON and CSV export buttons
-- [ ] T057 Implement JSON export function generating downloadable session file with all operation logs (FR-017)
-- [ ] T058 Implement CSV export function generating spreadsheet-compatible observation data (FR-018)
+- [x] T056 [P] Create ExportPanel component in `frontend/src/components/magic-dj/ExportPanel.tsx` with JSON and CSV export buttons
+- [x] T057 Implement JSON export function generating downloadable session file with all operation logs (FR-017)
+- [x] T058 Implement CSV export function generating spreadsheet-compatible observation data (FR-018)
 
 ### Sound Library Management Enhancement
 
-- [ ] T059 [P] Add drag-and-drop sorting to SoundLibrary using HTML5 DnD (upgrade to @dnd-kit if needed per research.md) (FR-019)
-- [ ] T060 Update SoundLibrary to allow editing sound items, enabling TTS regeneration (FR-020)
-- [ ] T061 Update SoundLibrary to allow deleting sound items with confirmation dialog (FR-021)
-- [ ] T062 [P] Implement sound library configuration persistence to localStorage including item order, custom items, TTS-generated audio as base64 (FR-022)
-- [ ] T063 Create SoundLibraryConfigExport component for exporting configuration as JSON (FR-023)
-- [ ] T064 Create SoundLibraryConfigImport component for importing configuration from JSON file (FR-023)
+- [x] T059 [P] Add drag-and-drop sorting to SoundLibrary using HTML5 DnD (upgrade to @dnd-kit if needed per research.md) (FR-019)
+- [x] T060 Update SoundLibrary to allow editing sound items, enabling TTS regeneration (FR-020)
+- [x] T061 Update SoundLibrary to allow deleting sound items with confirmation dialog (FR-021)
+- [x] T062 [P] Implement sound library configuration persistence to localStorage including item order, custom items, TTS-generated audio as base64 (FR-022)
+- [x] T063 Create SoundLibraryConfigExport component for exporting configuration as JSON (FR-023)
+- [x] T064 Create SoundLibraryConfigImport component for importing configuration from JSON file (FR-023)
 
 ### UI Assembly & Styling
 
-- [ ] T065 Create main DJControlPanel component in `frontend/src/components/magic-dj/DJControlPanel.tsx` assembling all US1-US5 components into cohesive DJ Mixer style layout per DD-001
-- [ ] T066 Style DJControlPanel with Tailwind CSS: large buttons, clear visual hierarchy, four-column channel layout, emergency buttons in red
-- [ ] T067 Add keyboard shortcut reference panel to MagicDJPage showing all hotkey mappings
+- [x] T065 Create main DJControlPanel component in `frontend/src/components/magic-dj/DJControlPanel.tsx` assembling all US1-US5 components into cohesive DJ Mixer style layout per DD-001
+- [x] T066 Style DJControlPanel with Tailwind CSS: large buttons, clear visual hierarchy, four-column channel layout, emergency buttons in red
+- [x] T067 Add keyboard shortcut reference panel to MagicDJPage showing all hotkey mappings
 
 ### Testing & Validation
 
-- [ ] T068 [P] Unit test for useSessionStorage in `frontend/tests/unit/magic-dj/useSessionStorage.test.ts` covering save/load/export operations
-- [ ] T069 Verify all success criteria: audio latency < 100ms (SC-003), mode switch < 500ms (SC-004), system delay < 50ms (SC-001), drag feedback < 200ms (SC-007), play-next < 100ms (SC-008), cue list supports 50+ items (SC-009)
-- [ ] T070 Validate quickstart.md test flow works end-to-end (SC-005)
+- [x] T068 [P] Unit test for useSessionStorage in `frontend/tests/unit/magic-dj/useSessionStorage.test.ts` covering save/load/export operations
+- [x] T069 Verify all success criteria: audio latency < 100ms (SC-003), mode switch < 500ms (SC-004), system delay < 50ms (SC-001), drag feedback < 200ms (SC-007), play-next < 100ms (SC-008), cue list supports 50+ items (SC-009)
+- [x] T070 Validate quickstart.md test flow works end-to-end (SC-005)
 
 **Note**: Sound library storage is **per-browser localStorage**, not global/server-side. Each browser maintains its own configuration independently.
 

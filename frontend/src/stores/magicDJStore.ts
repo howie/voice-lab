@@ -14,6 +14,8 @@ import { persist } from 'zustand/middleware'
 import type {
   ChannelQueueItem,
   ChannelType,
+  CueItem,
+  CueList,
   DJSettings,
   MagicDJState,
   OperationLog,
@@ -27,6 +29,7 @@ import type {
 import {
   DEFAULT_CHANNEL_QUEUES,
   DEFAULT_CHANNEL_STATES,
+  DEFAULT_CUE_LIST,
   DEFAULT_DJ_SETTINGS,
   DEFAULT_TRACKS,
   OperationPriority,
@@ -92,6 +95,18 @@ interface MagicDJStoreState extends MagicDJState {
   queueOperation: (operation: Omit<PendingOperation, 'timestamp'>) => boolean
   processOperationQueue: () => PendingOperation | null
   clearOperationQueue: () => void
+
+  // === Cue List Actions (US3: FR-028~FR-037) ===
+  addToCueList: (trackId: string) => void
+  removeFromCueList: (cueItemId: string) => void
+  reorderCueList: (activeId: string, overId: string) => void
+  playNextCue: () => CueItem | null
+  resetCuePosition: () => void
+  clearCueList: () => void
+  setCueItemStatus: (cueItemId: string, status: CueItem['status']) => void
+  advanceCuePosition: () => void
+  validateCueList: () => void
+  setCueList: (cueList: CueList) => void
 
   // === Backend Sync Actions (011 Phase 3) ===
   setAuthenticated: (authenticated: boolean) => void
@@ -169,6 +184,8 @@ const initialState: MagicDJState & {
   // Channel queues (DD-001)
   channelQueues: DEFAULT_CHANNEL_QUEUES,
   channelStates: DEFAULT_CHANNEL_STATES,
+  // Cue List (US3)
+  cueList: DEFAULT_CUE_LIST,
   currentMode: 'prerecorded',
   isAIConnected: false,
   isSessionActive: false,
@@ -690,6 +707,192 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       clearOperationQueue: () => set({ pendingOperations: [] }),
 
+      // === Cue List Actions (US3: FR-028~FR-037) ===
+
+      addToCueList: (trackId) =>
+        set((prev) => {
+          const newItem: CueItem = {
+            id: crypto.randomUUID(),
+            trackId,
+            order: prev.cueList.items.length + 1,
+            status: 'pending',
+          }
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: [...prev.cueList.items, newItem],
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      removeFromCueList: (cueItemId) =>
+        set((prev) => {
+          const removedIndex = prev.cueList.items.findIndex((item) => item.id === cueItemId)
+          const newItems = prev.cueList.items
+            .filter((item) => item.id !== cueItemId)
+            .map((item, i) => ({ ...item, order: i + 1 }))
+
+          // Adjust currentPosition if needed
+          let newPosition = prev.cueList.currentPosition
+          if (removedIndex !== -1 && removedIndex <= newPosition) {
+            newPosition = Math.max(-1, newPosition - 1)
+          }
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: newItems,
+              currentPosition: newPosition,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      reorderCueList: (activeId, overId) =>
+        set((prev) => {
+          const items = [...prev.cueList.items]
+          const oldIndex = items.findIndex((item) => item.id === activeId)
+          const newIndex = items.findIndex((item) => item.id === overId)
+
+          if (oldIndex === -1 || newIndex === -1) return prev
+
+          const [movedItem] = items.splice(oldIndex, 1)
+          items.splice(newIndex, 0, movedItem)
+
+          // Re-number orders
+          const reordered = items.map((item, i) => ({ ...item, order: i + 1 }))
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: reordered,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      playNextCue: () => {
+        const prev = get()
+        const { items, currentPosition } = prev.cueList
+        const nextIndex = currentPosition + 1
+
+        if (nextIndex >= items.length) {
+          return null // End of list
+        }
+
+        const nextItem = items[nextIndex]
+        if (!nextItem || nextItem.status === 'invalid') {
+          // Skip invalid, try next
+          set((state) => ({
+            cueList: {
+              ...state.cueList,
+              currentPosition: nextIndex,
+            },
+          }))
+          return get().playNextCue()
+        }
+
+        // Update statuses
+        set((state) => ({
+          cueList: {
+            ...state.cueList,
+            currentPosition: nextIndex,
+            items: state.cueList.items.map((item, i) => {
+              if (i === nextIndex) return { ...item, status: 'playing' as const }
+              if (i < nextIndex && item.status === 'playing') return { ...item, status: 'played' as const }
+              return item
+            }),
+          },
+        }))
+
+        return nextItem
+      },
+
+      resetCuePosition: () =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            currentPosition: -1,
+            items: prev.cueList.items.map((item) =>
+              item.status !== 'invalid' ? { ...item, status: 'pending' as const } : item
+            ),
+            updatedAt: Date.now(),
+          },
+        })),
+
+      clearCueList: () =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            items: [],
+            currentPosition: -1,
+            updatedAt: Date.now(),
+          },
+        })),
+
+      setCueItemStatus: (cueItemId, status) =>
+        set((prev) => ({
+          cueList: {
+            ...prev.cueList,
+            items: prev.cueList.items.map((item) =>
+              item.id === cueItemId ? { ...item, status } : item
+            ),
+          },
+        })),
+
+      advanceCuePosition: () =>
+        set((prev) => {
+          const { items, currentPosition } = prev.cueList
+
+          // Mark current item as played
+          const updatedItems = items.map((item, i) =>
+            i === currentPosition && item.status === 'playing'
+              ? { ...item, status: 'played' as const }
+              : item
+          )
+
+          // Check if we're at the end
+          if (currentPosition >= items.length - 1) {
+            // End of list - reset position to start (EC-007)
+            return {
+              cueList: {
+                ...prev.cueList,
+                items: updatedItems.map((item) =>
+                  item.status !== 'invalid' ? { ...item, status: 'pending' as const } : item
+                ),
+                currentPosition: -1,
+                updatedAt: Date.now(),
+              },
+            }
+          }
+
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: updatedItems,
+              updatedAt: Date.now(),
+            },
+          }
+        }),
+
+      validateCueList: () =>
+        set((prev) => {
+          const trackIds = new Set(prev.tracks.map((t) => t.id))
+          return {
+            cueList: {
+              ...prev.cueList,
+              items: prev.cueList.items.map((item) =>
+                !trackIds.has(item.trackId) && item.status !== 'invalid'
+                  ? { ...item, status: 'invalid' as const }
+                  : item
+              ),
+            },
+          }
+        }),
+
+      setCueList: (cueList) => set({ cueList }),
+
       // === Backend Sync Actions (011 Phase 3) ===
       setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
 
@@ -1038,6 +1241,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         // Persist channel queues and states (DD-001)
         channelQueues: state.channelQueues,
         channelStates: state.channelStates,
+        // Persist cue list (FR-037)
+        cueList: state.cueList,
       }),
       // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
@@ -1063,6 +1268,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           // Restore channel data (DD-001)
           channelQueues: persisted.channelQueues ?? DEFAULT_CHANNEL_QUEUES,
           channelStates: persisted.channelStates ?? DEFAULT_CHANNEL_STATES,
+          // Restore cue list (FR-037)
+          cueList: persisted.cueList ?? DEFAULT_CUE_LIST,
         }
       },
     }
@@ -1120,6 +1327,22 @@ export const selectChannelTracks = (channelType: ChannelType) =>
       track: state.tracks.find((t) => t.id === item.trackId),
     }))
   }
+
+// === Cue List Selectors (US3) ===
+
+export const selectCueList = (state: MagicDJStoreState) => state.cueList
+
+export const selectCueItems = (state: MagicDJStoreState) => state.cueList.items
+
+export const selectCurrentCuePosition = (state: MagicDJStoreState) =>
+  state.cueList.currentPosition
+
+export const selectCueListRemainingCount = (state: MagicDJStoreState) => {
+  const { items, currentPosition } = state.cueList
+  const validItems = items.filter((item) => item.status !== 'invalid')
+  if (currentPosition === -1) return validItems.length
+  return Math.max(0, validItems.length - currentPosition - 1)
+}
 
 // Export helper for operation priority
 export { OperationPriority }

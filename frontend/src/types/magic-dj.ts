@@ -180,6 +180,59 @@ export const VOLUME_ICONS = {
 } as const
 
 // =============================================================================
+// Cue List Types (US3 - FR-028~FR-037)
+// =============================================================================
+
+/**
+ * Cue item status in the cue list
+ */
+export type CueItemStatus = 'pending' | 'playing' | 'played' | 'invalid'
+
+/**
+ * A single item in the cue list, referencing a track from Sound Library.
+ * The same track can appear multiple times in the cue list (FR-036).
+ */
+export interface CueItem {
+  /** Unique instance ID (UUID) */
+  id: string
+  /** Reference to Sound Library track ID */
+  trackId: string
+  /** Display order (1-based) */
+  order: number
+  /** Current status */
+  status: CueItemStatus
+}
+
+/**
+ * Cue list for prerecorded mode (FR-028~FR-037).
+ * Stored in localStorage (FR-037).
+ */
+export interface CueList {
+  /** List identifier */
+  id: string
+  /** List name */
+  name: string
+  /** Ordered items */
+  items: CueItem[]
+  /** Current playback position (0-based index, -1 = not started) */
+  currentPosition: number
+  /** Created timestamp */
+  createdAt: number
+  /** Updated timestamp */
+  updatedAt: number
+}
+
+/** Default empty cue list */
+export const DEFAULT_CUE_LIST: CueList = {
+  id: 'default',
+  name: '預設播放清單',
+  items: [],
+  currentPosition: -1,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+}
+
+// =============================================================================
 // Operation Mode Types
 // =============================================================================
 
@@ -345,6 +398,9 @@ export interface MagicDJState {
   // === Operation Priority Queue (EC-002) ===
   pendingOperations: PendingOperation[]
   lastOperationTime: number
+
+  // === Cue List (US3: FR-028~FR-037) ===
+  cueList: CueList
 
   // === Backend Sync (011 Phase 3) ===
   /** Current preset ID (null = localStorage mode) */

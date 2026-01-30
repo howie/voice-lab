@@ -30,6 +30,7 @@ import { CHANNEL_CONFIGS, TRACK_TYPE_TO_CHANNEL } from '@/types/magic-dj'
 
 export interface SoundLibraryProps {
   onAddTrack?: () => void
+  onGenerateBGM?: () => void
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
 }
@@ -182,6 +183,7 @@ function CategorySection({
 
 export function SoundLibrary({
   onAddTrack,
+  onGenerateBGM: _onGenerateBGM,
   onEditTrack,
   onDeleteTrack,
 }: SoundLibraryProps) {

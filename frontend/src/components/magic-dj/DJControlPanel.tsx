@@ -43,6 +43,11 @@ export interface DJControlPanelProps {
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
   wsStatus: ConnectionStatus
+  /** Cue list handlers (US3) */
+  onPlayNextCue?: () => void
+  onRemoveFromCueList?: (cueItemId: string) => void
+  onResetCueList?: () => void
+  onClearCueList?: () => void
 }
 
 // =============================================================================
@@ -65,6 +70,10 @@ export function DJControlPanel({
   onEditTrack,
   onDeleteTrack,
   wsStatus,
+  onPlayNextCue,
+  onRemoveFromCueList,
+  onResetCueList,
+  onClearCueList,
 }: DJControlPanelProps) {
   const { currentMode, isSessionActive, isWaitingForAI, settings } =
     useMagicDJStore()
@@ -127,7 +136,7 @@ export function DJControlPanel({
 
       {/* Main Control Area */}
       {currentMode === 'prerecorded' ? (
-        /* Prerecorded Mode: 4-Channel Board + Sound Library (DD-001) */
+        /* Prerecorded Mode: 4-Channel Board + Sound Library + Cue List (DD-001, US3) */
         <div className="flex flex-1 min-h-0">
           <ChannelBoard
             onPlayTrack={onPlayTrack}
@@ -136,6 +145,11 @@ export function DJControlPanel({
             onGenerateBGM={onGenerateBGM}
             onEditTrack={onEditTrack}
             onDeleteTrack={onDeleteTrack}
+            showCueList
+            onPlayNextCue={onPlayNextCue}
+            onRemoveFromCueList={onRemoveFromCueList}
+            onResetCueList={onResetCueList}
+            onClearCueList={onClearCueList}
           />
         </div>
       ) : (

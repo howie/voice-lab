@@ -21,9 +21,10 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useState } from 'react'
 
-import { useMagicDJStore } from '@/stores/magicDJStore'
+import { useMagicDJStore, selectCueList, selectCueListRemainingCount } from '@/stores/magicDJStore'
 import { ChannelStrip } from './ChannelStrip'
 import { SoundLibrary } from './SoundLibrary'
+import { CueListPanel } from './CueListPanel'
 import type { ChannelType, Track } from '@/types/magic-dj'
 import { CHANNEL_CONFIGS, TRACK_TYPE_TO_CHANNEL } from '@/types/magic-dj'
 
@@ -35,8 +36,16 @@ export interface ChannelBoardProps {
   onPlayTrack: (trackId: string) => void
   onStopTrack: (trackId: string) => void
   onAddTrack?: () => void
+  onGenerateBGM?: () => void
   onEditTrack?: (track: Track) => void
   onDeleteTrack?: (trackId: string) => void
+  /** Whether to show the cue list panel */
+  showCueList?: boolean
+  /** Cue list event handlers */
+  onPlayNextCue?: () => void
+  onRemoveFromCueList?: (cueItemId: string) => void
+  onResetCueList?: () => void
+  onClearCueList?: () => void
 }
 
 // =============================================================================
@@ -61,10 +70,18 @@ export function ChannelBoard({
   onPlayTrack,
   onStopTrack,
   onAddTrack,
+  onGenerateBGM,
   onEditTrack,
   onDeleteTrack,
+  showCueList = false,
+  onPlayNextCue,
+  onRemoveFromCueList,
+  onResetCueList,
+  onClearCueList,
 }: ChannelBoardProps) {
-  const { tracks, addToChannel, reorderChannel } = useMagicDJStore()
+  const { tracks, addToChannel, reorderChannel, addToCueList, reorderCueList, reorderTracks } = useMagicDJStore()
+  const cueList = useMagicDJStore(selectCueList)
+  const remainingCount = useMagicDJStore(selectCueListRemainingCount)
   const [draggedTrack, setDraggedTrack] = useState<Track | null>(null)
 
   const sensors = useSensors(
@@ -103,9 +120,28 @@ export function ChannelBoard({
     const activeData = active.data.current
     const overData = over.data.current
 
-    // Case 1: Dragging from library to a channel drop zone
+    // Case 1: Dragging from library
     if (activeData?.source === 'library' && activeData.track) {
       const track = activeData.track as Track
+
+      // Case 1a: Library → Library reorder (T059 FR-019)
+      if (overData?.source === 'library' && overData.track && active.id !== over.id) {
+        const overTrack = overData.track as Track
+        reorderTracks(track.id, overTrack.id)
+        return
+      }
+
+      // Case 1b: Library → Cue List
+      if (
+        over.id === 'cue-list-drop-zone' ||
+        overData?.type === 'cue-list' ||
+        overData?.type === 'cue-item'
+      ) {
+        addToCueList(track.id)
+        return
+      }
+
+      // Case 1c: Library → Channel
       let targetChannel: ChannelType | null = null
 
       // Dropped on a channel droppable zone
@@ -130,7 +166,19 @@ export function ChannelBoard({
       return
     }
 
-    // Case 2: Reordering within a channel
+    // Case 2: Reordering within cue list
+    if (activeData?.type === 'cue-item' && active.id !== over.id) {
+      const cueItems = useMagicDJStore.getState().cueList.items
+      const hasActive = cueItems.some((item) => item.id === active.id)
+      const hasOver = cueItems.some((item) => item.id === over.id)
+
+      if (hasActive && hasOver) {
+        reorderCueList(active.id as string, over.id as string)
+        return
+      }
+    }
+
+    // Case 3: Reordering within a channel
     if (active.id !== over.id) {
       // Find which channel contains this item
       const channelQueues = useMagicDJStore.getState().channelQueues
@@ -170,9 +218,29 @@ export function ChannelBoard({
         {/* Sound Library */}
         <SoundLibrary
           onAddTrack={onAddTrack}
+          onGenerateBGM={onGenerateBGM}
           onEditTrack={onEditTrack}
           onDeleteTrack={onDeleteTrack}
         />
+
+        {/* Cue List Panel (T040: prerecorded mode dual-panel) */}
+        {showCueList && (
+          <div className="w-64 shrink-0">
+            <CueListPanel
+              cueList={cueList}
+              remainingCount={remainingCount}
+              onRemove={onRemoveFromCueList ?? (() => {})}
+              onPlayNext={onPlayNextCue ?? (() => {})}
+              onReset={onResetCueList ?? (() => {})}
+              onClear={onClearCueList ?? (() => {})}
+              onPlayTrack={onPlayTrack}
+              isAtEnd={
+                cueList.items.length > 0 &&
+                cueList.currentPosition >= cueList.items.length - 1
+              }
+            />
+          </div>
+        )}
       </div>
 
       {/* Drag Overlay */}

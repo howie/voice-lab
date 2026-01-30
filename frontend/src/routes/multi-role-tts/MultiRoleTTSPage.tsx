@@ -194,6 +194,7 @@ export function MultiRoleTTSPage() {
               onChange={setDialogueText}
               characterLimit={characterLimit}
               disabled={isLoading}
+              provider={provider}
             />
           </div>
 

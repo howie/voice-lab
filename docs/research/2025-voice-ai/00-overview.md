@@ -38,6 +38,7 @@
 | [02-stt.md](./02-stt.md) | 語音轉文字 (STT) 服務比較 |
 | [03-llm.md](./03-llm.md) | 大型語言模型選擇 ⭐ 已更新至 2026-01 |
 | [04-tts.md](./04-tts.md) | 文字轉語音 (TTS) 服務比較 |
+| [04-3-gemini-tts-api.md](./04-3-gemini-tts-api.md) | Gemini TTS API 語音調教研究 |
 | [05-frameworks.md](./05-frameworks.md) | Voice AI 框架 |
 
 ## 選型考量因素

@@ -43,6 +43,22 @@ const ELEVENLABS_AUDIO_TAGS: Record<string, { description: string; example: stri
   },
 }
 
+// Gemini TTS feature descriptions
+const GEMINI_FEATURES: Record<string, { description: string; example: string }> = {
+  'style prompts': {
+    description: 'Style Prompt — 用自然語言描述語氣風格，前置於文字內容',
+    example: '用溫暖友善的語氣說: 歡迎收聽今天的節目',
+  },
+  'SSML': {
+    description: 'SSML 標記 — 控制語速、音高、停頓、強調等',
+    example: '<prosody rate="slow">慢慢說</prosody> <break time="1s"/>',
+  },
+  'inline emotions': {
+    description: '行內情緒標籤 — 方括號標記局部情緒或動作',
+    example: '[excited] 太棒了！[whispering] 別告訴別人...',
+  },
+}
+
 export function ProviderCapabilityCard({
   capability,
   onSegmentedConfirm,
@@ -151,6 +167,16 @@ export function ProviderCapabilityCard({
                     <p className="font-medium mb-1">{ELEVENLABS_AUDIO_TAGS[feature].description}</p>
                     <p className="text-[10px] opacity-70 font-mono">
                       範例: {ELEVENLABS_AUDIO_TAGS[feature].example}
+                    </p>
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+                  </div>
+                )}
+                {/* Enhanced Tooltip for Gemini TTS Features */}
+                {GEMINI_FEATURES[feature] && (
+                  <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block w-64">
+                    <p className="font-medium mb-1">{GEMINI_FEATURES[feature].description}</p>
+                    <p className="text-[10px] opacity-70 font-mono">
+                      範例: {GEMINI_FEATURES[feature].example}
                     </p>
                     <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
                   </div>

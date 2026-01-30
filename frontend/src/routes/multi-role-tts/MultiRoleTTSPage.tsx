@@ -26,6 +26,7 @@ const PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'cartesia', label: 'Cartesia' },
   { value: 'deepgram', label: 'Deepgram' },
+  { value: 'voai', label: 'VoAI 台灣語音' },
 ]
 
 export function MultiRoleTTSPage() {

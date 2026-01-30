@@ -61,11 +61,14 @@ export function DialogueInput({
             <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600" />
             <div className="text-xs text-purple-800">
               <p className="font-medium">Gemini TTS 語音調教技巧：</p>
+              <p className="mt-1 opacity-80">
+                Style Prompt、SSML、情緒標籤直接寫在每行對話的文字內容中：
+              </p>
               <div className="mt-1.5 space-y-1.5">
                 <div>
                   <p className="font-medium">1. Style Prompt（語氣描述）</p>
                   <p className="opacity-80">
-                    在對話文字前加入自然語言的風格指令，例如：
+                    用自然語言描述語氣風格，前置於台詞：
                   </p>
                   <code className="mt-0.5 block rounded bg-purple-100 px-1.5 py-0.5">
                     A: 用溫暖友善的語氣說: 歡迎收聽今天的節目
@@ -74,7 +77,7 @@ export function DialogueInput({
                 <div>
                   <p className="font-medium">2. SSML 標記（精確控制）</p>
                   <p className="opacity-80">
-                    在文字中使用 SSML 控制語速、停頓、強調：
+                    控制語速、停頓、強調：
                   </p>
                   <code className="mt-0.5 block rounded bg-purple-100 px-1.5 py-0.5">
                     {'A: <prosody rate="slow">慢慢說</prosody> <break time="1s"/> 接下來...'}
@@ -90,6 +93,19 @@ export function DialogueInput({
                   </code>
                 </div>
               </div>
+              <details className="mt-2">
+                <summary className="cursor-pointer font-medium hover:opacity-80">
+                  範例：幼兒園老師講故事
+                </summary>
+                <pre className="mt-1.5 whitespace-pre-wrap rounded bg-purple-100 p-2 font-mono leading-relaxed">
+{`[老師]: 用幼兒園老師溫柔又充滿驚喜的語氣說: 小朋友們～今天老師要講一個好好聽的故事喔！
+[老師]: <prosody rate="slow">從前從前</prosody> <break time="800ms"/> 在一座大大的森林裡 <break time="500ms"/> 住著一隻 <emphasis level="strong">小小的兔子</emphasis>
+[老師]: [excited] 猜猜看！小兔子叫什麼名字？ <break time="1s"/> 牠叫 <prosody pitch="+3st">跳跳</prosody>！
+[老師]: [whispering] 有一天晚上，跳跳偷偷溜出門 <break time="500ms"/> 牠聽到了一個好奇怪的聲音
+[老師]: <prosody rate="x-slow" pitch="-2st">咕嚕 <break time="300ms"/> 咕嚕 <break time="300ms"/> 咕嚕</prosody>
+[老師]: [excited] 原來是跳跳的肚子餓了啦！ [laughing] 好好笑對不對？`}
+                </pre>
+              </details>
               <p className="mt-2 opacity-60">
                 Pro 模型對指令遵循度較高；英文 prompt 效果通常優於中文
               </p>

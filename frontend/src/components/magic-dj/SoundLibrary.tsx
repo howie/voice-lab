@@ -18,6 +18,7 @@ import {
   AlertCircle,
   ShieldAlert,
 } from 'lucide-react'
+import { useMemo } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { cn } from '@/lib/utils'
@@ -69,13 +70,15 @@ function DraggableTrackItem({
   onEditTrack,
   onDeleteTrack,
 }: DraggableTrackItemProps) {
+  const trackState = useMagicDJStore((s) => s.trackStates[track.id])
+  const isLoaded = trackState?.isLoaded ?? false
+  const hasAudio = !!track.url
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `library-${track.id}`,
     data: { track, source: 'library' },
+    disabled: !hasAudio,
   })
-
-  const trackState = useMagicDJStore((s) => s.trackStates[track.id])
-  const isLoaded = trackState?.isLoaded ?? false
 
   return (
     <div
@@ -83,10 +86,12 @@ function DraggableTrackItem({
       {...attributes}
       {...listeners}
       className={cn(
-        'group flex cursor-grab items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-all active:cursor-grabbing touch-none',
-        isDragging
-          ? 'z-50 opacity-50 shadow-lg border-primary'
-          : 'border-border bg-background hover:bg-accent/50 hover:border-accent',
+        'group flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-all touch-none',
+        !hasAudio
+          ? 'cursor-not-allowed opacity-50 border-border bg-muted'
+          : isDragging
+            ? 'z-50 opacity-50 shadow-lg border-primary cursor-grabbing'
+            : 'cursor-grab border-border bg-background hover:bg-accent/50 hover:border-accent active:cursor-grabbing',
       )}
     >
       {/* Source icon */}
@@ -187,12 +192,32 @@ export function SoundLibrary({
   onEditTrack,
   onDeleteTrack,
 }: SoundLibraryProps) {
-  const { tracks } = useMagicDJStore()
+  const { tracks, channelQueues, cueList } = useMagicDJStore()
 
-  // Group tracks by channel type
+  // Compute set of trackIds already placed in channels or cue list
+  const placedTrackIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const queue of Object.values(channelQueues)) {
+      for (const item of queue) {
+        ids.add(item.trackId)
+      }
+    }
+    for (const item of cueList.items) {
+      ids.add(item.trackId)
+    }
+    return ids
+  }, [channelQueues, cueList.items])
+
+  // Filter out tracks already placed in channels or cue list
+  const availableTracks = useMemo(
+    () => tracks.filter((t) => !placedTrackIds.has(t.id)),
+    [tracks, placedTrackIds],
+  )
+
+  // Group available tracks by channel type
   const groupedTracks = CHANNEL_CONFIGS.reduce(
     (acc, config) => {
-      acc[config.type] = tracks.filter(
+      acc[config.type] = availableTracks.filter(
         (track) => TRACK_TYPE_TO_CHANNEL[track.type] === config.type,
       )
       return acc
@@ -206,7 +231,7 @@ export function SoundLibrary({
       <div className="flex items-center justify-between border-b p-3">
         <h3 className="text-sm font-semibold">Sound Library</h3>
         <span className="text-xs text-muted-foreground">
-          {tracks.length} 項
+          {availableTracks.length} 項
         </span>
       </div>
 

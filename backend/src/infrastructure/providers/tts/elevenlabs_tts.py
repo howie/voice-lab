@@ -1,10 +1,13 @@
 """ElevenLabs Text-to-Speech Provider."""
 
+import contextlib
+
 import httpx
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -63,6 +66,31 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
 
             if response.status_code != 200:
                 error_detail = response.text
+
+                # T009: Detect 429 quota exceeded
+                if response.status_code == 429:
+                    # ElevenLabs returns structured JSON with quota_exceeded
+                    quota_type = None
+                    try:
+                        error_json = response.json()
+                        detail = error_json.get("detail", {})
+                        if isinstance(detail, dict):
+                            status = detail.get("status", "")
+                            if "character" in status.lower():
+                                quota_type = "characters"
+                    except Exception:
+                        pass
+                    retry_after = None
+                    if "retry-after" in response.headers:
+                        with contextlib.suppress(ValueError, TypeError):
+                            retry_after = int(response.headers["retry-after"])
+                    raise QuotaExceededError(
+                        provider="elevenlabs",
+                        quota_type=quota_type,
+                        retry_after=retry_after,
+                        original_error=error_detail,
+                    )
+
                 raise RuntimeError(
                     f"ElevenLabs TTS failed with status {response.status_code}: {error_detail}"
                 )

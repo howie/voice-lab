@@ -5,6 +5,7 @@ import azure.cognitiveservices.speech as speechsdk
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -72,9 +73,17 @@ class AzureTTSProvider(BaseTTSProvider):
             )
         elif result.reason == speechsdk.ResultReason.Canceled:
             cancellation = result.cancellation_details
+            error_details = cancellation.error_details or ""
+
+            # T010: Detect 429 quota exceeded from Azure error details
+            if "429" in error_details or "quota" in error_details.lower():
+                raise QuotaExceededError(
+                    provider="azure",
+                    original_error=error_details,
+                )
+
             raise RuntimeError(
-                f"Azure TTS synthesis canceled: {cancellation.reason}. "
-                f"Error: {cancellation.error_details}"
+                f"Azure TTS synthesis canceled: {cancellation.reason}. Error: {error_details}"
             )
         else:
             raise RuntimeError(f"Azure TTS synthesis failed: {result.reason}")

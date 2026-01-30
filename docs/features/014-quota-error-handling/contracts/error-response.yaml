@@ -1,0 +1,194 @@
+# API Quota Error Response Contract
+# Feature: 014-quota-error-handling
+# Date: 2026-01-30
+
+openapi: 3.1.0
+info:
+  title: Voice Lab API - Quota Error Response
+  version: 1.0.0
+  description: |
+    定義 API 配額超限錯誤的標準回應格式。
+    此格式適用於所有支援的供應商 (Gemini, ElevenLabs, Azure, GCP, OpenAI, Deepgram, VoAI)。
+
+components:
+  schemas:
+    QuotaErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/QuotaError'
+
+    QuotaError:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      properties:
+        code:
+          type: string
+          enum: [QUOTA_EXCEEDED]
+          description: 錯誤代碼
+          example: QUOTA_EXCEEDED
+
+        message:
+          type: string
+          description: 中文化的錯誤訊息
+          example: Gemini TTS API 配額已用盡
+
+        details:
+          $ref: '#/components/schemas/QuotaErrorDetails'
+
+        request_id:
+          type: string
+          format: uuid
+          description: 請求追蹤 ID
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    QuotaErrorDetails:
+      type: object
+      required:
+        - provider
+        - provider_display_name
+      properties:
+        provider:
+          type: string
+          description: 供應商識別碼
+          enum: [gemini, elevenlabs, azure, gcp, openai, deepgram, voai]
+          example: gemini
+
+        provider_display_name:
+          type: string
+          description: 供應商顯示名稱
+          example: Gemini TTS
+
+        retry_after:
+          type: integer
+          minimum: 0
+          description: 建議重試等待秒數
+          example: 3600
+
+        quota_type:
+          type: string
+          description: |
+            配額類型。可能的值：
+            - daily_requests: 每日請求次數
+            - characters: 字元數
+            - tokens: Token 數
+            - audio_minutes: 音訊分鐘數
+          enum: [daily_requests, characters, tokens, audio_minutes]
+          example: daily_requests
+
+        help_url:
+          type: string
+          format: uri
+          description: 供應商配額/用量頁面連結
+          example: https://ai.google.dev/pricing
+
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: 中文建議列表
+          example:
+            - 檢查您的 Google AI Studio 用量統計
+            - 考慮升級至付費方案
+            - 暫時切換到其他 TTS 供應商
+
+  responses:
+    QuotaExceeded:
+      description: API 配額超限
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: 建議重試等待秒數
+          example: 3600
+        X-Request-ID:
+          schema:
+            type: string
+            format: uuid
+          description: 請求追蹤 ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/QuotaErrorResponse'
+          examples:
+            gemini_quota:
+              summary: Gemini TTS 配額超限
+              value:
+                error:
+                  code: QUOTA_EXCEEDED
+                  message: Gemini TTS API 配額已用盡
+                  details:
+                    provider: gemini
+                    provider_display_name: Gemini TTS
+                    retry_after: 3600
+                    quota_type: daily_requests
+                    help_url: https://ai.google.dev/pricing
+                    suggestions:
+                      - 檢查您的 Google AI Studio 用量統計
+                      - 考慮升級至付費方案
+                      - 暫時切換到其他 TTS 供應商
+                  request_id: 550e8400-e29b-41d4-a716-446655440000
+
+            elevenlabs_quota:
+              summary: ElevenLabs 字元配額超限
+              value:
+                error:
+                  code: QUOTA_EXCEEDED
+                  message: ElevenLabs API 字元配額已用盡
+                  details:
+                    provider: elevenlabs
+                    provider_display_name: ElevenLabs
+                    retry_after: 3600
+                    quota_type: characters
+                    help_url: https://elevenlabs.io/subscription
+                    suggestions:
+                      - 檢查您的 ElevenLabs 用量統計
+                      - 購買額外的字元配額
+                      - 暫時切換到其他 TTS 供應商
+                  request_id: 550e8400-e29b-41d4-a716-446655440001
+
+            openai_quota:
+              summary: OpenAI Whisper 配額超限
+              value:
+                error:
+                  code: QUOTA_EXCEEDED
+                  message: OpenAI Whisper API 配額已用盡
+                  details:
+                    provider: openai
+                    provider_display_name: OpenAI Whisper
+                    retry_after: 60
+                    quota_type: tokens
+                    help_url: https://platform.openai.com/usage
+                    suggestions:
+                      - 檢查您的 OpenAI 用量統計
+                      - 考慮升級方案
+                      - 暫時切換到其他 STT 供應商
+                  request_id: 550e8400-e29b-41d4-a716-446655440002
+
+# HTTP Response specification
+paths:
+  /api/v1/tts/synthesize:
+    post:
+      summary: 語音合成
+      responses:
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+
+  /api/v1/stt/transcribe:
+    post:
+      summary: 語音轉文字
+      responses:
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+
+  /api/v1/multi-role-tts/synthesize:
+    post:
+      summary: 多角色語音合成
+      responses:
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'

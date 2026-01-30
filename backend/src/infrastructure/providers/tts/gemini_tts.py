@@ -7,6 +7,7 @@ Implements TTS synthesis using Gemini 2.5 TTS models with support for:
 """
 
 import base64
+import contextlib
 import io
 from collections.abc import AsyncGenerator
 
@@ -16,6 +17,7 @@ from pydub import AudioSegment
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 
@@ -125,6 +127,20 @@ class GeminiTTSProvider(BaseTTSProvider):
                 error_message = error_json.get("error", {}).get("message", response.text)
             except Exception:
                 error_message = response.text
+
+            # T008: Detect 429 quota exceeded
+            if response.status_code == 429 or (
+                "exceeded your current quota" in error_message.lower()
+            ):
+                retry_after = None
+                if "retry-after" in response.headers:
+                    with contextlib.suppress(ValueError, TypeError):
+                        retry_after = int(response.headers["retry-after"])
+                raise QuotaExceededError(
+                    provider="gemini",
+                    retry_after=retry_after,
+                    original_error=error_message,
+                )
 
             raise RuntimeError(
                 f"Gemini TTS API error (status {response.status_code}): {error_message}"

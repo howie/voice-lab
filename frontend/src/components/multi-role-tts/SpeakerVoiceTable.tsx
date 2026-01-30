@@ -8,10 +8,16 @@ import type { VoiceProfile } from '@/lib/api'
 import type { VoiceAssignment } from '@/types/multi-role-tts'
 import { Spinner } from '@/components/tts/LoadingIndicator'
 
+/** Voice data with optional customization fields */
+type VoiceItem = VoiceProfile & {
+  displayName?: string
+  isFavorite?: boolean
+}
+
 interface SpeakerVoiceTableProps {
   speakers: string[]
   voiceAssignments: VoiceAssignment[]
-  voices: VoiceProfile[]
+  voices: VoiceItem[]
   voicesLoading: boolean
   maxSpeakers: number
   onVoiceChange: (speaker: string, voiceId: string, voiceName?: string) => void
@@ -36,7 +42,7 @@ export function SpeakerVoiceTable({
   }
 
   // Group voices by gender for better UX
-  const groupedVoices = voices.reduce<Record<string, VoiceProfile[]>>(
+  const groupedVoices = voices.reduce<Record<string, VoiceItem[]>>(
     (acc, voice) => {
       const gender = voice.gender || 'other'
       if (!acc[gender]) {
@@ -127,7 +133,7 @@ export function SpeakerVoiceTable({
                         <optgroup key={gender} label={genderLabels[gender] || gender}>
                           {genderVoices.map((voice) => (
                             <option key={voice.id} value={voice.id}>
-                              {voice.name}
+                              {voice.isFavorite ? '★ ' : ''}{voice.displayName || voice.name}
                             </option>
                           ))}
                         </optgroup>

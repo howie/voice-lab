@@ -7,7 +7,7 @@ T008: Implement VoiceCacheRepositoryImpl (DB-backed)
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,7 +123,7 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
                 "use_cases": stmt.excluded.use_cases,
                 "sample_audio_url": stmt.excluded.sample_audio_url,
                 "is_deprecated": stmt.excluded.is_deprecated,
-                "metadata_": stmt.excluded.metadata_,
+                "metadata": stmt.excluded.metadata,
                 "synced_at": now,
                 "updated_at": now,
             },
@@ -187,7 +187,7 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
                 "use_cases": stmt.excluded.use_cases,
                 "sample_audio_url": stmt.excluded.sample_audio_url,
                 "is_deprecated": stmt.excluded.is_deprecated,
-                "metadata_": stmt.excluded.metadata_,
+                "metadata": stmt.excluded.metadata,
                 "synced_at": now,
                 "updated_at": now,
             },
@@ -230,6 +230,19 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
         result = await self._session.execute(query)
         return [row[0] for row in result.all()]
 
+    async def update_sample_audio_url(
+        self,
+        voice_cache_id: str,
+        sample_audio_url: str,
+    ) -> None:
+        """Update the sample audio URL for a voice."""
+        await self._session.execute(
+            update(VoiceCache)
+            .where(VoiceCache.id == voice_cache_id)
+            .values(sample_audio_url=sample_audio_url)
+        )
+        await self._session.flush()
+
     def _apply_filters(
         self,
         query,
@@ -242,7 +255,13 @@ class VoiceCacheRepositoryImpl(IVoiceCacheRepository):
         """Apply common filters to a query."""
         if language is not None:
             # Support prefix matching (e.g., "zh" matches "zh-TW", "zh-CN")
-            query = query.where(VoiceCache.language.startswith(language))
+            # Always include multilingual voices (e.g., Gemini, ElevenLabs)
+            query = query.where(
+                or_(
+                    VoiceCache.language.startswith(language),
+                    VoiceCache.language == "multilingual",
+                )
+            )
 
         if gender is not None:
             query = query.where(VoiceCache.gender == gender)

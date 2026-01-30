@@ -7,6 +7,7 @@
 
 import { cn } from '@/lib/utils'
 import { VoiceNameEditor } from './VoiceNameEditor'
+import { PreviewButton } from './PreviewButton'
 import { FavoriteToggle } from './FavoriteToggle'
 import { HiddenToggle } from './HiddenToggle'
 import type { VoiceWithCustomization } from '@/types/voice-customization'
@@ -96,6 +97,10 @@ export function VoiceCustomizationRow({
       {/* Actions */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">
+          <PreviewButton
+            voiceCacheId={voice.id}
+            sampleAudioUrl={voice.sampleAudioUrl}
+          />
           <FavoriteToggle
             isFavorite={voice.isFavorite}
             isHidden={voice.isHidden}

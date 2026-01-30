@@ -390,17 +390,15 @@ class TestCredentialCRUDIntegration:
         mock_session = MagicMock()
         mock_session.commit = AsyncMock()
 
-        # Dynamic user override - returns CurrentUser with current_user["id"]
-        mock_current_user = CurrentUser(
-            id=str(current_user["id"]),
-            email="test@example.com",
-            name="Test User",
-            picture_url=None,
-            google_id="google-123",
-        )
-
+        # Dynamic user override - constructs CurrentUser from current_user["id"] at call time
         async def override_get_current_user():
-            return mock_current_user
+            return CurrentUser(
+                id=str(current_user["id"]),
+                email="test@example.com",
+                name="Test User",
+                picture_url=None,
+                google_id="google-123",
+            )
 
         async def override_get_db_session():
             return mock_session

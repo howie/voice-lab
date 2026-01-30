@@ -677,7 +677,7 @@ class VoAITTSProvider(BaseTTSProvider):
             age_group = self._get_age_group(age)
 
             return VoiceProfile(
-                id=v["id"],
+                id=f"voai:{v['id']}",
                 voice_id=v["id"],
                 display_name=v["name"],
                 provider="voai",

@@ -580,7 +580,13 @@ class VoAITTSProvider(BaseTTSProvider):
             "Content-Type": "application/json",
         }
 
-        # Voice ID is now the speaker name directly (e.g., "佑希", "雨榛")
+        # Voice ID may arrive in voice_cache_id format ("voai:佑希") from
+        # multi-role TTS, or as a plain speaker name ("佑希").
+        # Strip the provider prefix if present.
+        voice_id = request.voice_id
+        if voice_id.startswith("voai:"):
+            voice_id = voice_id[len("voai:") :]
+
         # Also support legacy IDs for backward compatibility
         legacy_speaker_map = {
             "voai-tw-male-1": "佑希",
@@ -595,7 +601,7 @@ class VoAITTSProvider(BaseTTSProvider):
             "voai-tw-female-6": "璦廷",
         }
         # Use voice_id directly if it's a speaker name, otherwise map from legacy ID
-        speaker = legacy_speaker_map.get(request.voice_id, request.voice_id)
+        speaker = legacy_speaker_map.get(voice_id, voice_id)
         # Validate speaker exists, fallback to 佑希 if not found
         valid_speakers = {v["name"] for v in VOAI_VOICES.get("zh-TW", [])}
         if speaker not in valid_speakers:

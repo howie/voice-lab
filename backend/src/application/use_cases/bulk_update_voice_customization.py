@@ -92,7 +92,5 @@ class BulkUpdateVoiceCustomizationUseCase:
 
         return BulkUpdateOutput(
             updated_count=success_count,
-            failed=[
-                BulkUpdateFailure(voice_cache_id=vid, error=err) for vid, err in failures
-            ],
+            failed=[BulkUpdateFailure(voice_cache_id=vid, error=err) for vid, err in failures],
         )

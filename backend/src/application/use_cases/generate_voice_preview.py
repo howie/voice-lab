@@ -66,9 +66,7 @@ class GenerateVoicePreview:
             cdn_url = voice.metadata.get("preview_url")
             if cdn_url:
                 logger.info("Using ElevenLabs CDN preview for %s", voice_cache_id)
-                await self._voice_cache_repo.update_sample_audio_url(
-                    voice_cache_id, cdn_url
-                )
+                await self._voice_cache_repo.update_sample_audio_url(voice_cache_id, cdn_url)
                 return cdn_url
 
         # 4. On-demand synthesis
@@ -105,9 +103,7 @@ class GenerateVoicePreview:
         )
 
         # Persist the URL
-        await self._voice_cache_repo.update_sample_audio_url(
-            voice_cache_id, stored.url
-        )
+        await self._voice_cache_repo.update_sample_audio_url(voice_cache_id, stored.url)
 
         logger.info("Preview generated for %s → %s", voice_cache_id, stored.url)
         return stored.url

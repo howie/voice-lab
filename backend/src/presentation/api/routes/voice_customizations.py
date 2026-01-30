@@ -209,9 +209,7 @@ async def bulk_update_voice_customizations(
 
         return BulkUpdateResultSchema(
             updated_count=result.updated_count,
-            failed=[
-                {"voice_cache_id": f.voice_cache_id, "error": f.error} for f in result.failed
-            ],
+            failed=[{"voice_cache_id": f.voice_cache_id, "error": f.error} for f in result.failed],
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e

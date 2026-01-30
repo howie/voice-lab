@@ -95,7 +95,11 @@ class ListVoicesWithCustomizationUseCase:
         # Get voices from cache - get more than limit to apply post-filtering
         # We need to handle exclude_hidden and favorites_only after merging customizations
         # So fetch a larger set first
-        fetch_limit = (filters.offset + filters.limit) * 2 if filters.exclude_hidden or filters.favorites_only else filters.limit
+        fetch_limit = (
+            (filters.offset + filters.limit) * 2
+            if filters.exclude_hidden or filters.favorites_only
+            else filters.limit
+        )
         fetch_offset = 0 if filters.exclude_hidden or filters.favorites_only else filters.offset
 
         voices = await self._voice_cache_repo.list_all(

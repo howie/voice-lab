@@ -496,9 +496,7 @@ class TestBulkUpdateVoiceCustomizationUseCase:
     @pytest.mark.asyncio
     async def test_bulk_update_exceeds_limit(self, use_case, mock_repo):
         """Raises ValueError when too many updates."""
-        updates = [
-            BulkUpdateItem(voice_cache_id=f"test:{i}") for i in range(51)
-        ]
+        updates = [BulkUpdateItem(voice_cache_id=f"test:{i}") for i in range(51)]
 
         with pytest.raises(ValueError, match="Maximum 50"):
             await use_case.execute(BulkUpdateInput(updates=updates))

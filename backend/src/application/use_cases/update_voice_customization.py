@@ -46,13 +46,9 @@ class UpdateVoiceCustomizationUseCase:
         """
         self._repository = repository
 
-<<<<<<< HEAD
     async def execute(
         self, input_data: UpdateVoiceCustomizationInput
     ) -> UpdateVoiceCustomizationOutput:
-=======
-    async def execute(self, input_data: UpdateVoiceCustomizationInput) -> UpdateVoiceCustomizationOutput:
->>>>>>> 581ad96 (feat(voice-mgmt): add TTS voice customization feature (013-tts-role-mgmt))
         """Update or create a voice customization.
 
         Args:

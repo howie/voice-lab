@@ -1,7 +1,11 @@
 /**
  * ProviderSelector Component
  * T041: Create ProviderSelector component (dropdown for Azure/GCP/ElevenLabs/VoAI)
+ *
+ * Only shows providers that have API keys configured (status: available).
  */
+
+import { useAvailableTTSProviders } from '@/hooks/useAvailableTTSProviders'
 
 interface Provider {
   id: string
@@ -54,6 +58,24 @@ export function ProviderSelector({
   onChange,
   disabled = false,
 }: ProviderSelectorProps) {
+  const { providers: availableProviders, loading } = useAvailableTTSProviders({
+    allProviders: PROVIDERS,
+    getKey: (p) => p.name,
+    value,
+    onChange,
+  })
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">選擇 Provider</label>
+        <div className="flex h-[38px] w-full items-center rounded-lg border bg-background px-2 text-sm text-muted-foreground">
+          載入可用 Provider...
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">選擇 Provider</label>
@@ -63,14 +85,14 @@ export function ProviderSelector({
         disabled={disabled}
         className="w-full rounded-lg border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {PROVIDERS.map((provider) => (
+        {availableProviders.map((provider) => (
           <option key={provider.id} value={provider.name}>
             {provider.displayName}
           </option>
         ))}
       </select>
       <p className="text-xs text-muted-foreground">
-        {PROVIDERS.find((p) => p.name === value)?.description}
+        {availableProviders.find((p) => p.name === value)?.description}
       </p>
     </div>
   )

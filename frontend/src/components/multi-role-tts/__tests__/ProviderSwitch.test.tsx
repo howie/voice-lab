@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { useMultiRoleTTSStore } from '@/stores/multiRoleTTSStore'
 import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
 import { ProviderCapabilityCard } from '../ProviderCapabilityCard'
+import { invalidateTTSProviderCache } from '@/hooks/useAvailableTTSProviders'
 import type { ProviderMultiRoleCapability } from '@/types/multi-role-tts'
 
 // Mock the API modules
@@ -90,11 +91,28 @@ vi.mock('@/lib/api', () => ({
       }
       return Promise.resolve(voices[provider] || { data: [] })
     }),
+    getProvidersSummary: vi.fn().mockResolvedValue({
+      data: {
+        tts: [
+          { name: 'elevenlabs', status: 'available' },
+          { name: 'azure', status: 'available' },
+          { name: 'gcp', status: 'available' },
+          { name: 'gemini', status: 'available' },
+          { name: 'openai', status: 'available' },
+          { name: 'cartesia', status: 'available' },
+          { name: 'deepgram', status: 'available' },
+          { name: 'voai', status: 'available' },
+        ],
+        stt: [],
+        llm: [],
+      },
+    }),
   },
 }))
 
-// Reset store before each test
+// Reset store and cache before each test
 beforeEach(() => {
+  invalidateTTSProviderCache()
   const store = useMultiRoleTTSStore.getState()
   store.reset()
   // Reset to default provider

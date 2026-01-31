@@ -31,7 +31,11 @@ from src.infrastructure.persistence.scenario_template_repository_impl import (
     SQLAlchemyScenarioTemplateRepository,
 )
 from src.infrastructure.storage.audio_storage import AudioStorageService
-from src.presentation.api.dependencies import get_voice_interaction_use_case
+from src.presentation.api.dependencies import (
+    Container,
+    get_container,
+    get_voice_interaction_use_case,
+)
 from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.schemas.interaction import (
     ConversationMessage,
@@ -407,15 +411,28 @@ async def get_scenario_template(
 async def list_providers(
     current_user: CurrentUserDep,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    container: Container = Depends(get_container),
 ) -> dict:
     """List available providers for cascade mode with credential status.
 
     T051 [US2]: GET /api/v1/interaction/providers
     Returns available STT, LLM, and TTS providers with metadata and credential status.
+    Only returns providers that are actually initialized in the system (matching
+    Container availability), consistent with /providers/summary and STT/TTS modules.
     """
     from src.domain.services.interaction.cascade_mode_factory import CascadeModeFactory
 
-    provider_info = CascadeModeFactory.get_provider_info()
+    # Get actually available providers from the Container
+    # This ensures consistency with TTS/STT modules which also use the Container
+    available_stt = set(container.get_stt_providers().keys())
+    available_llm = set(container.get_llm_providers().keys())
+    available_tts = set(container.get_tts_providers().keys())
+
+    provider_info = CascadeModeFactory.get_provider_info(
+        available_stt=available_stt,
+        available_llm=available_llm,
+        available_tts=available_tts,
+    )
 
     # Get user's credentials
     user_id = uuid.UUID(current_user.id)
@@ -464,6 +481,7 @@ async def list_providers(
         "gcp": "gcp",
         "whisper": "openai",
         "speechmatics": "speechmatics",
+        "elevenlabs": "elevenlabs",
     }
     llm_mapping = {
         "openai": "openai",

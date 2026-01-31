@@ -116,18 +116,55 @@ class CascadeModeFactory:
             "tts": TTSProviderFactory.get_supported_providers(),
         }
 
+    # Proper display names for TTS providers (matching providers.py configs)
+    TTS_PROVIDER_DISPLAY_NAMES: dict[str, str] = {
+        "azure": "Azure Speech Service",
+        "gcp": "Google Cloud TTS",
+        "gemini": "Gemini TTS",
+        "elevenlabs": "ElevenLabs",
+        "voai": "VoAI 台灣語音",
+    }
+
     @classmethod
-    def get_provider_info(cls) -> dict[str, list[dict[str, Any]]]:
-        """Get detailed info about all available providers.
+    def get_provider_info(
+        cls,
+        available_stt: set[str] | None = None,
+        available_llm: set[str] | None = None,
+        available_tts: set[str] | None = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Get detailed info about available providers.
+
+        When available_* sets are provided, only returns providers that are
+        actually initialized in the system (matching Container availability).
+
+        Args:
+            available_stt: Set of available STT provider names from Container.
+            available_llm: Set of available LLM provider names from Container.
+            available_tts: Set of available TTS provider names from Container.
 
         Returns:
             Dict with 'stt', 'llm', 'tts' keys mapping to provider info lists
         """
+        stt_providers = STTProviderFactory.list_providers()
+        llm_providers = LLMProviderFactory.list_providers()
+        tts_providers = [
+            {
+                "name": p,
+                "display_name": cls.TTS_PROVIDER_DISPLAY_NAMES.get(p, p.title()),
+            }
+            for p in TTSProviderFactory.get_supported_providers()
+        ]
+
+        # Filter by Container availability when provided
+        if available_stt is not None:
+            stt_providers = [p for p in stt_providers if p["name"] in available_stt]
+        if available_llm is not None:
+            llm_providers = [p for p in llm_providers if p["name"] in available_llm]
+        if available_tts is not None:
+            tts_providers = [p for p in tts_providers if p["name"] in available_tts]
+
         return {
-            "stt": STTProviderFactory.list_providers(),
-            "llm": LLMProviderFactory.list_providers(),
-            "tts": [
-                {"name": p, "display_name": p.title()}
-                for p in TTSProviderFactory.get_supported_providers()
-            ],
+            "stt": stt_providers,
+            "llm": llm_providers,
+            "tts": tts_providers,
         }

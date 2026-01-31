@@ -116,11 +116,13 @@ curl -X POST "http://localhost:8000/api/v1/stt/compare" \
 2. 選擇輸入方式：
    - **上傳檔案**: 支援 MP3, WAV, M4A, FLAC, WEBM
    - **麥克風錄音**: 點擊錄音按鈕開始
-3. 選擇 **STT Provider**
+3. 從 **Provider 下拉選單** 選擇 STT Provider（僅顯示已設定有效 API Key 的 Provider）
 4. 選擇 **語言**
 5. （選用）勾選 **兒童語音模式**
 6. 點擊 **開始辨識**
 7. 查看結果與波形對照
+
+> **注意**: Provider 下拉選單只會顯示已在 [Provider 管理頁面](/settings/providers) 設定有效 API Key 的服務。若選單為空，請先設定至少一組 Provider 的 API Key。
 
 ### WER/CER 分析
 

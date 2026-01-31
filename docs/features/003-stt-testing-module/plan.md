@@ -1,53 +1,35 @@
-# Implementation Plan: STT Speech-to-Text Testing Module
+# Implementation Plan: STT Provider Dropdown Selector
 
-**Branch**: `003-stt-testing-module` | **Date**: 2026-01-18 | **Spec**: [spec.md](./spec.md)
+**Branch**: `003-stt-testing-module` | **Date**: 2026-01-30 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/docs/features/003-stt-testing-module/spec.md`
 
 ## Summary
 
-建立一個 STT 語音辨識測試平台，讓使用者可以透過上傳音檔或麥克風錄音，測試 Azure、GCP、OpenAI Whisper 三家 STT Provider 的辨識效果。系統採用**批次辨識模式**，專注於 WER/CER 準確度計算與多 Provider 比較功能。
-
-> **Note**: Streaming STT 延後至 Phase 4 Interaction 模組，更適合即時對話場景。
-
-技術方案：
-- 後端參照現有 TTS Provider 抽象層架構，建立對稱的 STT Provider 抽象層 (`ISTTProvider`)
-- 前端新增 STT 測試頁面，整合 MediaRecorder API 進行麥克風錄音
-- 批次辨識：錄音/上傳完成後送出 REST API 進行辨識
-- 擴展現有 domain entities (`STTRequest`, `STTResult`) 並新增 WER 計算服務
+將 STT Provider 選擇器從 card-based grid 改為 dropdown (`<select>`) 元件，並且只顯示使用者已設定有效 API Key 的 Provider，與 TTS ProviderSelector 行為一致。此變更源於 spec FR-003 更新。
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (Backend), TypeScript 5.3+ (Frontend)
-**Primary Dependencies**:
-- Backend: FastAPI 0.109+, google-cloud-speech, azure-cognitiveservices-speech, openai (Whisper)
-- Frontend: React 18, Vite 5, WaveSurfer.js, MediaRecorder API
+**Primary Dependencies**: FastAPI 0.109+, React 18+, Zustand (state management)
 **Storage**: PostgreSQL (transcription history), Local filesystem (uploaded audio)
-**Testing**: pytest, pytest-asyncio (Backend), Vitest (Frontend)
-**Target Platform**: Web application (Linux server + Modern browsers)
+**Testing**: pytest (Backend), vitest (Frontend)
+**Target Platform**: Web application (Linux server + modern browsers)
 **Project Type**: Web application (backend + frontend)
-**Performance Goals**:
-- Batch transcription response within 30 seconds for 1-minute audio
-- WER calculation within 1 second
-- 3 concurrent transcription requests
-**Constraints**:
-- Provider-specific file size/duration limits
-- Audio recording minimum 16kHz sample rate
-- Batch mode only (no streaming in this phase)
-**Scale/Scope**: Single-tenant testing platform, history per user
+**Performance Goals**: Batch response within 30s for 1-min audio, Provider list load < 200ms
+**Constraints**: Provider dropdown must match TTS selector UX pattern
+**Scale/Scope**: 7 STT providers, filtering by user credential status
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Compliance Notes |
-|-----------|--------|------------------|
-| **I. TDD** | ✅ PASS | Contract tests 先行定義 STT Provider 介面，再實作各 Provider adapter |
-| **II. Unified API Abstraction** | ✅ PASS | 建立 `ISTTProvider` 介面，參照現有 `ITTSProvider` 結構 |
-| **III. Performance Benchmarking** | ✅ PASS | WER/CER 計算即為 STT 準確度基準，延遲追蹤已納入 `STTResult` |
-| **IV. Documentation First** | ✅ PASS | 本 plan 及 quickstart.md 先於實作產出 |
-| **V. Clean Architecture** | ✅ PASS | 遵循現有分層：domain → application → infrastructure |
-
-**Gate Result**: ✅ ALL PASS - 可進入 Phase 0
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| I. TDD | PASS | Frontend component test exists, will update for dropdown |
+| II. Unified API Abstraction | PASS | Backend `GET /stt/providers` already returns credential status |
+| III. Performance Benchmarking | N/A | UI-only change, no perf benchmark needed |
+| IV. Documentation First | PASS | Plan and spec updated before implementation |
+| V. Clean Architecture | PASS | Change scoped to presentation layer only |
 
 ## Project Structure
 
@@ -55,16 +37,13 @@
 
 ```text
 docs/features/003-stt-testing-module/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output (OpenAPI specs)
+├── plan.md              # This file (updated for dropdown change)
+├── research.md          # Phase 0 output (existing, minor update)
+├── data-model.md        # Phase 1 output (existing, no change needed)
+├── quickstart.md        # Phase 1 output (existing, update UI flow)
+├── contracts/           # Phase 1 output (existing, update STTProvider schema)
 │   └── stt-api.yaml
-├── checklists/
-│   └── requirements.md  # Spec quality checklist
-└── tasks.md             # Phase 2 output (by /speckit.tasks)
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
 
 ### Source Code (repository root)
@@ -73,86 +52,137 @@ docs/features/003-stt-testing-module/
 backend/
 ├── src/
 │   ├── domain/
-│   │   ├── entities/
-│   │   │   ├── stt.py              # [EXTEND] STTRequest, STTResult, WordTiming
-│   │   │   └── wer_analysis.py     # [NEW] WER/CER analysis entity
-│   │   ├── services/
-│   │   │   └── wer_calculator.py   # [NEW] WER/CER calculation logic
-│   │   └── repositories/
-│   │       └── transcription_repository.py  # [NEW] History persistence
-│   ├── application/
-│   │   ├── interfaces/
-│   │   │   └── stt_provider.py     # [NEW] ISTTProvider interface
-│   │   └── services/
-│   │       └── stt_service.py      # [NEW] STT orchestration service
+│   │   ├── entities/stt.py           # STT domain entities (no change)
+│   │   └── services/                 # Business logic (no change)
 │   ├── infrastructure/
-│   │   ├── providers/
-│   │   │   └── stt/                # [NEW] STT provider implementations
-│   │   │       ├── __init__.py
-│   │   │       ├── base.py         # BaseSTTProvider
-│   │   │       ├── azure_stt.py    # Azure Speech Services
-│   │   │       ├── gcp_stt.py      # Google Cloud Speech-to-Text
-│   │   │       ├── whisper_stt.py  # OpenAI Whisper
-│   │   │       └── factory.py      # Provider factory
-│   │   └── persistence/
-│   │       └── transcription_repository_impl.py  # [NEW]
+│   │   └── providers/stt/factory.py  # Provider metadata (no change)
 │   └── presentation/
-│       └── api/
-│           └── stt_routes.py       # [NEW] STT API endpoints (REST only)
+│       └── api/routes/stt.py         # GET /stt/providers (no change)
 └── tests/
-    ├── contract/
-    │   └── test_stt_provider_contract.py  # [NEW]
-    ├── integration/
-    │   └── test_stt_integration.py        # [NEW]
-    └── unit/
-        └── test_wer_calculator.py         # [NEW]
 
 frontend/
 ├── src/
-│   ├── routes/
-│   │   └── STTTest.tsx             # [NEW] STT testing page
 │   ├── components/
-│   │   ├── stt/                    # [NEW] STT-specific components
-│   │   │   ├── AudioRecorder.tsx   # Microphone recording (batch upload)
-│   │   │   ├── AudioUploader.tsx   # File upload
-│   │   │   ├── TranscriptDisplay.tsx  # Result display
-│   │   │   ├── WERDisplay.tsx      # WER/CER visualization
-│   │   │   └── ProviderComparison.tsx  # Multi-provider comparison
-│   │   └── shared/
-│   │       └── WaveformDisplay.tsx # Audio waveform (reuse from TTS)
-│   ├── services/
-│   │   └── sttApi.ts               # [NEW] STT API client (REST)
-│   ├── stores/
-│   │   └── sttStore.ts             # [NEW] STT state management
-│   └── types/
-│       └── stt.ts                  # [NEW] STT TypeScript types
+│   │   ├── tts/ProviderSelector.tsx  # TTS dropdown (reference pattern)
+│   │   └── stt/ProviderSelector.tsx  # STT selector (CHANGE: cards → dropdown)
+│   ├── stores/sttStore.ts            # Zustand store (minor update: filter logic)
+│   ├── services/sttApi.ts            # API calls (no change)
+│   └── types/stt.ts                  # TypeScript types (no change)
 └── tests/
-    └── stt/
-        └── STTTest.test.tsx        # [NEW] Component tests
 ```
 
-**Structure Decision**: Web application 結構（Option 2），與現有 001/002 feature 一致。STT 模組對稱於 TTS 模組，放置於相同目錄層級。
+**Structure Decision**: Web application with separate backend/frontend. Changes are scoped to frontend presentation layer, backend already provides the required data.
+
+## Design: Card → Dropdown Migration
+
+### Current State (Card-based)
+
+```
+┌─────────────────────────────────────────────┐
+│  STT Provider                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
+│  │  Azure   │ │   GCP    │ │ Whisper  │    │
+│  │  已設定   │ │  已設定   │ │  已設定   │    │
+│  │ ✓ Child  │ │ ✓ Child  │ │Batch Only│    │
+│  └──────────┘ └──────────┘ └──────────┘    │
+│  ┌──────────┐ ┌──────────┐                  │
+│  │ Deepgram │ │ ElevenLabs│  ← disabled     │
+│  │ 尚未設定  │ │ 尚未設定   │  (no API key)  │
+│  └──────────┘ └──────────┘                  │
+└─────────────────────────────────────────────┘
+```
+
+**問題**: 佔用過多空間、與 TTS 選擇器 UX 不一致、顯示無法使用的 Provider 造成混淆。
+
+### Target State (Dropdown)
+
+```
+┌─────────────────────────────────────────────┐
+│  選擇 Provider                              │
+│  ┌───────────────────────────────────────┐  │
+│  │ Azure Speech Services            ▼   │  │
+│  └───────────────────────────────────────┘  │
+│  Microsoft Azure 語音辨識服務                  │
+│                                             │
+│  ┌─ Provider Limits ───────────────────┐    │
+│  │ Max File: 200 MB  │ Max Dur: 10 min │    │
+│  │ Formats: mp3, wav │ Child Mode: Yes │    │
+│  └─────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+```
+
+**關鍵行為**:
+1. Dropdown 只列出 `has_credentials === true && is_valid === true` 的 Provider
+2. 無有效 credential 的 Provider 不出現在選單中（完全隱藏）
+3. 選中 Provider 後顯示 description 與 capabilities（保留現有 ProviderCapabilities 元件）
+4. 若無任何 Provider 有 credentials，顯示提示「請先至 Provider 管理頁面設定 API Key」
+
+### Data Flow
+
+```
+GET /stt/providers
+    ↓ returns all providers with has_credentials, is_valid
+Frontend store (sttStore.ts)
+    ↓ stores all providers in availableProviders
+ProviderSelector component
+    ↓ filters: availableProviders.filter(p => p.has_credentials && p.is_valid)
+    ↓ renders <select> dropdown with only valid providers
+    ↓ shows ProviderCapabilities for selected provider
+```
+
+### Backend Impact
+
+**無需修改**。`GET /stt/providers` 已回傳 `has_credentials` 和 `is_valid` 欄位。前端負責過濾顯示邏輯。
+
+### Frontend Changes
+
+#### 1. `frontend/src/components/stt/ProviderSelector.tsx`
+
+**完全重寫**：從 card grid 改為 dropdown，參考 TTS `ProviderSelector.tsx` 模式。
+
+核心改動：
+- 移除 `ProviderCard` 子元件
+- 新增 `<select>` dropdown，只顯示有效 credentials 的 Provider
+- 保留 `ProviderCapabilities` 子元件（顯示 limits）
+- 新增空狀態：當無可用 Provider 時顯示提示
+
+```typescript
+// Pseudocode for new component
+const validProviders = availableProviders.filter(
+  p => p.has_credentials && p.is_valid
+)
+
+if (validProviders.length === 0) {
+  return <EmptyState message="請先至 Provider 管理頁面設定 API Key" />
+}
+
+return (
+  <select>
+    {validProviders.map(p => (
+      <option key={p.name} value={p.name}>{p.display_name}</option>
+    ))}
+  </select>
+  <ProviderCapabilities provider={selectedProviderInfo} />
+)
+```
+
+#### 2. `frontend/src/stores/sttStore.ts`
+
+Minor update：確保 `selectedProvider` 預設值為第一個有 valid credentials 的 Provider（而非硬編碼值）。
+
+#### 3. 測試更新
+
+更新 `frontend/src/components/stt/__tests__/ProviderSelector.test.tsx`（如存在）以測試：
+- Dropdown 只顯示有 credentials 的 Provider
+- 無 Provider 時顯示空狀態提示
+- 選擇 Provider 後顯示 capabilities
+
+### API Contract Update
+
+`contracts/stt-api.yaml` 中 `STTProvider` schema 需補上 `has_credentials` 和 `is_valid` 欄位（backend 已實作但 contract 未記錄）。
 
 ## Complexity Tracking
 
-> No violations requiring justification. Design follows existing patterns.
+無 Constitution 違規，不需要 justification。
 
-| Item | Notes |
-|------|-------|
-| Provider pattern | 複用 TTS 已建立的 Provider 抽象模式 |
-| REST API only | 無 WebSocket，簡化架構（Streaming 留給 Phase 4） |
-| BYOL integration | 複用 002 feature 的 credential management |
-
-## Scope Boundaries
-
-### In Scope (003 STT Testing)
-- 批次辨識（上傳檔案、錄音後辨識）
-- WER/CER 準確度計算
-- 多 Provider 比較
-- 歷史紀錄管理
-
-### Out of Scope (Deferred to Phase 4 Interaction)
-- ❌ Streaming STT（即時串流辨識）
-- ❌ WebSocket 連線
-- ❌ 即時對話 UI
-- ❌ STT → LLM → TTS 整合
+此變更範圍小（主要是一個 frontend component 重寫），不增加架構複雜度，反而統一了 TTS/STT 的 UX 模式。

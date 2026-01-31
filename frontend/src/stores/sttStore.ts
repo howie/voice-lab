@@ -168,7 +168,21 @@ export const useSTTStore = create<STTState>()(
         set({ providersLoading: true })
         try {
           const providers = await listSTTProviders()
-          set({ availableProviders: providers, providersLoading: false })
+          const validProviders = providers.filter(
+            (p) => p.has_credentials && p.is_valid
+          )
+          const currentSelected = get().selectedProvider
+          const isCurrentValid = validProviders.some(
+            (p) => p.name === currentSelected
+          )
+          const updates: Partial<STTState> = {
+            availableProviders: providers,
+            providersLoading: false,
+          }
+          if (!isCurrentValid && validProviders.length > 0) {
+            updates.selectedProvider = validProviders[0].name
+          }
+          set(updates)
         } catch (error) {
           console.error('Failed to load STT providers:', error)
           set({

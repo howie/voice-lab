@@ -261,6 +261,9 @@ components:
           example: Deepgram Nova-2
         supports_streaming:
           type: boolean
+        supports_child_mode:
+          type: boolean
+          description: Whether provider supports child voice optimization
         max_duration_sec:
           type: integer
         max_file_size_mb:
@@ -273,6 +276,12 @@ components:
           type: array
           items:
             type: string
+        has_credentials:
+          type: boolean
+          description: Whether the user has configured API credentials for this provider
+        is_valid:
+          type: boolean
+          description: Whether the configured credentials are valid
 
     TranscriptionResponse:
       type: object

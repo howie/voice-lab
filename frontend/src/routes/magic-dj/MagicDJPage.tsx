@@ -69,6 +69,8 @@ export function MagicDJPage() {
     addTrack,
     removeTrack,
     updateTrack,
+    initializeStorage,
+    saveAudioToStorage,
   } = useMagicDJStore()
 
   // Interaction options for Gemini AI config
@@ -82,6 +84,7 @@ export function MagicDJPage() {
     stopTrack,
     stopAll,
     getLoadingProgress,
+    unloadTrack,
   } = useMultiTrackPlayer()
 
   // Cue List (US3)
@@ -333,29 +336,41 @@ export function MagicDJPage() {
   })
 
   // === Track Preloading (T018) ===
+  // Initialize IndexedDB storage first to restore blob URLs for persisted tracks,
+  // then preload all tracks with valid audio sources.
 
   useEffect(() => {
-    const loadAllTracks = async () => {
+    let interval: ReturnType<typeof setInterval> | null = null
+
+    const initAndLoad = async () => {
       setIsLoading(true)
 
-      await loadTracks(tracks)
+      // Restore audio blob URLs from IndexedDB for tracks with hasLocalAudio
+      await initializeStorage()
+
+      // Get tracks with restored URLs (initializeStorage updated the store)
+      const restoredTracks = useMagicDJStore.getState().tracks
+
+      await loadTracks(restoredTracks)
 
       // Update progress periodically
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         const progress = getLoadingProgress()
         setLoadProgress(progress)
 
         if (progress >= 1) {
-          clearInterval(interval)
+          if (interval) clearInterval(interval)
+          interval = null
           setIsLoading(false)
         }
       }, 100)
-
-      // Cleanup
-      return () => clearInterval(interval)
     }
 
-    loadAllTracks()
+    initAndLoad()
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -374,10 +389,11 @@ export function MagicDJPage() {
   const handleDeleteTrack = useCallback(
     (trackId: string) => {
       if (confirm('確定要刪除這個音軌嗎？')) {
+        unloadTrack(trackId)
         removeTrack(trackId)
       }
     },
-    [removeTrack]
+    [unloadTrack, removeTrack]
   )
 
   const handleSaveTrack = useCallback(
@@ -394,6 +410,9 @@ export function MagicDJPage() {
       }
       const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
 
+      // Persist audio to IndexedDB so it survives page reloads
+      await saveAudioToStorage(track.id, audioBlob)
+
       if (editingTrack) {
         // Update existing track
         updateTrack(track.id, {
@@ -401,6 +420,7 @@ export function MagicDJPage() {
           url: blobUrl,
           isCustom: true,
           audioBase64,
+          hasLocalAudio: true,
         })
 
         // Reload the track in the player
@@ -409,6 +429,7 @@ export function MagicDJPage() {
           url: blobUrl,
           isCustom: true,
           audioBase64,
+          hasLocalAudio: true,
         })
       } else {
         // Add new track
@@ -419,12 +440,14 @@ export function MagicDJPage() {
           audioBase64,
         }
         addTrack(newTrack)
+        // Mark hasLocalAudio after addTrack (addTrack only sets it for source=upload)
+        updateTrack(track.id, { hasLocalAudio: true })
 
         // Load the new track in the player
         await loadTrack(newTrack)
       }
     },
-    [editingTrack, updateTrack, addTrack, loadTrack]
+    [editingTrack, updateTrack, addTrack, loadTrack, saveAudioToStorage]
   )
 
   const handleCloseEditor = useCallback(() => {
@@ -456,6 +479,9 @@ export function MagicDJPage() {
       }
       const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
 
+      // Persist audio to IndexedDB so it survives page reloads
+      await saveAudioToStorage(track.id, audioBlob)
+
       // Add new BGM track
       const newTrack: Track = {
         ...track,
@@ -464,11 +490,13 @@ export function MagicDJPage() {
         audioBase64,
       }
       addTrack(newTrack)
+      // Mark hasLocalAudio after addTrack (addTrack only sets it for source=upload)
+      updateTrack(track.id, { hasLocalAudio: true })
 
       // Load the new track in the player
       await loadTrack(newTrack)
     },
-    [addTrack, loadTrack]
+    [addTrack, loadTrack, saveAudioToStorage, updateTrack]
   )
 
   // === Session Management ===

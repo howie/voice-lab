@@ -1,6 +1,7 @@
 """Music generation entity and related enums.
 
-This module defines the core domain entities for Mureka AI music generation jobs.
+This module defines the core domain entities for music generation jobs.
+Supports multiple providers (Mureka, Suno, etc.) via the provider field.
 """
 
 from dataclasses import dataclass, field
@@ -38,9 +39,17 @@ class MusicGenerationStatus(str, Enum):
     FAILED = "failed"
 
 
-class MusicModel(str, Enum):
-    """Mureka AI model selection.
+class MusicProvider(str, Enum):
+    """Supported music generation providers."""
 
+    MUREKA = "mureka"
+    SUNO = "suno"
+
+
+class MusicModel(str, Enum):
+    """Model selection (provider-specific).
+
+    Mureka models:
     - AUTO: Automatically select the best model
     - MUREKA_01: Latest flagship model (O1)
     - V7_5: Balanced model
@@ -62,12 +71,14 @@ class MusicGenerationJob:
         user_id: ID of the user who submitted the job
         type: Type of generation (song, instrumental, lyrics)
         status: Current status of the job
+        provider: Music generation provider (mureka, suno, etc.)
         prompt: Style/scene description for generation
         lyrics: Input lyrics (for song generation)
-        model: Mureka model selection
-        mureka_task_id: Task ID returned by Mureka API
+        model: Provider-specific model selection
+        provider_task_id: Task ID returned by the provider API
+        mureka_task_id: Alias for provider_task_id (backward compatibility)
         result_url: Local storage URL for the result
-        original_url: Original Mureka MP3 URL
+        original_url: Original provider MP3 URL
         cover_url: Cover image URL (for songs)
         generated_lyrics: AI-generated lyrics
         duration_ms: Duration in milliseconds
@@ -83,10 +94,11 @@ class MusicGenerationJob:
     type: MusicGenerationType
     id: UUID = field(default_factory=uuid4)
     status: MusicGenerationStatus = MusicGenerationStatus.PENDING
+    provider: str = MusicProvider.MUREKA.value
     prompt: str | None = None
     lyrics: str | None = None
     model: str = MusicModel.AUTO.value
-    mureka_task_id: str | None = None
+    provider_task_id: str | None = None
     result_url: str | None = None
     original_url: str | None = None
     cover_url: str | None = None
@@ -98,6 +110,15 @@ class MusicGenerationJob:
     completed_at: datetime | None = None
     error_message: str | None = None
     retry_count: int = 0
+
+    @property
+    def mureka_task_id(self) -> str | None:
+        """Backward-compatible alias for provider_task_id."""
+        return self.provider_task_id
+
+    @mureka_task_id.setter
+    def mureka_task_id(self, value: str | None) -> None:
+        self.provider_task_id = value
 
     # Constants
     MAX_RETRY_COUNT: int = field(default=3, init=False, repr=False)
@@ -112,11 +133,11 @@ class MusicGenerationJob:
             self.status == MusicGenerationStatus.FAILED and self.retry_count < self.MAX_RETRY_COUNT
         )
 
-    def start_processing(self, mureka_task_id: str) -> None:
+    def start_processing(self, provider_task_id: str) -> None:
         """Mark the job as processing.
 
         Args:
-            mureka_task_id: Task ID from Mureka API
+            provider_task_id: Task ID from the provider API
 
         Raises:
             ValueError: If job is not in PENDING status
@@ -124,7 +145,7 @@ class MusicGenerationJob:
         if self.status != MusicGenerationStatus.PENDING:
             raise ValueError(f"Cannot start job in {self.status} status")
         self.status = MusicGenerationStatus.PROCESSING
-        self.mureka_task_id = mureka_task_id
+        self.provider_task_id = provider_task_id
         self.started_at = datetime.utcnow()
 
     def complete(
@@ -189,7 +210,7 @@ class MusicGenerationJob:
         self.status = MusicGenerationStatus.PENDING
         self.retry_count += 1
         self.error_message = None
-        self.mureka_task_id = None
+        self.provider_task_id = None
         self.started_at = None
         self.completed_at = None
 

@@ -1,7 +1,7 @@
 """Music Generation API Routes.
 
 Feature: 012-music-generation
-REST API endpoints for Mureka AI music generation.
+REST API endpoints for music generation (multi-provider).
 """
 
 import uuid
@@ -24,6 +24,7 @@ from src.domain.services.music.service import (
 from src.infrastructure.adapters.mureka.client import MurekaAPIError
 from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.persistence.music_job_repository_impl import MusicGenerationJobRepository
+from src.infrastructure.providers.music.factory import MusicProviderFactory
 from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.api.schemas.music_schemas import (
     ExtendLyricsRequest,
@@ -34,6 +35,7 @@ from src.presentation.api.schemas.music_schemas import (
     MusicJobListResponse,
     MusicJobResponse,
     MusicModel,
+    MusicProviderEnum,
     QuotaStatusResponse,
     SongRequest,
 )
@@ -41,10 +43,14 @@ from src.presentation.api.schemas.music_schemas import (
 router = APIRouter(prefix="/music", tags=["Music"])
 
 
-def _get_music_service(session: AsyncSession) -> MusicGenerationService:
-    """Create a MusicGenerationService instance with the given session."""
+def _get_music_service(
+    session: AsyncSession,
+    provider_name: str = "mureka",
+) -> MusicGenerationService:
+    """Create a MusicGenerationService instance with the given session and provider."""
     repo = MusicGenerationJobRepository(session)
-    return MusicGenerationService(repository=repo)
+    music_provider = MusicProviderFactory.create(provider_name)
+    return MusicGenerationService(repository=repo, music_provider=music_provider)
 
 
 def _to_response(job) -> MusicJobResponse:
@@ -53,6 +59,7 @@ def _to_response(job) -> MusicJobResponse:
         id=job.id,
         type=MusicGenerationType(job.type.value),
         status=MusicGenerationStatus(job.status.value),
+        provider=MusicProviderEnum(job.provider),
         prompt=job.prompt,
         lyrics=job.lyrics,
         model=MusicModel(job.model),
@@ -98,7 +105,7 @@ async def submit_instrumental(
     Raises:
         HTTPException: 429 if quota exceeded
     """
-    service = _get_music_service(session)
+    service = _get_music_service(session, provider_name=request.provider.value)
     user_id = uuid.UUID(current_user.id)
 
     try:
@@ -106,6 +113,7 @@ async def submit_instrumental(
             user_id=user_id,
             prompt=request.prompt,
             model=request.model.value,
+            provider=request.provider.value,
         )
         await session.commit()
         return _to_response(job)
@@ -129,7 +137,7 @@ async def submit_instrumental(
         raise HTTPException(
             status_code=e.status_code or status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
-                "code": "MUREKA_API_ERROR",
+                "code": "MUSIC_PROVIDER_ERROR",
                 "message": str(e),
             },
         ) from e
@@ -175,7 +183,7 @@ async def submit_song(
             },
         )
 
-    service = _get_music_service(session)
+    service = _get_music_service(session, provider_name=request.provider.value)
     user_id = uuid.UUID(current_user.id)
 
     try:
@@ -184,6 +192,7 @@ async def submit_song(
             prompt=request.prompt,
             lyrics=request.lyrics,
             model=request.model.value,
+            provider=request.provider.value,
         )
         await session.commit()
         return _to_response(job)
@@ -225,13 +234,14 @@ async def submit_lyrics(
     Returns:
         Created job response
     """
-    service = _get_music_service(session)
+    service = _get_music_service(session, provider_name=request.provider.value)
     user_id = uuid.UUID(current_user.id)
 
     try:
         job = await service.submit_lyrics(
             user_id=user_id,
             prompt=request.prompt,
+            provider=request.provider.value,
         )
         await session.commit()
         return _to_response(job)
@@ -269,7 +279,7 @@ async def extend_lyrics(
         Created job response
     """
     # For now, treat extend as a new lyrics job with the existing lyrics as context
-    service = _get_music_service(session)
+    service = _get_music_service(session, provider_name=request.provider.value)
     user_id = uuid.UUID(current_user.id)
 
     prompt = f"延伸以下歌詞：\n{request.lyrics}"
@@ -280,6 +290,7 @@ async def extend_lyrics(
         job = await service.submit_lyrics(
             user_id=user_id,
             prompt=prompt,
+            provider=request.provider.value,
         )
         await session.commit()
         return _to_response(job)

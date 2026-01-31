@@ -173,14 +173,12 @@ export function useGeminiLive(
     onStatusChangeRef.current?.(newStatus)
   }, [])
 
-  // Handle incoming WebSocket messages
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data)
-
-        // Setup complete
-        if (msg.setupComplete !== undefined) {
+  // Parse a single JSON message from Gemini
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const processMessage = useCallback(
+    (msg: any) => {
+      // Setup complete
+      if (msg.setupComplete !== undefined) {
           const setupMs = performance.now() - connectStartRef.current
           setMetrics((prev) => ({ ...prev, setupLatencyMs: Math.round(setupMs) }))
           updateStatus('connected')
@@ -276,11 +274,51 @@ export function useGeminiLive(
         if (msg.usageMetadata) {
           console.log('[GeminiLive] Usage:', msg.usageMetadata)
         }
-      } catch (err) {
-        console.error('[GeminiLive] Failed to parse message:', err)
-      }
     },
     [updateStatus]
+  )
+
+  // Handle incoming WebSocket messages (may be text, Blob, or ArrayBuffer)
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      const { data } = event
+
+      // Text frame — parse directly
+      if (typeof data === 'string') {
+        try {
+          processMessage(JSON.parse(data))
+        } catch (err) {
+          console.error('[GeminiLive] Failed to parse text message:', err)
+        }
+        return
+      }
+
+      // Binary frame (Blob) — most common from Gemini
+      if (data instanceof Blob) {
+        data.text().then((text) => {
+          try {
+            processMessage(JSON.parse(text))
+          } catch (err) {
+            console.error('[GeminiLive] Failed to parse Blob message:', err)
+          }
+        })
+        return
+      }
+
+      // ArrayBuffer (if binaryType were set to 'arraybuffer')
+      if (data instanceof ArrayBuffer) {
+        try {
+          const text = new TextDecoder().decode(data)
+          processMessage(JSON.parse(text))
+        } catch (err) {
+          console.error('[GeminiLive] Failed to parse ArrayBuffer message:', err)
+        }
+        return
+      }
+
+      console.warn('[GeminiLive] Unknown message type:', typeof data)
+    },
+    [processMessage]
   )
 
   // Connect to Gemini Live API

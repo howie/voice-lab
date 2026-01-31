@@ -54,6 +54,8 @@ export interface UseMultiTrackPlayerReturn {
   getPlayingCount: () => number
   /** Check if can play more tracks (011-T032) */
   canPlayMore: () => boolean
+  /** Unload a track and release its audio resources */
+  unloadTrack: (trackId: string) => void
 }
 
 // =============================================================================
@@ -277,11 +279,28 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       // 011-T028: Apply effective volume (track × channel)
       node.gainNode.gain.value = getEffectiveVolume(trackId)
 
-      // Handle track end
-      source.onended = () => {
+      // Handle track end — use both onended and setTimeout fallback
+      // to ensure isPlaying is always reset even if onended doesn't fire
+      let ended = false
+      const markEnded = () => {
+        if (ended) return
+        ended = true
         node.isPlaying = false
         node.source = null
         updateTrackState(trackId, { isPlaying: false, currentTime: 0 })
+      }
+
+      source.onended = markEnded
+
+      // Fallback: if onended doesn't fire (browser throttling, background tab),
+      // force reset after buffer duration + 500ms grace period
+      if (!loop && node.buffer) {
+        const durationMs = node.buffer.duration * 1000 + 500
+        setTimeout(() => {
+          if (!ended && node.source === source) {
+            markEnded()
+          }
+        }, durationMs)
       }
 
       source.start(0)
@@ -320,6 +339,33 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       stopTrack(trackId)
     }
   }, [stopTrack])
+
+  // Unload a track and release its audio resources
+  const unloadTrack = useCallback(
+    (trackId: string): void => {
+      const node = tracksRef.current.get(trackId)
+      if (node) {
+        // Stop if playing
+        if (node.source) {
+          try {
+            node.source.stop()
+          } catch {
+            // Already stopped
+          }
+          node.source.disconnect()
+          node.source = null
+        }
+        // Disconnect gain node from audio graph
+        node.gainNode.disconnect()
+        // Release AudioBuffer memory
+        node.buffer = null
+        node.isPlaying = false
+      }
+      tracksRef.current.delete(trackId)
+      trackConfigRef.current.delete(trackId)
+    },
+    []
+  )
 
   // Set track volume (011-T029: real-time GainNode adjustment)
   const setTrackVolume = useCallback(
@@ -401,6 +447,24 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     }
   }, [channelStates, trackStates, getEffectiveVolume])
 
+  // Periodic health check: clean up stale playback states and resume suspended AudioContext
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fix stale isPlaying flags
+      for (const [trackId, node] of tracksRef.current) {
+        if (node.isPlaying && !node.source) {
+          node.isPlaying = false
+          updateTrackState(trackId, { isPlaying: false, currentTime: 0 })
+        }
+      }
+      // Resume AudioContext if it was suspended (e.g. by browser power saving)
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume()
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [updateTrackState])
+
   // Cleanup on unmount
   useEffect(() => {
     const currentTracks = tracksRef.current
@@ -440,6 +504,7 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     // 011-T032
     getPlayingCount,
     canPlayMore,
+    unloadTrack,
   }
 }
 

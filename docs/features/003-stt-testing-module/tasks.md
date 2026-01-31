@@ -211,7 +211,43 @@
 
 ---
 
-## Phase 8: Polish & Cross-Cutting Concerns
+## Phase 8: FR-003 Provider Dropdown Migration (2026-01-30)
+
+**Purpose**: Rewrite STT ProviderSelector from card-based grid to dropdown (`<select>`), matching TTS ProviderSelector behavior. Only display Providers with valid API Key credentials.
+
+**Spec Change**: FR-003 updated — "Users MUST be able to select which STT Provider to use for each transcription request **via a dropdown menu**. The dropdown MUST only display Providers for which the user has configured a valid API Key (consistent with TTS Provider selector behavior)"
+
+**Reference**: `frontend/src/components/tts/ProviderSelector.tsx` (TTS dropdown pattern)
+
+### Tests (TDD — write FIRST, verify FAIL before implementation)
+
+- [ ] T079 Write failing test for dropdown ProviderSelector in `frontend/src/components/stt/__tests__/ProviderSelector.test.tsx`: (1) renders `<select>` element (not card grid), (2) only shows providers with `has_credentials && is_valid`, (3) hides providers without credentials, (4) shows empty state message when no valid providers, (5) calls `onProviderChange` on selection change, (6) displays `ProviderCapabilities` for selected provider.
+
+### Core Component Rewrite
+
+- [ ] T080 Rewrite `frontend/src/components/stt/ProviderSelector.tsx` from card-based grid to `<select>` dropdown. Requirements: (1) Filter `availableProviders` to only show providers where `has_credentials === true && is_valid === true`. (2) Render `<select>` element with `<option>` for each valid provider showing `display_name`. (3) Show provider description text below dropdown. (4) Keep `ProviderCapabilities` sub-component showing limits (max file size, max duration, formats, child mode). (5) Add empty state: when no providers have valid credentials, show「請先至 Provider 管理頁面設定 API Key」. (6) Remove `ProviderCard` sub-component entirely. (7) Match TTS styling pattern (`w-full rounded-lg border bg-background p-2 text-sm`).
+- [ ] T081 [P] Update `frontend/src/stores/sttStore.ts` `loadProviders` action: after loading providers, auto-set `selectedProvider` to the first provider where `has_credentials && is_valid` is true. If no valid provider exists, set `selectedProvider` to empty string.
+- [ ] T082 Clean up `ProviderSelector.tsx` exports: remove any card-related type exports (`ProviderCardProps`, etc.) no longer needed. Ensure `ProviderSelector` remains as named export.
+
+### User Story Verification
+
+- [ ] T083 [P] [US1] Verify STT test page (`frontend/src/routes/stt/`) correctly renders the new dropdown and triggers transcription with the selected provider on audio upload.
+- [ ] T084 [P] [US1] Verify provider-specific file size and duration limits (FR-015) update dynamically when switching providers in the dropdown via `ProviderCapabilities`.
+- [ ] T085 [P] [US2] Verify the recording UI flow uses the dropdown-selected provider for batch transcription after recording stops.
+- [ ] T086 [P] [US3] Verify provider comparison feature (FR-014) only allows selecting providers that appear in the dropdown (providers with valid credentials).
+- [ ] T087 [P] [US4] Verify `ProviderCapabilities` correctly displays "Child Mode: Yes/No" for the dropdown-selected provider.
+
+### Final Validation
+
+- [ ] T088 [P] Run `make check` (ruff + mypy + eslint + tsc) to verify no lint or type errors
+- [ ] T089 [P] Verify dropdown renders usable at narrow viewport widths (responsive check)
+- [ ] T090 Run quickstart validation per `docs/features/003-stt-testing-module/quickstart.md` to confirm updated UI flow description matches actual dropdown behavior
+
+**Checkpoint**: Dropdown migration complete — STT and TTS provider selection UX is now consistent.
+
+---
+
+## Phase 9: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
 
@@ -237,7 +273,8 @@
   - US3 can proceed independently (needs transcription result from US1 or US2)
   - US4 can proceed independently (extends US1 provider logic)
 - **Comparison & History (Phase 7)**: Benefits from US1 completion but can start in parallel
-- **Polish (Phase 8)**: Depends on all user stories being complete
+- **Dropdown Migration (Phase 8)**: Can start immediately (all prerequisites complete)
+- **Polish (Phase 9)**: Depends on all user stories and Phase 8 being complete
 
 ### User Story Dependencies
 
@@ -342,3 +379,5 @@ With multiple developers:
 - **Batch mode only** - Streaming deferred to Phase 4 Interaction Module
 - Provider-specific limits: Azure 200MB, GCP 480MB, Whisper 25MB
 - WER for English, CER for CJK languages (zh-TW, zh-CN, ja-JP, ko-KR)
+- **Phase 8 (2026-01-30)**: FR-003 dropdown migration — backend unchanged, frontend ProviderSelector rewrite only
+- **Reference pattern**: `frontend/src/components/tts/ProviderSelector.tsx` (TTS dropdown)

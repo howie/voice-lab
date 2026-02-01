@@ -336,8 +336,9 @@ export function MagicDJPage() {
   })
 
   // === Track Preloading (T018) ===
-  // Initialize IndexedDB storage first to restore blob URLs for persisted tracks,
-  // then preload all tracks with valid audio sources.
+  // onRehydrateStorage triggers initializeStorage() automatically after
+  // Zustand rehydration. This effect ensures storage is ready (idempotent)
+  // and then preloads all tracks into the Web Audio player.
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
@@ -345,8 +346,11 @@ export function MagicDJPage() {
     const initAndLoad = async () => {
       setIsLoading(true)
 
-      // Restore audio blob URLs from IndexedDB for tracks with hasLocalAudio
-      await initializeStorage()
+      // Ensure storage is initialized (idempotent — may already be done
+      // by onRehydrateStorage, but safe to call again on SPA re-navigation)
+      if (!useMagicDJStore.getState().isStorageReady) {
+        await initializeStorage()
+      }
 
       // Get tracks with restored URLs (initializeStorage updated the store)
       const restoredTracks = useMagicDJStore.getState().tracks
@@ -432,16 +436,16 @@ export function MagicDJPage() {
           hasLocalAudio: true,
         })
       } else {
-        // Add new track
+        // Add new track — set hasLocalAudio directly so addTrack persists it
+        // in a single atomic state update (no separate updateTrack needed)
         const newTrack: Track = {
           ...track,
           url: blobUrl,
           isCustom: true,
           audioBase64,
+          hasLocalAudio: true,
         }
         addTrack(newTrack)
-        // Mark hasLocalAudio after addTrack (addTrack only sets it for source=upload)
-        updateTrack(track.id, { hasLocalAudio: true })
 
         // Load the new track in the player
         await loadTrack(newTrack)

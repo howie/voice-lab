@@ -124,7 +124,7 @@ interface MagicDJStoreState extends MagicDJState {
   isStorageReady: boolean
   hasPendingMigration: boolean
   pendingMigrationCount: number
-  initializeStorage: () => Promise<void>
+  initializeStorage: (retryCount?: number) => Promise<void>
   refreshStorageQuota: () => Promise<void>
   saveAudioToStorage: (trackId: string, blob: Blob) => Promise<void>
   loadAudioFromStorage: (trackId: string) => Promise<Blob | null>
@@ -222,52 +222,10 @@ const OPERATION_DEBOUNCE_MS = 100
 // Helper Functions for Audio Persistence
 // =============================================================================
 
-/**
- * Convert base64 audio data to blob URL
- */
-const base64ToBlobUrl = (base64: string): string => {
-  try {
-    // Extract mime type and data from data URL or raw base64
-    let mimeType = 'audio/mpeg'
-    let data = base64
-
-    if (base64.startsWith('data:')) {
-      const matches = base64.match(/^data:([^;]+);base64,(.+)$/)
-      if (matches) {
-        mimeType = matches[1]
-        data = matches[2]
-      }
-    }
-
-    const byteCharacters = atob(data)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: mimeType })
-    return URL.createObjectURL(blob)
-  } catch (error) {
-    console.error('Failed to convert base64 to blob URL:', error)
-    return ''
-  }
-}
-
-/**
- * Restore tracks from persisted state, recreating blob URLs for custom tracks
- */
-const restoreTracks = (persistedTracks: Track[]): Track[] => {
-  return persistedTracks.map((track) => {
-    // If it's a custom track with base64 audio, recreate the blob URL
-    if (track.isCustom && track.audioBase64) {
-      return {
-        ...track,
-        url: base64ToBlobUrl(track.audioBase64),
-      }
-    }
-    return track
-  })
-}
+// NOTE: base64ToBlobUrl and restoreTracks removed — they were dead code paths.
+// Since Phase 4, partialize() removes audioBase64 from persisted state,
+// so restoreTracks() could never find audioBase64 to restore.
+// All audio blob restoration is now handled by initializeStorage() via IndexedDB.
 
 // =============================================================================
 // Store Implementation
@@ -289,8 +247,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         // Add track to state with IndexedDB flag
         const migratedTrack = {
           ...migrateTrackData(track),
-          // Mark that audio is stored in IndexedDB, not base64
-          hasLocalAudio: track.source === 'upload',
+          // Respect caller-provided hasLocalAudio; fall back to upload detection
+          hasLocalAudio: track.hasLocalAudio ?? track.source === 'upload',
         }
 
         set((prev) => ({
@@ -1101,7 +1059,9 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
       hasPendingMigration: false,
       pendingMigrationCount: 0,
 
-      initializeStorage: async () => {
+      initializeStorage: async (retryCount = 0) => {
+        const MAX_RETRIES = 2
+
         try {
           await audioStorage.init()
           const quota = await audioStorage.getQuota()
@@ -1128,18 +1088,41 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             const updatedTracks = state.tracks.map((track) => {
               const blob = blobs.get(track.id)
               if (blob) {
+                // Revoke stale blob URL before creating a new one (prevent memory leak)
+                if (track.url?.startsWith('blob:')) {
+                  audioStorage.revokeObjectURL(track.url)
+                }
                 return {
                   ...track,
                   url: audioStorage.createObjectURL(blob),
                 }
               }
+
+              // Ghost track: metadata says audio exists but blob is missing
+              if (track.hasLocalAudio) {
+                console.warn(
+                  `[MagicDJ] Audio blob missing for track "${track.name}" (${track.id}). Clearing hasLocalAudio flag.`
+                )
+                return { ...track, hasLocalAudio: false, url: '' }
+              }
+
               return track
             })
 
             set({ tracks: updatedTracks })
           }
         } catch (error) {
-          console.error('Failed to initialize storage:', error)
+          // Retry with exponential backoff
+          if (retryCount < MAX_RETRIES) {
+            const delay = 1000 * (retryCount + 1)
+            console.warn(
+              `[MagicDJ] Storage init failed (attempt ${retryCount + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms...`
+            )
+            await new Promise((resolve) => setTimeout(resolve, delay))
+            return get().initializeStorage(retryCount + 1)
+          }
+
+          console.error('Failed to initialize storage after retries:', error)
           set({
             storageError: error as AudioStorageError,
             isStorageReady: false,
@@ -1244,16 +1227,29 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         // Persist cue list (FR-037)
         cueList: state.cueList,
       }),
+      // After rehydration completes, trigger IndexedDB audio restoration.
+      // This eliminates the race condition where components render with empty
+      // URLs before MagicDJPage's useEffect calls initializeStorage().
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('Magic DJ store rehydration failed:', error)
+            return
+          }
+          // Kick off IndexedDB restoration immediately after rehydration
+          state?.initializeStorage()
+        }
+      },
       // Merge persisted state with defaults (011-T006, T009)
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<MagicDJStoreState>
 
-        // Restore tracks from persisted state with migration (011-T006)
+        // Restore track metadata from persisted state with migration (011-T006)
+        // Audio blob URLs are NOT restored here — they are ephemeral.
+        // initializeStorage() handles blob restoration from IndexedDB.
         let tracks = currentState.tracks
         if (persisted.tracks && persisted.tracks.length > 0) {
-          // Apply migration to each track before restoring blob URLs
-          const migratedTracks = persisted.tracks.map(migrateTrackData)
-          tracks = restoreTracks(migratedTracks)
+          tracks = persisted.tracks.map(migrateTrackData)
         }
 
         return {

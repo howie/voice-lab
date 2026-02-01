@@ -15,6 +15,7 @@ import { JobsPage } from '@/routes/jobs'
 import { MagicDJPage } from '@/routes/magic-dj/MagicDJPage'
 import { MusicPage } from '@/routes/music'
 import { VoiceManagementPage } from '@/routes/voice-management'
+import { QuotaDashboardPage } from '@/routes/quota/QuotaDashboardPage'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -74,6 +75,7 @@ function AppContent() {
         <Route path="music" element={<MusicPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
+        <Route path="quota" element={<QuotaDashboardPage />} />
         <Route path="settings/providers" element={<ProviderSettings />} />
         <Route path="voice-management" element={<VoiceManagementPage />} />
       </Route>

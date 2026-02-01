@@ -15,6 +15,7 @@ import {
   ChevronRight,
   UserCog,
   Settings,
+  Gauge,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +31,7 @@ const navigation = [
   { name: '歷史紀錄', href: '/history', icon: History },
   { name: '進階功能', href: '/advanced', icon: Settings },
   { name: '角色管理', href: '/voice-management', icon: UserCog },
+  { name: '配額監控', href: '/quota', icon: Gauge },
   { name: 'API 金鑰', href: '/settings/providers', icon: Key },
 ]
 

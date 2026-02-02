@@ -127,3 +127,50 @@ class AzureVoiceFetcher:
         """
         all_voices = await self.fetch_voices()
         return [v for v in all_voices if v.locale.startswith("zh-")]
+
+    async def fetch_storybook_voices(self) -> list[AzureVoiceInfo]:
+        """Fetch voices suitable for children's storybook narration.
+
+        Prioritises zh-TW voices and those with gentle / cheerful /
+        story-telling styles or child role-play capabilities.
+
+        Returns:
+            Sorted list of recommended storybook voices
+            (zh-TW first, voices with styles first).
+        """
+        all_voices = await self.fetch_voices()
+
+        storybook_styles = {
+            "gentle",
+            "cheerful",
+            "story",
+            "narration",
+            "calm",
+            "affectionate",
+            "narration-relaxed",
+            "friendly",
+        }
+        storybook_roles = {"Girl", "Boy", "OlderAdult", "YoungAdultFemale", "YoungAdultMale"}
+
+        candidates: list[AzureVoiceInfo] = []
+        for v in all_voices:
+            if not v.locale.startswith("zh-"):
+                continue
+
+            has_style = bool(set(v.style_list) & storybook_styles)
+            has_role = bool(set(v.role_play_list) & storybook_roles)
+            is_zh_tw = v.locale == "zh-TW"
+
+            if has_style or has_role or is_zh_tw:
+                candidates.append(v)
+
+        # Sort: zh-TW first, then voices with styles, then alphabetical
+        def _sort_key(v: AzureVoiceInfo) -> tuple[int, int, str]:
+            locale_priority = 0 if v.locale == "zh-TW" else 1
+            style_priority = 0 if v.style_list else 1
+            return (locale_priority, style_priority, v.short_name)
+
+        candidates.sort(key=_sort_key)
+
+        logger.info(f"Found {len(candidates)} storybook-suitable voices")
+        return candidates

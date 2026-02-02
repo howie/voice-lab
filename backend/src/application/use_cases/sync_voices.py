@@ -421,6 +421,24 @@ class SyncVoicesUseCase:
             if any(s in v.style_list for s in ["chat", "cheerful", "friendly"]):
                 use_cases.append("assistant")
 
+        # Storybook use_case: voices suited for children's story narration
+        storybook_styles = {
+            "gentle",
+            "cheerful",
+            "story",
+            "calm",
+            "affectionate",
+            "narration-relaxed",
+            "friendly",
+        }
+        storybook_roles = {"Girl", "Boy"}
+        if (
+            (v.style_list and set(v.style_list) & storybook_styles)
+            or (v.role_play_list and set(v.role_play_list) & storybook_roles)
+            or v.locale == "zh-TW"
+        ):
+            use_cases.append("storybook")
+
         return VoiceProfile(
             id=f"azure:{v.short_name}",
             provider="azure",

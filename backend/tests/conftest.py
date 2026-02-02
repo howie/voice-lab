@@ -22,6 +22,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: mark test as integration test requiring database"
     )
+    config.addinivalue_line(
+        "markers",
+        "azure_integration: mark test as Azure Speech integration test requiring AZURE_SPEECH_KEY",
+    )
 
 
 def _is_database_available() -> bool:

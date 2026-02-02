@@ -22,6 +22,14 @@ export interface ProviderQuotaStatus {
   remaining_characters: number | null
   usage_percent: number | null
   tier: string | null
+  // Tracked usage
+  minute_requests: number
+  hour_requests: number
+  day_requests: number
+  quota_hits_today: number
+  estimated_rpm_limit: number | null
+  usage_warning: string | null
+  // Reference
   rate_limits: ProviderRateLimitInfo | null
   help_url: string | null
   suggestions: string[]

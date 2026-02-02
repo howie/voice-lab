@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.errors import ProviderQuotaInfo
+from src.domain.services.usage_tracker import provider_usage_tracker
 from src.infrastructure.persistence.credential_repository import (
     SQLAlchemyProviderCredentialRepository,
 )
@@ -132,6 +133,10 @@ async def get_quota_dashboard(
                     _fetch_provider_quota(provider_id, cred.api_key)
                 )
 
+    # Get tracked usage data for this user
+    user_id_str = str(user_id)
+    all_usage = provider_usage_tracker.get_all_usage(user_id_str)
+
     # Build response
     provider_statuses: list[ProviderQuotaStatus] = []
     for provider_id in all_providers:
@@ -158,6 +163,9 @@ async def get_quota_dashboard(
                 remaining_characters = character_limit - character_count
             tier = quota_data.get("tier")
 
+        # Get tracked usage for this provider
+        usage = all_usage.get(provider_id)
+
         provider_statuses.append(
             ProviderQuotaStatus(
                 provider=provider_id,
@@ -169,6 +177,12 @@ async def get_quota_dashboard(
                 remaining_characters=remaining_characters,
                 usage_percent=usage_percent,
                 tier=tier,
+                minute_requests=usage.minute_requests if usage else 0,
+                hour_requests=usage.hour_requests if usage else 0,
+                day_requests=usage.day_requests if usage else 0,
+                quota_hits_today=usage.quota_hits_today if usage else 0,
+                estimated_rpm_limit=usage.estimated_rpm_limit if usage else None,
+                usage_warning=usage.usage_warning if usage else None,
                 rate_limits=PROVIDER_RATE_LIMITS.get(provider_id),
                 help_url=quota_info.get("help_url"),
                 suggestions=quota_info.get("suggestions", []),

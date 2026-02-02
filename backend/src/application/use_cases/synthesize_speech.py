@@ -9,7 +9,7 @@ from typing import Protocol
 from src.application.interfaces.storage_service import IStorageService
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.tts import TTSRequest, TTSResult
-from src.domain.errors import ProviderError, SynthesisError
+from src.domain.errors import ProviderError, QuotaExceededError, SynthesisError
 
 
 class ISynthesisLogger(Protocol):
@@ -79,6 +79,9 @@ class SynthesizeSpeech:
 
             return result
 
+        except QuotaExceededError:
+            # Let quota errors propagate with full detail
+            raise
         except Exception as e:
             # Log error if logger is configured
             if self.logger:
@@ -127,6 +130,8 @@ class SynthesizeSpeech:
                     user_id=user_id,
                 )
 
+        except QuotaExceededError:
+            raise
         except Exception as e:
             # Log error if logger is configured
             if self.logger:

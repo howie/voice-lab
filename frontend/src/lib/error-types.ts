@@ -2,6 +2,15 @@
  * T018: TypeScript types for quota error responses.
  */
 
+export interface UsageContext {
+  minute_requests: number
+  hour_requests: number
+  day_requests: number
+  quota_hits_today: number
+  estimated_rpm_limit: number | null
+  usage_warning: string | null
+}
+
 export interface QuotaErrorDetails {
   provider: string
   provider_display_name: string
@@ -10,6 +19,7 @@ export interface QuotaErrorDetails {
   help_url?: string
   suggestions?: string[]
   original_error?: string
+  usage_context?: UsageContext
 }
 
 export interface QuotaError {

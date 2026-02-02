@@ -88,7 +88,42 @@ function ProviderQuotaCard({ status }: { status: ProviderQuotaStatus }) {
         )}
       </div>
 
-      {/* Quota Usage (if available) */}
+      {/* Tracked Usage (from in-memory tracker) */}
+      {status.day_requests > 0 && (
+        <div className="mt-4 rounded-md bg-muted/50 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">本次工作階段用量</p>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <div className="text-lg font-bold">{status.minute_requests}</div>
+              <div className="text-muted-foreground">本分鐘</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold">{status.hour_requests}</div>
+              <div className="text-muted-foreground">本小時</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold">{status.day_requests}</div>
+              <div className="text-muted-foreground">今日</div>
+            </div>
+          </div>
+          {status.estimated_rpm_limit && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              預估 RPM 上限：~{status.estimated_rpm_limit} 次/分鐘
+            </p>
+          )}
+          {status.quota_hits_today > 0 && (
+            <div className="mt-1 flex items-center gap-1 text-xs text-amber-600">
+              <AlertTriangle className="h-3 w-3" />
+              今日觸發 {status.quota_hits_today} 次配額限制
+            </div>
+          )}
+          {status.usage_warning && (
+            <p className="mt-1 text-xs font-medium text-amber-600">{status.usage_warning}</p>
+          )}
+        </div>
+      )}
+
+      {/* Quota Usage (from provider API, e.g. ElevenLabs) */}
       {status.character_count !== null && status.character_limit !== null && (
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-sm">

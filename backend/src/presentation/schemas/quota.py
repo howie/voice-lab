@@ -34,6 +34,18 @@ class ProviderQuotaStatus(BaseModel):
     usage_percent: float | None = Field(default=None, description="Usage percentage (0-100)")
     tier: str | None = Field(default=None, description="Subscription tier name")
 
+    # Tracked usage (from in-memory usage tracker)
+    minute_requests: int = Field(default=0, description="Requests in current minute")
+    hour_requests: int = Field(default=0, description="Requests in current hour")
+    day_requests: int = Field(default=0, description="Requests today")
+    quota_hits_today: int = Field(default=0, description="Quota errors today")
+    estimated_rpm_limit: int | None = Field(
+        default=None, description="Estimated RPM limit based on usage"
+    )
+    usage_warning: str | None = Field(
+        default=None, description="Warning message if approaching limits"
+    )
+
     # Rate limit reference info
     rate_limits: ProviderRateLimitInfo | None = Field(
         default=None, description="Known rate limit info"

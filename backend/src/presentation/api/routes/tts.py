@@ -23,8 +23,10 @@ from src.domain.entities.tts import TTSRequest
 from src.domain.errors import (
     InvalidProviderError,
     ProviderError,
+    QuotaExceededError,
     SynthesisError,
 )
+from src.domain.services.usage_tracker import provider_usage_tracker
 from src.infrastructure.persistence.audit_log_repository import (
     SQLAlchemyAuditLogRepository,
 )
@@ -172,6 +174,9 @@ async def synthesize(
 
         result = await use_case.execute(domain_request)
 
+        # Track successful request
+        _track_success(user_id, request_data.provider)
+
         # Return base64 encoded audio
         audio_b64 = base64.b64encode(result.audio.data).decode("utf-8")
 
@@ -183,6 +188,9 @@ async def synthesize(
             storage_path=result.storage_path,
         )
 
+    except QuotaExceededError as e:
+        _track_quota_error(user_id, request_data.provider, e)
+        raise
     except InvalidProviderError as e:
         raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
@@ -266,6 +274,8 @@ async def stream(
             output_mode=OutputMode.STREAMING,
         )
 
+        _track_success(user_id, request_data.provider)
+
         async def audio_stream():
             """Generate audio chunks for streaming response."""
             async for chunk in use_case.execute_stream(domain_request):
@@ -283,6 +293,9 @@ async def stream(
             },
         )
 
+    except QuotaExceededError as e:
+        _track_quota_error(user_id, request_data.provider, e)
+        raise
     except InvalidProviderError as e:
         raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
@@ -369,6 +382,9 @@ async def synthesize_binary(
 
         result = await use_case.execute(domain_request)
 
+        # Track successful request
+        _track_success(user_id, request_data.provider)
+
         return Response(
             content=result.audio.data,
             media_type=result.audio.format.mime_type,
@@ -380,6 +396,9 @@ async def synthesize_binary(
             },
         )
 
+    except QuotaExceededError as e:
+        _track_quota_error(user_id, request_data.provider, e)
+        raise
     except InvalidProviderError as e:
         raise HTTPException(status_code=400, detail=e.to_dict()) from e
     except (SynthesisError, ProviderError) as e:
@@ -388,3 +407,36 @@ async def synthesize_binary(
         raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+# ============== Usage Tracking Helpers ==============
+
+
+def _track_success(user_id: uuid.UUID | None, provider: str) -> None:
+    """Record a successful provider request in the usage tracker."""
+    uid = str(user_id) if user_id else "anonymous"
+    provider_usage_tracker.record_request(uid, provider)
+
+
+def _track_quota_error(
+    user_id: uuid.UUID | None,
+    provider: str,
+    exc: QuotaExceededError,
+) -> None:
+    """Record a quota error and enrich the exception with usage context."""
+    uid = str(user_id) if user_id else "anonymous"
+    retry_after = exc.details.get("retry_after") if exc.details else None
+
+    provider_usage_tracker.record_error(uid, provider, is_quota_error=True, retry_after=retry_after)
+
+    # Enrich error details with usage context
+    usage = provider_usage_tracker.get_usage(uid, provider)
+    if exc.details is not None:
+        exc.details["usage_context"] = {
+            "minute_requests": usage.minute_requests,
+            "hour_requests": usage.hour_requests,
+            "day_requests": usage.day_requests,
+            "quota_hits_today": usage.quota_hits_today,
+            "estimated_rpm_limit": usage.estimated_rpm_limit,
+            "usage_warning": usage.usage_warning,
+        }

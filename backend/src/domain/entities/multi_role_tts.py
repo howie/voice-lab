@@ -5,10 +5,10 @@ text-to-speech synthesis.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class MultiRoleSupportType(str, Enum):
+class MultiRoleSupportType(StrEnum):
     """Type of multi-role support a provider offers."""
 
     NATIVE = "native"

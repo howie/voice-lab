@@ -5,12 +5,12 @@ This module defines the core domain entities for background TTS synthesis jobs.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Job status enum representing the lifecycle states of a job.
 
     State transitions:
@@ -27,7 +27,7 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class JobType(str, Enum):
+class JobType(StrEnum):
     """Job type enum for different synthesis operations.
 
     Currently supports multi-role TTS. Future extensions may include:

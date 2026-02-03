@@ -9,12 +9,12 @@ This module defines the core domain entities for DJ presets and tracks.
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
 
-class DJTrackType(str, Enum):
+class DJTrackType(StrEnum):
     """Track type enum representing different audio categories.
 
     Used to categorize tracks for organization and filtering.
@@ -28,7 +28,7 @@ class DJTrackType(str, Enum):
     RESCUE = "rescue"
 
 
-class DJTrackSource(str, Enum):
+class DJTrackSource(StrEnum):
     """Track source enum representing how the audio was created.
 
     - TTS: Generated via Text-to-Speech

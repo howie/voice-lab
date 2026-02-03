@@ -3,17 +3,17 @@
 T007: InteractionMode and SessionStatus enums.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class InteractionMode(str, Enum):
+class InteractionMode(StrEnum):
     """Mode of voice interaction."""
 
     REALTIME = "realtime"  # V2V Direct API (OpenAI Realtime, Gemini Live)
     CASCADE = "cascade"  # STT → LLM → TTS pipeline
 
 
-class SessionStatus(str, Enum):
+class SessionStatus(StrEnum):
     """Status of an interaction session."""
 
     ACTIVE = "active"  # Session in progress

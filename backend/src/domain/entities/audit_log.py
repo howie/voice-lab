@@ -3,11 +3,11 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class AuditEventType(str, Enum):
+class AuditEventType(StrEnum):
     """Audit event types for credential operations."""
 
     CREDENTIAL_CREATED = "credential.created"
@@ -20,7 +20,7 @@ class AuditEventType(str, Enum):
     MODEL_SELECTED = "model.selected"
 
 
-class AuditOutcome(str, Enum):
+class AuditOutcome(StrEnum):
     """Outcome of an audited operation."""
 
     SUCCESS = "success"

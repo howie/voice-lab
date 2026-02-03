@@ -6,7 +6,7 @@ Supports song generation, instrumental/BGM generation, and lyrics generation.
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import httpx
@@ -16,7 +16,7 @@ from src.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-class MurekaTaskStatus(str, Enum):
+class MurekaTaskStatus(StrEnum):
     """Mureka API task status values."""
 
     PREPARING = "preparing"

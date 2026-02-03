@@ -5,18 +5,18 @@ Feature: 003-stt-testing-module
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 
-class AudioSource(str, Enum):
+class AudioSource(StrEnum):
     """Source of the audio file."""
 
     UPLOAD = "upload"
     RECORDING = "recording"
 
 
-class AudioFileFormat(str, Enum):
+class AudioFileFormat(StrEnum):
     """Supported audio file formats for STT."""
 
     MP3 = "mp3"

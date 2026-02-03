@@ -3,11 +3,11 @@
 T035: Error codes (VALIDATION_ERROR, TEXT_TOO_LONG, SERVICE_UNAVAILABLE)
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Error codes for the TTS API."""
 
     # Validation errors (400)

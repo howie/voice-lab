@@ -3,7 +3,7 @@
 import asyncio
 import time
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -15,7 +15,7 @@ from src.presentation.api.middleware.auth import CurrentUserDep
 router = APIRouter(prefix="/providers", tags=["Providers"])
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     """Provider types."""
 
     TTS = "tts"
@@ -23,7 +23,7 @@ class ProviderType(str, Enum):
     LLM = "llm"
 
 
-class ProviderStatus(str, Enum):
+class ProviderStatus(StrEnum):
     """Provider status."""
 
     AVAILABLE = "available"
@@ -31,7 +31,7 @@ class ProviderStatus(str, Enum):
     DEGRADED = "degraded"
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """Health check status."""
 
     HEALTHY = "healthy"

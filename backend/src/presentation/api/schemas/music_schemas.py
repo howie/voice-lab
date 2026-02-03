@@ -6,13 +6,13 @@ Supports multiple providers via MusicProviderEnum.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-class MusicGenerationType(str, Enum):
+class MusicGenerationType(StrEnum):
     """Type of music generation."""
 
     SONG = "song"
@@ -20,7 +20,7 @@ class MusicGenerationType(str, Enum):
     LYRICS = "lyrics"
 
 
-class MusicGenerationStatus(str, Enum):
+class MusicGenerationStatus(StrEnum):
     """Status of music generation job."""
 
     PENDING = "pending"
@@ -29,14 +29,14 @@ class MusicGenerationStatus(str, Enum):
     FAILED = "failed"
 
 
-class MusicProviderEnum(str, Enum):
+class MusicProviderEnum(StrEnum):
     """Supported music generation providers."""
 
     MUREKA = "mureka"
     SUNO = "suno"
 
 
-class MusicModel(str, Enum):
+class MusicModel(StrEnum):
     """Model selection (provider-specific)."""
 
     AUTO = "auto"

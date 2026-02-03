@@ -173,114 +173,130 @@ export function useGeminiLive(
     onStatusChangeRef.current?.(newStatus)
   }, [])
 
+  // Process a parsed WebSocket message
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const processMessage = useCallback((msg: any) => {
+    // Setup complete
+    if (msg.setupComplete !== undefined) {
+      const setupMs = performance.now() - connectStartRef.current
+      setMetrics((prev) => ({ ...prev, setupLatencyMs: Math.round(setupMs) }))
+      updateStatus('connected')
+      console.log(`[GeminiLive] Setup complete in ${setupMs.toFixed(0)}ms`)
+      return
+    }
+
+    // Server content
+    if (msg.serverContent) {
+      const sc = msg.serverContent
+
+      // Input transcription
+      if (sc.inputTranscription?.text) {
+        onInputTranscriptRef.current?.(sc.inputTranscription.text)
+      }
+
+      // Output transcription
+      if (sc.outputTranscription?.text) {
+        onOutputTranscriptRef.current?.(sc.outputTranscription.text)
+      }
+
+      // Model turn - audio/text content
+      if (sc.modelTurn?.parts) {
+        for (const part of sc.modelTurn.parts) {
+          if (part.inlineData?.data) {
+            const now = performance.now()
+            audioChunkCountRef.current++
+
+            // Track first audio byte latency
+            if (audioChunkCountRef.current === 1) {
+              firstAudioReceivedRef.current = now
+              const firstByteMs = now - lastAudioSentRef.current
+              setMetrics((prev) => ({
+                ...prev,
+                firstAudioByteMs: Math.round(firstByteMs),
+                audioChunksReceived: 1,
+                firstByteHistory: [
+                  ...prev.firstByteHistory,
+                  Math.round(firstByteMs),
+                ],
+              }))
+              setIsModelSpeaking(true)
+              console.log(
+                `[GeminiLive] First audio byte: ${firstByteMs.toFixed(0)}ms`
+              )
+            } else {
+              setMetrics((prev) => ({
+                ...prev,
+                audioChunksReceived: audioChunkCountRef.current,
+              }))
+            }
+
+            onAudioDataRef.current?.(part.inlineData.data)
+          }
+          if (part.text) {
+            onOutputTranscriptRef.current?.(part.text)
+          }
+        }
+      }
+
+      // Turn complete
+      if (sc.turnComplete) {
+        const now = performance.now()
+        const totalMs = now - lastAudioSentRef.current
+        const streamMs = firstAudioReceivedRef.current
+          ? now - firstAudioReceivedRef.current
+          : null
+
+        setMetrics((prev) => ({
+          ...prev,
+          totalRoundTripMs: Math.round(totalMs),
+          audioStreamDurationMs: streamMs ? Math.round(streamMs) : null,
+        }))
+
+        setIsModelSpeaking(false)
+        audioChunkCountRef.current = 0
+        onTurnCompleteRef.current?.()
+        console.log(
+          `[GeminiLive] Turn complete: total=${totalMs.toFixed(0)}ms`
+        )
+      }
+
+      // Interrupted
+      if (sc.interrupted) {
+        setIsModelSpeaking(false)
+        audioChunkCountRef.current = 0
+        onInterruptedRef.current?.()
+        console.log('[GeminiLive] Response interrupted')
+      }
+    }
+
+    // Usage metadata (log only)
+    if (msg.usageMetadata) {
+      console.log('[GeminiLive] Usage:', msg.usageMetadata)
+    }
+  }, [updateStatus])
+
   // Handle incoming WebSocket messages
   const handleMessage = useCallback(
     (event: MessageEvent) => {
+      // Binary messages (Blob) must be read as text before JSON parsing
+      if (event.data instanceof Blob) {
+        event.data.text().then((text) => {
+          try {
+            processMessage(JSON.parse(text))
+          } catch (err) {
+            console.error('[GeminiLive] Failed to parse Blob message:', err)
+          }
+        })
+        return
+      }
+
       try {
-        const msg = JSON.parse(event.data)
-
-        // Setup complete
-        if (msg.setupComplete !== undefined) {
-          const setupMs = performance.now() - connectStartRef.current
-          setMetrics((prev) => ({ ...prev, setupLatencyMs: Math.round(setupMs) }))
-          updateStatus('connected')
-          console.log(`[GeminiLive] Setup complete in ${setupMs.toFixed(0)}ms`)
-          return
-        }
-
-        // Server content
-        if (msg.serverContent) {
-          const sc = msg.serverContent
-
-          // Input transcription
-          if (sc.inputTranscription?.text) {
-            onInputTranscriptRef.current?.(sc.inputTranscription.text)
-          }
-
-          // Output transcription
-          if (sc.outputTranscription?.text) {
-            onOutputTranscriptRef.current?.(sc.outputTranscription.text)
-          }
-
-          // Model turn - audio/text content
-          if (sc.modelTurn?.parts) {
-            for (const part of sc.modelTurn.parts) {
-              if (part.inlineData?.data) {
-                const now = performance.now()
-                audioChunkCountRef.current++
-
-                // Track first audio byte latency
-                if (audioChunkCountRef.current === 1) {
-                  firstAudioReceivedRef.current = now
-                  const firstByteMs = now - lastAudioSentRef.current
-                  setMetrics((prev) => ({
-                    ...prev,
-                    firstAudioByteMs: Math.round(firstByteMs),
-                    audioChunksReceived: 1,
-                    firstByteHistory: [
-                      ...prev.firstByteHistory,
-                      Math.round(firstByteMs),
-                    ],
-                  }))
-                  setIsModelSpeaking(true)
-                  console.log(
-                    `[GeminiLive] First audio byte: ${firstByteMs.toFixed(0)}ms`
-                  )
-                } else {
-                  setMetrics((prev) => ({
-                    ...prev,
-                    audioChunksReceived: audioChunkCountRef.current,
-                  }))
-                }
-
-                onAudioDataRef.current?.(part.inlineData.data)
-              }
-              if (part.text) {
-                onOutputTranscriptRef.current?.(part.text)
-              }
-            }
-          }
-
-          // Turn complete
-          if (sc.turnComplete) {
-            const now = performance.now()
-            const totalMs = now - lastAudioSentRef.current
-            const streamMs = firstAudioReceivedRef.current
-              ? now - firstAudioReceivedRef.current
-              : null
-
-            setMetrics((prev) => ({
-              ...prev,
-              totalRoundTripMs: Math.round(totalMs),
-              audioStreamDurationMs: streamMs ? Math.round(streamMs) : null,
-            }))
-
-            setIsModelSpeaking(false)
-            audioChunkCountRef.current = 0
-            onTurnCompleteRef.current?.()
-            console.log(
-              `[GeminiLive] Turn complete: total=${totalMs.toFixed(0)}ms`
-            )
-          }
-
-          // Interrupted
-          if (sc.interrupted) {
-            setIsModelSpeaking(false)
-            audioChunkCountRef.current = 0
-            onInterruptedRef.current?.()
-            console.log('[GeminiLive] Response interrupted')
-          }
-        }
-
-        // Usage metadata (log only)
-        if (msg.usageMetadata) {
-          console.log('[GeminiLive] Usage:', msg.usageMetadata)
-        }
+        processMessage(JSON.parse(event.data))
       } catch (err) {
         console.error('[GeminiLive] Failed to parse message:', err)
       }
     },
-    [updateStatus]
+    [processMessage]
   )
 
   // Connect to Gemini Live API

@@ -2,6 +2,7 @@
 
 Feature: 012-music-generation
 Pydantic schemas for music generation API requests and responses.
+Supports multiple providers via MusicProviderEnum.
 """
 
 from datetime import datetime
@@ -28,8 +29,15 @@ class MusicGenerationStatus(str, Enum):
     FAILED = "failed"
 
 
+class MusicProviderEnum(str, Enum):
+    """Supported music generation providers."""
+
+    MUREKA = "mureka"
+    SUNO = "suno"
+
+
 class MusicModel(str, Enum):
-    """Mureka AI model selection."""
+    """Model selection (provider-specific)."""
 
     AUTO = "auto"
     MUREKA_01 = "mureka-01"
@@ -54,7 +62,11 @@ class InstrumentalRequest(BaseModel):
     )
     model: MusicModel = Field(
         default=MusicModel.AUTO,
-        description="Mureka 模型選擇",
+        description="模型選擇",
+    )
+    provider: MusicProviderEnum = Field(
+        default=MusicProviderEnum.MUREKA,
+        description="音樂生成服務提供者",
     )
 
 
@@ -74,7 +86,11 @@ class SongRequest(BaseModel):
     )
     model: MusicModel = Field(
         default=MusicModel.AUTO,
-        description="Mureka 模型選擇",
+        description="模型選擇",
+    )
+    provider: MusicProviderEnum = Field(
+        default=MusicProviderEnum.MUREKA,
+        description="音樂生成服務提供者",
     )
 
 
@@ -87,6 +103,10 @@ class LyricsRequest(BaseModel):
         max_length=200,
         description="主題描述",
         examples=["太空探險"],
+    )
+    provider: MusicProviderEnum = Field(
+        default=MusicProviderEnum.MUREKA,
+        description="音樂生成服務提供者",
     )
 
 
@@ -103,6 +123,10 @@ class ExtendLyricsRequest(BaseModel):
         max_length=200,
         description="延伸方向描述",
     )
+    provider: MusicProviderEnum = Field(
+        default=MusicProviderEnum.MUREKA,
+        description="音樂生成服務提供者",
+    )
 
 
 # =============================================================================
@@ -116,6 +140,7 @@ class MusicJobResponse(BaseModel):
     id: UUID
     type: MusicGenerationType
     status: MusicGenerationStatus
+    provider: MusicProviderEnum = MusicProviderEnum.MUREKA
     prompt: str | None = None
     lyrics: str | None = None
     model: MusicModel

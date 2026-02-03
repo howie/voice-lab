@@ -1,21 +1,23 @@
 """Music Generation Service.
 
-This module provides the core business logic for music generation using Mureka AI.
+This module provides the core business logic for music generation.
+Supports multiple providers via the IMusicProvider interface.
 """
 
 import logging
 import uuid
 from dataclasses import dataclass
 
+from src.application.interfaces.music_provider import IMusicProvider
 from src.config import get_settings
 from src.domain.entities.music import (
     MusicGenerationJob,
     MusicGenerationStatus,
     MusicGenerationType,
     MusicModel,
+    MusicProvider,
 )
 from src.domain.repositories.music_job_repository import IMusicGenerationJobRepository
-from src.infrastructure.adapters.mureka.client import MurekaAPIClient
 
 logger = logging.getLogger(__name__)
 
@@ -53,22 +55,32 @@ class MusicGenerationService:
     """Service for music generation operations.
 
     Handles submission, tracking, and management of music generation jobs.
+    Uses IMusicProvider interface for provider-agnostic generation.
     """
 
     def __init__(
         self,
         repository: IMusicGenerationJobRepository,
-        mureka_client: MurekaAPIClient | None = None,
+        music_provider: IMusicProvider | None = None,
     ):
         """Initialize the service.
 
         Args:
             repository: Job repository for persistence
-            mureka_client: Mureka API client (created if not provided)
+            music_provider: Music generation provider (created via factory if not provided)
         """
         self.repository = repository
-        self.mureka_client = mureka_client or MurekaAPIClient()
+        self._music_provider = music_provider
         self._settings = get_settings()
+
+    @property
+    def music_provider(self) -> IMusicProvider:
+        """Get the music provider, creating default if needed."""
+        if self._music_provider is None:
+            from src.infrastructure.providers.music.factory import MusicProviderFactory
+
+            self._music_provider = MusicProviderFactory.create_default()
+        return self._music_provider
 
     async def get_quota_status(self, user_id: uuid.UUID) -> QuotaStatus:
         """Get user's current quota status.
@@ -131,34 +143,34 @@ class MusicGenerationService:
         user_id: uuid.UUID,
         prompt: str,
         model: str = MusicModel.AUTO.value,
+        provider: str = MusicProvider.MUREKA.value,
     ) -> MusicGenerationJob:
         """Submit an instrumental/BGM generation job.
 
         Args:
             user_id: User ID
             prompt: Scene/style description
-            model: Mureka model selection
+            model: Provider-specific model selection
+            provider: Music provider to use
 
         Returns:
             Created MusicGenerationJob
 
         Raises:
             QuotaExceededError: If quota is exceeded
-            MurekaAPIError: If Mureka API call fails
         """
         await self._check_quota(user_id)
 
-        # Create job in pending status
         job = MusicGenerationJob(
             user_id=user_id,
             type=MusicGenerationType.INSTRUMENTAL,
             prompt=prompt,
             model=model,
+            provider=provider,
         )
 
-        # Save to database
         job = await self.repository.save(job)
-        logger.info(f"Created instrumental job {job.id} for user {user_id}")
+        logger.info(f"Created instrumental job {job.id} for user {user_id} (provider={provider})")
 
         return job
 
@@ -168,6 +180,7 @@ class MusicGenerationService:
         prompt: str | None = None,
         lyrics: str | None = None,
         model: str = MusicModel.AUTO.value,
+        provider: str = MusicProvider.MUREKA.value,
     ) -> MusicGenerationJob:
         """Submit a song generation job.
 
@@ -175,7 +188,8 @@ class MusicGenerationService:
             user_id: User ID
             prompt: Style description
             lyrics: Song lyrics
-            model: Mureka model selection
+            model: Provider-specific model selection
+            provider: Music provider to use
 
         Returns:
             Created MusicGenerationJob
@@ -195,10 +209,11 @@ class MusicGenerationService:
             prompt=prompt,
             lyrics=lyrics,
             model=model,
+            provider=provider,
         )
 
         job = await self.repository.save(job)
-        logger.info(f"Created song job {job.id} for user {user_id}")
+        logger.info(f"Created song job {job.id} for user {user_id} (provider={provider})")
 
         return job
 
@@ -206,12 +221,14 @@ class MusicGenerationService:
         self,
         user_id: uuid.UUID,
         prompt: str,
+        provider: str = MusicProvider.MUREKA.value,
     ) -> MusicGenerationJob:
         """Submit a lyrics generation job.
 
         Args:
             user_id: User ID
             prompt: Theme/topic description
+            provider: Music provider to use
 
         Returns:
             Created MusicGenerationJob
@@ -225,10 +242,11 @@ class MusicGenerationService:
             user_id=user_id,
             type=MusicGenerationType.LYRICS,
             prompt=prompt,
+            provider=provider,
         )
 
         job = await self.repository.save(job)
-        logger.info(f"Created lyrics job {job.id} for user {user_id}")
+        logger.info(f"Created lyrics job {job.id} for user {user_id} (provider={provider})")
 
         return job
 

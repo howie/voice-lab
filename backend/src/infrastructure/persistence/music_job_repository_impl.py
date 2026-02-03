@@ -36,10 +36,11 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
             user_id=model.user_id,
             type=MusicGenerationType(model.type),
             status=MusicGenerationStatus(model.status),
+            provider=model.provider,
             prompt=model.prompt,
             lyrics=model.lyrics,
             model=model.model,
-            mureka_task_id=model.mureka_task_id,
+            provider_task_id=model.mureka_task_id,
             result_url=model.result_url,
             original_url=model.original_url,
             cover_url=model.cover_url,
@@ -60,10 +61,11 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
             user_id=entity.user_id,
             type=entity.type.value,
             status=entity.status.value,
+            provider=entity.provider,
             prompt=entity.prompt,
             lyrics=entity.lyrics,
             model=entity.model,
-            mureka_task_id=entity.mureka_task_id,
+            mureka_task_id=entity.provider_task_id,
             result_url=entity.result_url,
             original_url=entity.original_url,
             cover_url=entity.cover_url,
@@ -149,7 +151,8 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
 
         # Update fields
         model.status = job.status.value
-        model.mureka_task_id = job.mureka_task_id
+        model.provider = job.provider
+        model.mureka_task_id = job.provider_task_id
         model.result_url = job.result_url
         model.original_url = job.original_url
         model.cover_url = job.cover_url

@@ -780,9 +780,10 @@ class VoiceCustomizationModel(Base):
 
 
 class MusicGenerationJobModel(Base):
-    """SQLAlchemy model for music generation jobs via Mureka AI.
+    """SQLAlchemy model for music generation jobs.
 
     Tracks async music generation tasks including songs, instrumentals, and lyrics.
+    Supports multiple providers (Mureka, Suno, etc.) via the provider field.
     """
 
     __tablename__ = "music_generation_jobs"
@@ -814,12 +815,15 @@ class MusicGenerationJobModel(Base):
         default="pending",
     )
 
+    # Provider selection
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, default="mureka")
+
     # Input parameters
     prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     lyrics: Mapped[str | None] = mapped_column(Text, nullable=True)
     model: Mapped[str] = mapped_column(String(20), nullable=False, default="auto")
 
-    # Mureka task tracking
+    # Provider task tracking (DB column stays as mureka_task_id for backward compat)
     mureka_task_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Output

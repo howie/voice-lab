@@ -6,10 +6,12 @@ from src.infrastructure.providers.tts.factory import (
     ProviderNotSupportedError,
     TTSProviderFactory,
 )
+from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
 from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
 from src.infrastructure.providers.tts.voai_tts import VoAITTSProvider
 
 __all__ = [
+    "GCPTTSProvider",
     "GeminiTTSProvider",
     "AzureTTSProvider",
     "ElevenLabsTTSProvider",

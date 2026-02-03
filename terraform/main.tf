@@ -164,6 +164,9 @@ module "cloud_run" {
   gemini_api_key_secret      = module.secrets.gemini_api_key_secret_id
   voai_api_key_secret        = module.secrets.voai_api_key_secret_id
   voai_api_endpoint          = var.voai_api_endpoint
+  azure_speech_key_secret    = module.secrets.azure_speech_key_secret_id
+  azure_speech_region        = var.azure_speech_region
+  elevenlabs_api_key_secret  = module.secrets.elevenlabs_api_key_secret_id
 
   # Application config
   allowed_domains         = var.allowed_domains

@@ -177,6 +177,43 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.voai_api_endpoint
       }
 
+      # Azure Speech key (if provided)
+      dynamic "env" {
+        for_each = var.azure_speech_key_secret != null ? [1] : []
+        content {
+          name = "AZURE_SPEECH_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.azure_speech_key_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      # Azure Speech region
+      dynamic "env" {
+        for_each = var.azure_speech_key_secret != null ? [1] : []
+        content {
+          name  = "AZURE_SPEECH_REGION"
+          value = var.azure_speech_region
+        }
+      }
+
+      # ElevenLabs API key (if provided)
+      dynamic "env" {
+        for_each = var.elevenlabs_api_key_secret != null ? [1] : []
+        content {
+          name = "ELEVENLABS_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.elevenlabs_api_key_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+
       # Startup and liveness probes
       startup_probe {
         http_get {

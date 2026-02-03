@@ -86,6 +86,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         # Register message handlers
         self.register_handler(MessageType.CONFIG, self._handle_config)
         self.register_handler(MessageType.AUDIO_CHUNK, self._handle_audio_chunk)
+        self.register_handler(MessageType.TEXT_INPUT, self._handle_text_input)
         self.register_handler(MessageType.END_TURN, self._handle_end_turn)
         self.register_handler(MessageType.INTERRUPT, self._handle_interrupt)
         self.register_handler(MessageType.PING, self._handle_ping)
@@ -343,6 +344,34 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
             is_final=is_final,
         )
         await self._mode_service.send_audio(audio_chunk)
+
+    async def _handle_text_input(self, message: WebSocketMessage) -> None:
+        """Handle text input from client.
+
+        Sends a text message to the mode service as user input, allowing
+        text prompts to interrupt or supplement the voice conversation.
+        Useful for sending instructions during V2V sessions.
+        """
+        if not self._session or not self._mode_service.is_connected():
+            await self.send_error("NOT_CONNECTED", "No active session")
+            return
+
+        text = message.data.get("text", "").strip()
+        if not text:
+            return
+
+        # Create turn if needed
+        if not self._current_turn:
+            await self._start_new_turn()
+
+        # Record text as user input in the turn
+        if self._current_turn:
+            self._current_turn.set_user_input(text)
+            await self._repository.update_turn(self._current_turn)
+
+        # Send text to mode service
+        await self._mode_service.send_text(text)
+        self._logger.debug(f"Sent text input to mode service: {text[:100]}")
 
     async def _handle_end_turn(self, _message: WebSocketMessage) -> None:
         """Handle explicit end of user turn."""

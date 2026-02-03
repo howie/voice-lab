@@ -196,8 +196,12 @@ format-front:
 	@echo "$(CYAN)格式化前端程式碼...$(RESET)"
 	cd frontend && npm run lint:fix
 
-check: lint typecheck check-migrations
+check: lint format-check typecheck check-migrations
 	@echo "$(GREEN)✓ 所有檢查完成$(RESET)"
+
+format-check:
+	@echo "$(CYAN)檢查程式碼格式...$(RESET)"
+	cd backend && uv run ruff format --check src tests
 
 check-migrations:
 	@echo "$(CYAN)檢查 Alembic migration 完整性...$(RESET)"

@@ -46,8 +46,10 @@ class AzureTTSProvider(ITTSProvider):
         api_key: str | None = None,
         region: str | None = None,
     ) -> None:
-        self._api_key = api_key or os.getenv("AZURE_SPEECH_KEY", "")
-        self._region = region or os.getenv("AZURE_SPEECH_REGION", "eastasia")
+        self._api_key = api_key if api_key is not None else os.getenv("AZURE_SPEECH_KEY", "")
+        self._region = (
+            region if region is not None else os.getenv("AZURE_SPEECH_REGION", "eastasia")
+        )
         self._service: AzureTTSService | None = None
 
     def _get_service(self, voice_id: str) -> AzureTTSService:

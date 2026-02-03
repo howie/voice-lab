@@ -5,6 +5,7 @@ WebSocket, bypassing the backend proxy. Used for benchmarking raw v2v latency.
 """
 
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -59,11 +60,11 @@ async def get_gemini_live_config() -> GeminiLiveConfig:
     """
     settings = get_settings()
 
-    api_key = settings.google_ai_api_key
+    api_key = settings.google_ai_api_key or os.getenv("GEMINI_API_KEY", "")
     if not api_key:
         raise HTTPException(
             status_code=404,
-            detail="Google AI API key not configured. Set GOOGLE_AI_API_KEY env var.",
+            detail="Google AI API key not configured. Set GOOGLE_AI_API_KEY or GEMINI_API_KEY env var.",
         )
 
     return GeminiLiveConfig(

@@ -142,6 +142,24 @@ variable "voai_api_key_secret" {
   default     = null
 }
 
+variable "azure_speech_key_secret" {
+  type        = string
+  description = "Secret ID for Azure Speech Key"
+  default     = null
+}
+
+variable "azure_speech_region" {
+  type        = string
+  description = "Azure Speech region"
+  default     = "eastasia"
+}
+
+variable "elevenlabs_api_key_secret" {
+  type        = string
+  description = "Secret ID for ElevenLabs API Key"
+  default     = null
+}
+
 variable "voai_api_endpoint" {
   type        = string
   description = "VoAI API endpoint"

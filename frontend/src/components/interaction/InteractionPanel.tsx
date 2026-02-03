@@ -140,6 +140,7 @@ function float32ToPCM16(input: Float32Array): ArrayBuffer {
 
 export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionPanelProps) {
   const [permissionError, setPermissionError] = useState<string | null>(null)
+  const [textInput, setTextInput] = useState('')
 
   // T087: Track when an interruption just occurred for the indicator
   const [wasInterrupted, setWasInterrupted] = useState(false)
@@ -640,6 +641,19 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setInteractionState('processing')
   }
 
+  // Handle text input submission (send text prompt during V2V session)
+  const handleSendText = useCallback(() => {
+    const trimmed = textInput.trim()
+    if (!trimmed || connectionStatus !== 'connected') return
+
+    sendMessage('text_input', { text: trimmed })
+    setTextInput('')
+    // Show the sent text as user transcript
+    clearTranscripts()
+    setUserTranscript(trimmed, true)
+    setInteractionState('processing')
+  }, [textInput, connectionStatus, sendMessage, clearTranscripts, setUserTranscript, setInteractionState])
+
   // T076: Handle template selection - fill role/scenario from template
   const handleTemplateSelect = useCallback(
     (template: ScenarioTemplate) => {
@@ -864,6 +878,38 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           </div>
         </div>
       </div>
+
+      {/* Text input for sending text prompts during V2V session */}
+      {isConnected && (
+        <div className="rounded-lg border bg-card p-4">
+          <div className="mb-2 text-sm font-medium text-foreground">文字輸入 (測試用)</div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  handleSendText()
+                }
+              }}
+              placeholder="輸入文字提示來打斷語音對話..."
+              className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              onClick={handleSendText}
+              disabled={!textInput.trim()}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              發送
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            在 V2V 模式中，可透過文字輸入來打斷語音並下達指令
+          </p>
+        </div>
+      )}
 
       {/* T065-T067: Latency Display */}
       {options.showLatencyMetrics && (currentTurnLatency || sessionStats) && (

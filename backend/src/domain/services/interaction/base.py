@@ -80,6 +80,15 @@ class InteractionModeService(ABC):
         """
         ...
 
+    async def send_text(self, text: str) -> None:  # noqa: B027
+        """Send a text message to the service (e.g. to interrupt voice with text prompt).
+
+        Default implementation does nothing. Override in subclasses that support it.
+
+        Args:
+            text: Text message to send as user input
+        """
+
     @abstractmethod
     async def end_turn(self) -> None:
         """Signal end of user speech (when VAD doesn't detect it)."""

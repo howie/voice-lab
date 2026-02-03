@@ -22,6 +22,7 @@ class MessageType(str, Enum):
 
     # Client -> Server
     AUDIO_CHUNK = "audio_chunk"
+    TEXT_INPUT = "text_input"
     END_TURN = "end_turn"
     INTERRUPT = "interrupt"
     CONFIG = "config"

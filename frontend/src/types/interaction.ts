@@ -24,6 +24,7 @@ export type WSMessageType =
   // Client -> Server
   | 'config'
   | 'audio_chunk'
+  | 'text_input'
   | 'end_turn'
   | 'interrupt'
   | 'ping'

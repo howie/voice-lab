@@ -14,6 +14,7 @@ import { PitchSlider } from '@/components/tts/PitchSlider'
 import { VolumeSlider } from '@/components/tts/VolumeSlider'
 import { VoiceSelector } from '@/components/tts/VoiceSelector'
 import { LanguageSelector } from '@/components/tts/LanguageSelector'
+import { QuotaErrorAlert } from '@/components/tts/QuotaErrorAlert'
 import { getProviderConfig } from '@/config/providers'
 
 export function TTSPage() {
@@ -35,6 +36,7 @@ export function TTSPage() {
     result,
     isLoading,
     error,
+    quotaError,
     synthesize,
   } = useTTSStore()
 
@@ -117,11 +119,13 @@ export function TTSPage() {
             </div>
 
             {/* Error message */}
-            {error && (
+            {error && quotaError ? (
+              <QuotaErrorAlert message={error} details={quotaError} />
+            ) : error ? (
               <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
               </div>
-            )}
+            ) : null}
 
             {/* Synthesize button */}
             <button

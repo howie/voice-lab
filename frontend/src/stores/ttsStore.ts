@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ttsApi, SynthesizeResponse, VoiceProfile } from '@/lib/api'
+import type { QuotaErrorDetails } from '@/lib/error-types'
 
 interface TTSState {
   // Input
@@ -24,6 +25,7 @@ interface TTSState {
   result: SynthesizeResponse | null
   isLoading: boolean
   error: string | null
+  quotaError: QuotaErrorDetails | null
 
   // Voices cache
   voices: VoiceProfile[]
@@ -67,6 +69,7 @@ export const useTTSStore = create<TTSState>()(
       result: null,
       isLoading: false,
       error: null,
+      quotaError: null,
       voices: [],
       voicesLoading: false,
 
@@ -115,7 +118,7 @@ export const useTTSStore = create<TTSState>()(
           return
         }
 
-        set({ isLoading: true, error: null, result: null })
+        set({ isLoading: true, error: null, quotaError: null, result: null })
 
         try {
           const response = await ttsApi.synthesize({
@@ -131,14 +134,23 @@ export const useTTSStore = create<TTSState>()(
 
           set({ result: response.data, isLoading: false })
         } catch (error: unknown) {
-          const message =
-            (
-              error as {
-                response?: { data?: { error?: { message?: string } } }
-              }
-            )?.response?.data?.error?.message ||
-            (error instanceof Error ? error.message : '語音合成失敗')
-          set({ error: message, isLoading: false })
+          const apiError = (
+            error as {
+              response?: { data?: { error?: { code?: string; message?: string; details?: QuotaErrorDetails } } }
+            }
+          )?.response?.data?.error
+
+          if (apiError?.code === 'QUOTA_EXCEEDED' && apiError?.details) {
+            set({
+              error: apiError.message || '配額已用盡',
+              quotaError: apiError.details as QuotaErrorDetails,
+              isLoading: false,
+            })
+          } else {
+            const message = apiError?.message ||
+              (error instanceof Error ? error.message : '語音合成失敗')
+            set({ error: message, isLoading: false })
+          }
         }
       },
 
@@ -167,6 +179,7 @@ export const useTTSStore = create<TTSState>()(
           text: '',
           result: null,
           error: null,
+          quotaError: null,
           isLoading: false,
         }),
     }),

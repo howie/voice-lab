@@ -17,6 +17,7 @@ from src.presentation.api.routes import (
     multi_role_tts,
     music,
     providers,
+    quota,
     stt,
     tts,
     voice_customizations,
@@ -47,6 +48,7 @@ api_router.include_router(music.router)  # Music generation routes (Mureka AI)
 api_router.include_router(admin_voices.router)  # Admin voice sync routes
 api_router.include_router(dj.router)  # DJ routes (Magic DJ Controller)
 api_router.include_router(voice_customizations.router)  # Voice customization routes (Feature 013)
+api_router.include_router(quota.router)  # Quota and rate limit status
 api_router.include_router(gemini_live_test.router)  # Gemini Live API direct test
 
 __all__ = ["api_router"]

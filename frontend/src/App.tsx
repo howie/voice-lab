@@ -14,6 +14,7 @@ import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
 import { JobsPage } from '@/routes/jobs'
 import { MagicDJPage } from '@/routes/magic-dj/MagicDJPage'
 import { VoiceManagementPage } from '@/routes/voice-management'
+import { QuotaDashboardPage } from '@/routes/quota/QuotaDashboardPage'
 import { MusicPage } from '@/routes/music'
 import { GeminiLiveTestPage } from '@/routes/gemini-live-test/GeminiLiveTestPage'
 import { LoginPage } from '@/routes/auth/LoginPage'
@@ -75,6 +76,7 @@ function AppContent() {
         <Route path="music" element={<MusicPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="advanced" element={<AdvancedPage />} />
+        <Route path="quota" element={<QuotaDashboardPage />} />
         <Route path="settings/providers" element={<ProviderSettings />} />
         <Route path="voice-management" element={<VoiceManagementPage />} />
         <Route path="gemini-live-test" element={<GeminiLiveTestPage />} />

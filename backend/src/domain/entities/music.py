@@ -6,11 +6,11 @@ Supports multiple providers (Mureka, Suno, etc.) via the provider field.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 
-class MusicGenerationType(str, Enum):
+class MusicGenerationType(StrEnum):
     """Type of music generation request.
 
     - SONG: Complete song with vocals
@@ -23,7 +23,7 @@ class MusicGenerationType(str, Enum):
     LYRICS = "lyrics"
 
 
-class MusicGenerationStatus(str, Enum):
+class MusicGenerationStatus(StrEnum):
     """Status of music generation job.
 
     State transitions:
@@ -39,14 +39,14 @@ class MusicGenerationStatus(str, Enum):
     FAILED = "failed"
 
 
-class MusicProvider(str, Enum):
+class MusicProvider(StrEnum):
     """Supported music generation providers."""
 
     MUREKA = "mureka"
     SUNO = "suno"
 
 
-class MusicModel(str, Enum):
+class MusicModel(StrEnum):
     """Model selection (provider-specific).
 
     Mureka models:

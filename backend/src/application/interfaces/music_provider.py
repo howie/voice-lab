@@ -6,10 +6,10 @@ Infrastructure layer provides concrete implementations (Mureka, Suno, etc.)
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class MusicTaskStatus(str, Enum):
+class MusicTaskStatus(StrEnum):
     """Unified task status across all music providers."""
 
     PENDING = "pending"

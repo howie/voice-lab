@@ -5,19 +5,19 @@ Feature: 003-stt-testing-module
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
 
-class ErrorType(str, Enum):
+class ErrorType(StrEnum):
     """Type of error rate calculation."""
 
     WER = "WER"  # Word Error Rate (for English)
     CER = "CER"  # Character Error Rate (for CJK languages)
 
 
-class AlignmentOperation(str, Enum):
+class AlignmentOperation(StrEnum):
     """Alignment operation types."""
 
     MATCH = "match"

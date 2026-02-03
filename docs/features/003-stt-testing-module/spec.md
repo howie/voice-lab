@@ -86,7 +86,7 @@
 - **FR-002**: System MUST integrate with the following STT Providers (Batch API):
     - **Cloud Standard**: Google Cloud Speech-to-Text, Azure Speech Services
     - **Market Leaders**: OpenAI Whisper, Deepgram (Nova-2), AssemblyAI, ElevenLabs Scribe, Speechmatics
-- **FR-003**: Users MUST be able to select which STT Provider to use for each transcription request
+- **FR-003**: Users MUST be able to select which STT Provider to use for each transcription request via a dropdown menu. The dropdown MUST only display Providers for which the user has configured a valid API Key (consistent with TTS Provider selector behavior)
 - **FR-004**: System MUST support browser-based microphone recording with visual waveform feedback
 - **FR-005**: System MUST process all transcriptions in batch mode (recording completes before transcription begins)
 - **FR-006**: System MUST calculate and display error rate when Ground Truth is provided: WER (Word Error Rate) for English, CER (Character Error Rate) for CJK languages (zh-TW, zh-CN, ja-JP, ko-KR)

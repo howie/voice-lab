@@ -647,6 +647,105 @@ class TestVoAITTSProviderProduction:
         assert len(voices) == len(VOAI_TTS_VOICES.get("zh-TW", []))
         assert all(v.language == "zh-TW" for v in voices)
 
+    @pytest.mark.asyncio
+    async def test_synthesize_strips_voai_prefix_from_voice_id(self):
+        """Test that voice_cache_id format ('voai:佑希') is correctly stripped.
+
+        Multi-role TTS sends voice_id in voice_cache_id format (e.g., 'voai:佑希')
+        instead of plain speaker name ('佑希'). The provider must strip the prefix
+        to resolve the correct speaker.
+        """
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            request = TTSRequest(
+                text="你好",
+                voice_id="voai:雨榛",
+                provider="voai",
+                language="zh-TW",
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["speaker"] == "雨榛"
+
+    @pytest.mark.asyncio
+    async def test_synthesize_multi_role_different_voices(self):
+        """Test that multi-role TTS assigns different voices per speaker.
+
+        Regression test: previously all speakers used the same default voice
+        because voice_cache_id format ('voai:X') didn't match valid speaker
+        names, causing fallback to the default '佑希' for every turn.
+        """
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            speakers_used = []
+            for voice_id in ["voai:佑希", "voai:雨榛", "voai:子墨"]:
+                request = TTSRequest(
+                    text="你好",
+                    voice_id=voice_id,
+                    provider="voai",
+                    language="zh-TW",
+                )
+                await provider.synthesize(request)
+                call_args = mock_client.post.call_args
+                body = call_args.kwargs["json"]
+                speakers_used.append(body["speaker"])
+
+            assert speakers_used == ["佑希", "雨榛", "子墨"]
+
+    @pytest.mark.asyncio
+    async def test_synthesize_plain_voice_id_still_works(self):
+        """Test that plain speaker names (without prefix) still work."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.content = b"\x00\x01\x02\x03" * 500
+
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            provider = VoAITTSProviderProduction(api_key="test-key", api_endpoint="connect.voai.ai")
+
+            request = TTSRequest(
+                text="你好",
+                voice_id="雨榛",
+                provider="voai",
+                language="zh-TW",
+            )
+
+            await provider.synthesize(request)
+
+            call_args = mock_client.post.call_args
+            body = call_args.kwargs["json"]
+            assert body["speaker"] == "雨榛"
+
     def test_voai_tts_voices_have_required_fields(self):
         """Test VoAI TTS voice mappings have all required fields."""
         for _lang, voices in VOAI_TTS_VOICES.items():

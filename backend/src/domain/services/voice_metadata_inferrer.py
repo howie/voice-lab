@@ -173,6 +173,44 @@ class VoiceMetadataInferrer:
         # Default to adult
         return AgeGroup.ADULT
 
+    def infer_storybook_suitability(
+        self,
+        style_list: list[str] | None = None,
+        role_play_list: list[str] | None = None,
+        locale: str = "",
+    ) -> bool:
+        """Determine whether a voice is suitable for children's storybook narration.
+
+        A voice is considered suitable if it:
+        - Has gentle / cheerful / story / calm / affectionate styles, OR
+        - Can role-play Girl / Boy characters, OR
+        - Is a zh-TW locale voice (native Taiwan Mandarin).
+
+        Args:
+            style_list: Supported voice styles.
+            role_play_list: Supported role-play characters.
+            locale: Voice locale (e.g., "zh-TW").
+
+        Returns:
+            True if the voice is storybook-suitable.
+        """
+        storybook_styles = {
+            "gentle",
+            "cheerful",
+            "story",
+            "calm",
+            "affectionate",
+            "narration-relaxed",
+            "friendly",
+        }
+        storybook_roles = {"Girl", "Boy"}
+
+        if style_list and set(style_list) & storybook_styles:
+            return True
+        if role_play_list and set(role_play_list) & storybook_roles:
+            return True
+        return locale == "zh-TW"
+
     def infer_gender_from_azure(self, gender: str) -> str | None:
         """Normalize Azure gender to standard format.
 

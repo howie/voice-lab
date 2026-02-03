@@ -16,9 +16,10 @@ import {
 } from '@/components/multi-role-tts'
 import { Spinner } from '@/components/tts/LoadingIndicator'
 import { AudioPlayer } from '@/components/tts/AudioPlayer'
+import { useAvailableTTSProviders } from '@/hooks/useAvailableTTSProviders'
 import type { MultiRoleTTSProvider } from '@/types/multi-role-tts'
 
-const PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
+const ALL_PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
   { value: 'elevenlabs', label: 'ElevenLabs' },
   { value: 'azure', label: 'Azure' },
   { value: 'gcp', label: 'Google Cloud TTS' },
@@ -26,6 +27,7 @@ const PROVIDERS: Array<{ value: MultiRoleTTSProvider; label: string }> = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'cartesia', label: 'Cartesia' },
   { value: 'deepgram', label: 'Deepgram' },
+  { value: 'voai', label: 'VoAI 台灣語音' },
 ]
 
 export function MultiRoleTTSPage() {
@@ -37,7 +39,7 @@ export function MultiRoleTTSPage() {
     dialogueText,
     setDialogueText,
     provider,
-    setProvider,
+    setProvider: setProviderRaw,
     parsedTurns,
     speakers,
     voiceAssignments,
@@ -64,6 +66,16 @@ export function MultiRoleTTSPage() {
     confirmProviderSwitch,
     cancelProviderSwitch,
   } = useMultiRoleTTSStore()
+
+  const setProvider = (v: string) => setProviderRaw(v as MultiRoleTTSProvider)
+
+  const { providers: availableProviders, loading: providersLoading } =
+    useAvailableTTSProviders({
+      allProviders: ALL_PROVIDERS,
+      getKey: (p) => p.value,
+      value: provider,
+      onChange: setProvider,
+    })
 
   const { submitJob, isSubmitting } = useJobStore()
 
@@ -148,18 +160,24 @@ export function MultiRoleTTSPage() {
           <div className="rounded-xl border bg-card p-6">
             <h2 className="mb-4 text-lg font-semibold">選擇 Provider</h2>
 
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as MultiRoleTTSProvider)}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+            {providersLoading ? (
+              <div className="flex h-[42px] w-full items-center rounded-lg border bg-background px-4 text-sm text-muted-foreground">
+                載入可用 Provider...
+              </div>
+            ) : (
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                disabled={isLoading}
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {availableProviders.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="mt-4 transition-all duration-300 ease-in-out">
               <ProviderCapabilityCard capability={currentCapability} />
@@ -391,7 +409,7 @@ export function MultiRoleTTSPage() {
             <p className="mt-4 text-sm text-muted-foreground">
               正在產生音訊中，切換到{' '}
               <span className="font-medium text-foreground">
-                {PROVIDERS.find((p) => p.value === pendingProvider)?.label}
+                {ALL_PROVIDERS.find((p) => p.value === pendingProvider)?.label}
               </span>{' '}
               將取消目前的合成請求。
             </p>

@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
-import type { Track } from '@/types/magic-dj'
+import type { ChannelType, Track } from '@/types/magic-dj'
 import { MAX_CONCURRENT_TRACKS } from '@/types/magic-dj'
 
 // =============================================================================
@@ -54,6 +54,8 @@ export interface UseMultiTrackPlayerReturn {
   getPlayingCount: () => number
   /** Check if can play more tracks (011-T032) */
   canPlayMore: () => boolean
+  /** Unload a track and release its audio resources */
+  unloadTrack: (trackId: string) => void
 }
 
 // =============================================================================
@@ -66,7 +68,42 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
   const tracksRef = useRef<Map<string, TrackAudioNode>>(new Map())
   const trackConfigRef = useRef<Map<string, Track>>(new Map())
 
-  const { masterVolume, tracks, trackStates, updateTrackState } = useMagicDJStore()
+  const { masterVolume, tracks, trackStates, channelQueues, channelStates, updateTrackState } = useMagicDJStore()
+
+  // Find which channel a track belongs to
+  const findChannelForTrack = useCallback(
+    (trackId: string): ChannelType | null => {
+      for (const [channelType, queue] of Object.entries(channelQueues)) {
+        if (queue.some((item) => item.trackId === trackId)) {
+          return channelType as ChannelType
+        }
+      }
+      return null
+    },
+    [channelQueues]
+  )
+
+  // Compute effective volume: trackVolume * channelVolume (respecting mute flags)
+  const getEffectiveVolume = useCallback(
+    (trackId: string): number => {
+      const track = tracks.find((t) => t.id === trackId)
+      const trackState = trackStates[trackId]
+      const trackVolume = track?.volume ?? 1
+      const trackMuted = trackState?.isMuted ?? false
+
+      if (trackMuted) return 0
+
+      const channelType = findChannelForTrack(trackId)
+      if (channelType) {
+        const cs = channelStates[channelType]
+        if (cs.isMuted) return 0
+        return trackVolume * cs.volume
+      }
+
+      return trackVolume
+    },
+    [tracks, trackStates, channelStates, findChannelForTrack]
+  )
 
   // Initialize AudioContext lazily (requires user interaction)
   const getAudioContext = useCallback(() => {
@@ -239,18 +276,31 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       source.loop = loop
       source.connect(node.gainNode)
 
-      // 011-T028: Apply persistent volume from track config
-      const track = tracks.find((t) => t.id === trackId)
-      const trackState = trackStates[trackId]
-      const persistedVolume = track?.volume ?? 1
-      const isMuted = trackState?.isMuted ?? false
-      node.gainNode.gain.value = isMuted ? 0 : persistedVolume
+      // 011-T028: Apply effective volume (track × channel)
+      node.gainNode.gain.value = getEffectiveVolume(trackId)
 
-      // Handle track end
-      source.onended = () => {
+      // Handle track end — use both onended and setTimeout fallback
+      // to ensure isPlaying is always reset even if onended doesn't fire
+      let ended = false
+      const markEnded = () => {
+        if (ended) return
+        ended = true
         node.isPlaying = false
         node.source = null
         updateTrackState(trackId, { isPlaying: false, currentTime: 0 })
+      }
+
+      source.onended = markEnded
+
+      // Fallback: if onended doesn't fire (browser throttling, background tab),
+      // force reset after buffer duration + 500ms grace period
+      if (!loop && node.buffer) {
+        const durationMs = node.buffer.duration * 1000 + 500
+        setTimeout(() => {
+          if (!ended && node.source === source) {
+            markEnded()
+          }
+        }, durationMs)
       }
 
       source.start(0)
@@ -259,7 +309,7 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
 
       updateTrackState(trackId, { isPlaying: true, currentTime: 0, error: null })
     },
-    [getAudioContext, updateTrackState, getPlayingCount, tracks, trackStates]
+    [getAudioContext, updateTrackState, getPlayingCount, getEffectiveVolume]
   )
 
   // Stop a track
@@ -289,6 +339,33 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       stopTrack(trackId)
     }
   }, [stopTrack])
+
+  // Unload a track and release its audio resources
+  const unloadTrack = useCallback(
+    (trackId: string): void => {
+      const node = tracksRef.current.get(trackId)
+      if (node) {
+        // Stop if playing
+        if (node.source) {
+          try {
+            node.source.stop()
+          } catch {
+            // Already stopped
+          }
+          node.source.disconnect()
+          node.source = null
+        }
+        // Disconnect gain node from audio graph
+        node.gainNode.disconnect()
+        // Release AudioBuffer memory
+        node.buffer = null
+        node.isPlaying = false
+      }
+      tracksRef.current.delete(trackId)
+      trackConfigRef.current.delete(trackId)
+    },
+    []
+  )
 
   // Set track volume (011-T029: real-time GainNode adjustment)
   const setTrackVolume = useCallback(
@@ -360,6 +437,34 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     }
   }, [masterVolume])
 
+  // Sync channel volume/mute changes to playing tracks in real-time
+  useEffect(() => {
+    const currentTime = audioContextRef.current?.currentTime ?? 0
+    for (const [trackId, node] of tracksRef.current) {
+      if (!node.isPlaying) continue
+      const vol = getEffectiveVolume(trackId)
+      node.gainNode.gain.setTargetAtTime(vol, currentTime, 0.02)
+    }
+  }, [channelStates, trackStates, getEffectiveVolume])
+
+  // Periodic health check: clean up stale playback states and resume suspended AudioContext
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fix stale isPlaying flags
+      for (const [trackId, node] of tracksRef.current) {
+        if (node.isPlaying && !node.source) {
+          node.isPlaying = false
+          updateTrackState(trackId, { isPlaying: false, currentTime: 0 })
+        }
+      }
+      // Resume AudioContext if it was suspended (e.g. by browser power saving)
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume()
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [updateTrackState])
+
   // Cleanup on unmount
   useEffect(() => {
     const currentTracks = tracksRef.current
@@ -399,6 +504,7 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     // 011-T032
     getPlayingCount,
     canPlayMore,
+    unloadTrack,
   }
 }
 

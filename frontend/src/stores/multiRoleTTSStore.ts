@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { multiRoleTTSApi } from '@/lib/multiRoleTTSApi'
 import { ttsApi } from '@/lib/api'
+import { voiceCustomizationApi } from '@/lib/voiceCustomizationApi'
 import type {
   DialogueTurn,
   MultiRoleTTSResult,
@@ -15,6 +16,13 @@ import type {
   MultiRoleTTSProvider,
 } from '@/types/multi-role-tts'
 import type { VoiceProfile } from '@/lib/api'
+import type { VoiceWithCustomization } from '@/types/voice-customization'
+
+/** Voice data with optional customization fields */
+type VoiceItem = VoiceProfile & {
+  displayName?: string
+  isFavorite?: boolean
+}
 
 interface MultiRoleTTSState {
   // Input
@@ -33,7 +41,7 @@ interface MultiRoleTTSState {
   currentCapability: ProviderMultiRoleCapability | null
 
   // Available voices for current provider
-  voices: VoiceProfile[]
+  voices: VoiceItem[]
   voicesLoading: boolean
 
   // Synthesis options
@@ -244,12 +252,40 @@ export const useMultiRoleTTSStore = create<MultiRoleTTSState>()(
         set({ voicesLoading: true })
 
         try {
-          const filters = language ? { language } : undefined
-          const response = await ttsApi.getVoices(provider, filters)
-          set({ voices: response.data, voicesLoading: false })
+          // Use /voices endpoint with customization data (display_name, favorites, hidden)
+          const response = await voiceCustomizationApi.listVoicesWithCustomizations({
+            provider,
+            language: language || undefined,
+            excludeHidden: true,
+            limit: 500,
+          })
+
+          // Map VoiceWithCustomization to VoiceItem for backward compatibility
+          const items: VoiceItem[] = response.items.map((v: VoiceWithCustomization) => ({
+            id: v.id,
+            name: v.display_name,
+            provider: v.provider,
+            language: v.language,
+            gender: v.gender as VoiceProfile['gender'],
+            age_group: undefined,
+            description: v.description,
+            sample_url: v.sample_audio_url ?? undefined,
+            supported_styles: undefined,
+            displayName: v.displayName || v.display_name,
+            isFavorite: v.isFavorite,
+          }))
+
+          set({ voices: items, voicesLoading: false })
         } catch (error) {
           console.error('Failed to load voices:', error)
-          set({ voices: [], voicesLoading: false })
+          // Fallback to legacy per-provider API
+          try {
+            const filters = language ? { language } : undefined
+            const response = await ttsApi.getVoices(provider, filters)
+            set({ voices: response.data, voicesLoading: false })
+          } catch {
+            set({ voices: [], voicesLoading: false })
+          }
         }
       },
 

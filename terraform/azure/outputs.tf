@@ -48,6 +48,12 @@ output "get_api_keys_command" {
   value       = "az cognitiveservices account keys list --name ${azurerm_cognitive_account.speech.name} --resource-group ${azurerm_resource_group.speech.name}"
 }
 
+output "primary_access_key" {
+  description = "Primary access key for the Speech Service (use for AZURE_SPEECH_KEY)"
+  value       = azurerm_cognitive_account.speech.primary_access_key
+  sensitive   = true
+}
+
 output "get_key1_command" {
   description = "Azure CLI command to retrieve only key1"
   value       = "az cognitiveservices account keys list --name ${azurerm_cognitive_account.speech.name} --resource-group ${azurerm_resource_group.speech.name} --query key1 -o tsv"

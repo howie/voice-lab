@@ -31,6 +31,8 @@ export interface DJHotkeyActions {
   onToggleMode?: () => void
   /** Triggered when Track hotkey (1-5) is pressed */
   onPlayTrack?: (trackIndex: number) => void
+  /** Triggered when Play Next Cue (N) is pressed (T041) */
+  onPlayNextCue?: () => void
 }
 
 export interface UseDJHotkeysOptions {
@@ -193,6 +195,13 @@ export function useDJHotkeys(
             }
           }, 100)
         }
+        return
+      }
+
+      // === Play Next Cue (N) - T041 ===
+      if (key.toLowerCase() === 'n') {
+        event.preventDefault()
+        actions.onPlayNextCue?.()
         return
       }
 

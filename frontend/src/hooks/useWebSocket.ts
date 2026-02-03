@@ -75,6 +75,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isManualDisconnectRef = useRef(false)
+  const connectRef = useRef<() => void>(() => {})
 
   // Update status and notify
   const updateStatus = useCallback(
@@ -127,7 +128,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
     reconnectTimeoutRef.current = setTimeout(() => {
       if (!isManualDisconnectRef.current) {
-        connect()
+        connectRef.current()
       }
     }, delay)
   }, [autoReconnect, maxReconnectAttempts, reconnectDelay, updateStatus])
@@ -198,6 +199,9 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       updateStatus('error')
     }
   }, [url, clearTimeouts, updateStatus, startHeartbeat, attemptReconnect, onMessage, onError])
+
+  // Keep ref in sync so attemptReconnect can call connect without circular dependency
+  connectRef.current = connect
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {

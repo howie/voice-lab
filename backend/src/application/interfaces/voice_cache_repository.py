@@ -182,3 +182,17 @@ class IVoiceCacheRepository(ABC):
             Sequence of voice IDs (format: provider:voice_id)
         """
         pass
+
+    @abstractmethod
+    async def update_sample_audio_url(
+        self,
+        voice_cache_id: str,
+        sample_audio_url: str,
+    ) -> None:
+        """Update the sample audio URL for a voice.
+
+        Args:
+            voice_cache_id: The voice cache ID (format: provider:voice_id)
+            sample_audio_url: URL to the preview audio file
+        """
+        pass

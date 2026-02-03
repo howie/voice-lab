@@ -185,4 +185,15 @@ export const voiceCustomizationApi = {
   ): Promise<VoiceCustomization> => {
     return voiceCustomizationApi.updateCustomization(voiceCacheId, { customName })
   },
+
+  /**
+   * Generate or retrieve a preview audio URL for a voice.
+   * Returns the URL to the preview audio file.
+   */
+  generatePreview: async (voiceCacheId: string): Promise<string> => {
+    const resp = await api.post<{ preview_url: string }>(
+      `/voices/${encodeURIComponent(voiceCacheId)}/preview`
+    )
+    return resp.data.preview_url
+  },
 }

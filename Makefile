@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend install-hooks dev dev-back dev-front build test lint format check clean manual-test manual-test-stop test-entrypoint verify-deployment
+.PHONY: help install install-backend install-frontend install-hooks dev dev-back dev-front build test lint format check clean manual-test manual-test-stop test-entrypoint verify-deployment tf-azure-init tf-azure-plan tf-azure-apply tf-azure-destroy
 
 # Colors for output
 CYAN := \033[36m
@@ -46,6 +46,12 @@ help:
 	@echo "$(GREEN)資料庫:$(RESET)"
 	@echo "  make db-migrate       - 執行資料庫遷移"
 	@echo "  make db-revision      - 建立新的資料庫遷移"
+	@echo ""
+	@echo "$(GREEN)Terraform (Azure):$(RESET)"
+	@echo "  make tf-azure-init    - 初始化 Azure Terraform"
+	@echo "  make tf-azure-plan    - 預覽 Azure 基礎設施變更"
+	@echo "  make tf-azure-apply   - 套用 Azure 基礎設施變更"
+	@echo "  make tf-azure-destroy - 銷毀 Azure 基礎設施"
 	@echo ""
 	@echo "$(GREEN)其他指令:$(RESET)"
 	@echo "  make clean            - 清除建構產物"
@@ -272,3 +278,23 @@ docker-down:
 
 docker-logs:
 	docker-compose logs -f
+
+# =============================================================================
+# Terraform - Azure Speech Services
+# =============================================================================
+
+tf-azure-init:
+	@echo "$(CYAN)初始化 Azure Terraform...$(RESET)"
+	cd terraform/azure && terraform init
+
+tf-azure-plan:
+	@echo "$(CYAN)預覽 Azure 基礎設施變更...$(RESET)"
+	cd terraform/azure && terraform plan
+
+tf-azure-apply:
+	@echo "$(CYAN)套用 Azure 基礎設施變更...$(RESET)"
+	cd terraform/azure && terraform apply
+
+tf-azure-destroy:
+	@echo "$(YELLOW)銷毀 Azure 基礎設施...$(RESET)"
+	cd terraform/azure && terraform destroy

@@ -142,25 +142,81 @@ function useDJHotkeys(actions: DJActions) {
 
 **Implementation Notes**:
 ```typescript
-// 音軌配置
-interface TrackConfig {
-  id: string
-  name: string
-  type: 'intro' | 'transition' | 'effect' | 'song' | 'filler' | 'rescue'
-  url: string
-  hotkey?: string
-  loop?: boolean
-}
+// 聲音項目配置（與 data-model.md SoundItem 一致）
+// 完整型別定義見 data-model.md
 
-const DEFAULT_TRACKS: TrackConfig[] = [
-  { id: 'track_01_intro', name: '開場', type: 'intro', url: '/audio/intro.mp3', hotkey: '1' },
-  { id: 'track_02_cleanup', name: '收玩具歌', type: 'song', url: '/audio/cleanup.mp3', hotkey: '2' },
-  { id: 'track_03_success', name: '成功獎勵', type: 'effect', url: '/audio/success.mp3', hotkey: '3' },
-  { id: 'sound_thinking', name: '思考音效', type: 'filler', url: '/audio/thinking.mp3', hotkey: 'f' },
-  { id: 'filler_wait', name: '等待填補', type: 'rescue', url: '/audio/wait.mp3', hotkey: 'w' },
-  { id: 'track_end', name: '緊急結束', type: 'rescue', url: '/audio/end.mp3', hotkey: 'e' },
+const DEFAULT_SOUND_LIBRARY: SoundItem[] = [
+  { id: 'voice_intro', name: '開場白', channel: 'voice', priority: 'normal', url: '/audio/intro.mp3', hotkey: '1' },
+  { id: 'music_cleanup', name: '收玩具歌', channel: 'music', priority: 'normal', url: '/audio/cleanup.mp3', hotkey: '2', loop: true },
+  { id: 'sfx_success', name: '成功獎勵', channel: 'sfx', priority: 'normal', url: '/audio/success.mp3', hotkey: '3' },
+  { id: 'sfx_thinking', name: '思考音效', channel: 'sfx', priority: 'normal', url: '/audio/thinking.mp3', hotkey: 'f' },
+  { id: 'voice_wait', name: '等待填補', channel: 'voice', priority: 'rescue', url: '/audio/wait.mp3', hotkey: 'w' },
+  { id: 'voice_end', name: '緊急結束', channel: 'voice', priority: 'rescue', url: '/audio/end.mp3', hotkey: 'e' },
 ]
 ```
+
+---
+
+### 5. 播放清單 (Cue List) 拖曳功能
+
+**問題**: RD 需要從聲音庫拖曳項目到播放清單，並支援在清單內重新排序。
+
+**Decision**: 優先使用 HTML5 Drag and Drop API；若跨區域拖曳（Sound Library → Cue List）體驗不佳，升級至 @dnd-kit/core
+
+**Rationale**:
+- HTML5 Drag and Drop 是原生 API，無需額外依賴，適合基礎場景
+- Cue List 需要兩種拖曳：跨區域（Sound Library → Cue List）和區內排序（Cue List 內重新排序）
+- HTML5 DnD 在區內排序的視覺回饋較弱，可能需要 @dnd-kit 補強
+- @dnd-kit 是 react-beautiful-dnd 的現代替代方案，維護活躍
+
+**Alternatives Considered**:
+1. react-beautiful-dnd：功能強大但已停止維護（deprecated）
+2. @dnd-kit/core：現代方案，支援跨容器拖曳和排序，作為升級備選
+3. 純 HTML5 DnD：基礎方案，先嘗試此方案
+
+**升級判斷標準**：若 HTML5 DnD 在以下任一場景表現不佳，則升級至 @dnd-kit：
+- 跨區域拖曳的視覺回饋延遲 > 200ms（SC-007）
+- 區內排序的拖曳體驗不流暢
+- 觸控裝置支援不足
+
+**Implementation Notes**:
+```typescript
+// 拖曳 Hook 設計
+interface UseDragAndDropOptions {
+  onDragStart?: (item: DragItem) => void
+  onDragEnd?: (item: DragItem, target: DropTarget) => void
+  onDragOver?: (item: DragItem, target: DropTarget) => void
+}
+
+interface DragItem {
+  id: string
+  type: 'sound-item' | 'cue-item'
+  data: SoundItem | CueItem
+}
+
+interface DropTarget {
+  type: 'cue-list' | 'sound-library' | 'cue-list-reorder'
+  index?: number  // 用於排序時的目標位置
+}
+
+// 拖曳到 Cue List
+const handleDropToCueList = (item: DragItem) => {
+  if (item.type === 'sound-item') {
+    addToCueList(item.data.id)
+  }
+}
+
+// 在 Cue List 內重新排序
+const handleCueListReorder = (fromIndex: number, toIndex: number) => {
+  reorderCueList(fromIndex, toIndex)
+}
+```
+
+**視覺回饋**:
+- 拖曳時顯示半透明的項目預覽
+- 目標區域高亮顯示可放置狀態
+- 放置動畫使用 CSS transitions
+- 拖曳延遲 < 200ms
 
 ---
 
@@ -172,6 +228,7 @@ const DEFAULT_TRACKS: TrackConfig[] = [
 | Gemini 整合 | 複用現有 WebSocket + 擴展控制 | 擴展 interactionStore actions |
 | 鍵盤熱鍵 | 原生 keydown 事件 | 新增 `useDJHotkeys` hook |
 | 音檔預載 | 元件掛載時預載到 AudioBuffer | TrackPlayer 元件處理 |
+| 播放清單拖曳 | HTML5 Drag and Drop API | 新增 `useDragAndDrop` hook |
 
 ---
 

@@ -12,6 +12,7 @@ import { X, Play, Square, Loader2, Save, Volume2, Mic, Upload } from 'lucide-rea
 
 import { ttsApi, type VoiceProfile } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useAvailableTTSProviders } from '@/hooks/useAvailableTTSProviders'
 import type { Track, TrackType, FileUploadState } from '@/types/magic-dj'
 import { AudioDropzone } from './AudioDropzone'
 
@@ -48,8 +49,8 @@ const DEFAULT_TTS_SETTINGS: TTSSettings = {
   speed: 1.0,
 }
 
-// 可用的 TTS Providers
-const TTS_PROVIDERS = [
+// 可用的 TTS Providers (full list; filtered at runtime by useAvailableTTSProviders)
+const ALL_TTS_PROVIDERS = [
   { id: 'voai', name: 'VoAI 台灣語音' },
   { id: 'azure', name: 'Azure 語音' },
   { id: 'elevenlabs', name: 'ElevenLabs' },
@@ -110,6 +111,16 @@ export function TrackEditorModal({
 
   // TTS settings
   const [ttsSettings, setTtsSettings] = useState<TTSSettings>(DEFAULT_TTS_SETTINGS)
+
+  // Filter TTS providers to only show available ones (with API keys configured)
+  const { providers: ttsProviders, loading: providersLoading } =
+    useAvailableTTSProviders({
+      allProviders: ALL_TTS_PROVIDERS,
+      getKey: (p) => p.id,
+      value: ttsSettings.provider,
+      onChange: (newProvider) =>
+        setTtsSettings((s) => ({ ...s, provider: newProvider })),
+    })
 
   // Available voices (fetched from API)
   const [availableVoices, setAvailableVoices] = useState<VoiceProfile[]>([])
@@ -495,22 +506,28 @@ export function TrackEditorModal({
                     <label className="mb-1 block text-xs text-muted-foreground">
                       Provider
                     </label>
-                    <select
-                      value={ttsSettings.provider}
-                      onChange={(e) => {
-                        setTtsSettings((s) => ({
-                          ...s,
-                          provider: e.target.value,
-                        }))
-                      }}
-                      className="w-full rounded border bg-background px-2 py-1 text-sm"
-                    >
-                      {TTS_PROVIDERS.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
+                    {providersLoading ? (
+                      <div className="flex h-[30px] w-full items-center rounded border bg-background px-2 text-xs text-muted-foreground">
+                        載入中...
+                      </div>
+                    ) : (
+                      <select
+                        value={ttsSettings.provider}
+                        onChange={(e) => {
+                          setTtsSettings((s) => ({
+                            ...s,
+                            provider: e.target.value,
+                          }))
+                        }}
+                        className="w-full rounded border bg-background px-2 py-1 text-sm"
+                      >
+                        {ttsProviders.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="mb-1 block text-xs text-muted-foreground">

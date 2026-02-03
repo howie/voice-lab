@@ -198,16 +198,36 @@ class ProviderNotFoundError(NotFoundError):
 
 
 class RateLimitError(AppError):
-    """Rate limit exceeded error (429)."""
+    """Rate limit exceeded error (429).
+
+    Supports both internal rate limiting (no provider) and external API
+    rate limiting (with provider context).
+    """
 
     def __init__(
         self,
         retry_after: int | None = None,
+        provider: str | None = None,
+        original_error: str | None = None,
     ) -> None:
+        if provider:
+            display_name = ProviderQuotaInfo.get(provider)["display_name"]
+            message = f"{display_name} 請求過於頻繁，請稍後重試"
+        else:
+            message = "Rate limit exceeded"
+
+        details: dict[str, Any] = {}
+        if retry_after:
+            details["retry_after"] = retry_after
+        if provider:
+            details["provider"] = provider
+        if original_error:
+            details["original_error"] = original_error
+
         super().__init__(
             code=ErrorCode.RATE_LIMIT_EXCEEDED,
-            message="Rate limit exceeded",
-            details={"retry_after": retry_after} if retry_after else {},
+            message=message,
+            details=details,
             status_code=429,
         )
 

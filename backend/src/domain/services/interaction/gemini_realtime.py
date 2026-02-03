@@ -191,10 +191,19 @@ class GeminiRealtimeService(InteractionModeService):
         }
 
         # Add system instruction (use default if not provided)
-        effective_prompt = (
+        # Always prepend Chinese language instruction to ensure Gemini
+        # understands both user speech and its own responses in Chinese
+        chinese_language_preamble = (
+            "[語言設定] 這是一個中文對話。"
+            "請你全程使用繁體中文理解使用者的語音輸入，並用繁體中文回覆。"
+            "即使使用者的語音被辨識為其他語言或有混合語言的情況，"
+            "也請優先以繁體中文來理解和回應。\n\n"
+        )
+        base_prompt = (
             system_prompt
             or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。"
         )
+        effective_prompt = chinese_language_preamble + base_prompt
         setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
 
         print(f"[Gemini] System prompt: {system_prompt[:200] if system_prompt else 'None'}...")
@@ -255,6 +264,32 @@ class GeminiRealtimeService(InteractionModeService):
         message = {
             "realtime_input": {"media_chunks": [{"mime_type": mime_type, "data": audio_b64}]}
         }
+        await self._send_message(message)
+
+    async def send_text(self, text: str) -> None:
+        """Send a text message to Gemini as user input.
+
+        This allows sending text prompts during a V2V session, which can be used
+        to interrupt the current voice conversation with a text-based instruction.
+        Gemini treats this as a user turn with text content.
+        """
+        if not self._connected or not self._ws:
+            logger.warning("Cannot send text: not connected")
+            return
+
+        message = {
+            "client_content": {
+                "turns": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": text}],
+                    }
+                ],
+                "turn_complete": True,
+            }
+        }
+        _log_to_file(f"SEND: text_input - {text[:200]}")
+        print(f"[Gemini] Sending text input: {text[:100]}")
         await self._send_message(message)
 
     async def end_turn(self) -> None:

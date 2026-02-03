@@ -52,6 +52,9 @@ interface VoiceManagementState {
   selectAll: () => void
   clearSelection: () => void
 
+  // Actions - Preview
+  updatePreviewUrl: (voiceCacheId: string, previewUrl: string) => void
+
   // Actions - Helpers
   getVoiceById: (voiceCacheId: string) => VoiceWithCustomization | undefined
 }
@@ -268,6 +271,16 @@ export const useVoiceManagementStore = create<VoiceManagementState>((set, get) =
 
   clearSelection: () => {
     set({ selectedVoiceIds: new Set() })
+  },
+
+  // Preview actions
+  updatePreviewUrl: (voiceCacheId, previewUrl) => {
+    const { voices } = get()
+    set({
+      voices: voices.map((v) =>
+        v.id === voiceCacheId ? { ...v, sampleAudioUrl: previewUrl } : v
+      ),
+    })
   },
 
   // Helper actions

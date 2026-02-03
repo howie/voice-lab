@@ -15,7 +15,7 @@ import pytest
 from src.domain.entities.audio import AudioData, AudioFormat, OutputMode
 from src.domain.entities.stt import STTRequest
 from src.domain.entities.tts import TTSRequest
-from src.domain.errors import QuotaExceededError
+from src.domain.errors import QuotaExceededError, RateLimitError
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -65,11 +65,13 @@ def _mock_httpx_429(
 
 
 class TestGeminiTTSQuotaDetection:
-    """T008: Gemini TTS raises QuotaExceededError on 429."""
+    """T008: Gemini TTS distinguishes quota exhaustion from rate limiting."""
 
     @pytest.mark.asyncio()
-    async def test_http_429_raises_quota_error(self, tts_request: TTSRequest) -> None:
-        """HTTP 429 from Gemini API should raise QuotaExceededError."""
+    async def test_http_429_with_quota_message_raises_quota_error(
+        self, tts_request: TTSRequest
+    ) -> None:
+        """HTTP 429 with quota exhaustion message should raise QuotaExceededError."""
         from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
 
         provider = GeminiTTSProvider(api_key="test-key")
@@ -95,6 +97,37 @@ class TestGeminiTTSQuotaDetection:
         assert exc_info.value.details["provider"] == "gemini"
         assert exc_info.value.details["retry_after"] == 3600
         assert "exceeded your current quota" in exc_info.value.details["original_error"]
+
+    @pytest.mark.asyncio()
+    async def test_http_429_without_quota_message_raises_rate_limit_error(
+        self, tts_request: TTSRequest
+    ) -> None:
+        """HTTP 429 without quota exhaustion message should raise RateLimitError."""
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = GeminiTTSProvider(api_key="test-key")
+        mock_response = _mock_httpx_429(
+            text="Resource has been exhausted",
+            headers={"retry-after": "10"},
+            json_body={"error": {"message": "Resource has been exhausted"}},
+        )
+        provider._client = AsyncMock()
+        provider._client.post = AsyncMock(return_value=mock_response)
+
+        request = TTSRequest(
+            text="Test",
+            voice_id="Kore",
+            provider="gemini",
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with pytest.raises(RateLimitError) as exc_info:
+            await provider._do_synthesize(request)
+
+        assert exc_info.value.details["provider"] == "gemini"
+        assert exc_info.value.details["retry_after"] == 10
+        assert "請求過於頻繁" in exc_info.value.message
 
     @pytest.mark.asyncio()
     async def test_quota_message_without_429_status(self) -> None:

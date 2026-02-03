@@ -15,7 +15,7 @@ export type SessionStatus = 'active' | 'completed' | 'disconnected' | 'error'
 
 export type RealtimeProvider = 'openai' | 'gemini'
 
-export type CascadeSTTProvider = 'azure' | 'gcp' | 'whisper' | 'speechmatics'
+export type CascadeSTTProvider = 'azure' | 'gcp' | 'whisper' | 'speechmatics' | 'elevenlabs'
 export type CascadeLLMProvider = 'openai' | 'anthropic' | 'gemini' | 'azure-openai'
 export type CascadeTTSProvider = 'azure' | 'gcp' | 'elevenlabs' | 'gemini' | 'voai'
 
@@ -24,6 +24,7 @@ export type WSMessageType =
   // Client -> Server
   | 'config'
   | 'audio_chunk'
+  | 'text_input'
   | 'end_turn'
   | 'interrupt'
   | 'ping'

@@ -34,3 +34,13 @@ repos:
         exclude: 'tsconfig.*\.json$'
       # Check TOML syntax
       - id: check-toml
+
+  # Alembic migration integrity check
+  - repo: local
+    hooks:
+      - id: check-migrations
+        name: Check Alembic migration integrity
+        entry: bash scripts/check-migrations.sh
+        language: system
+        files: 'backend/alembic/versions/.*\.py$'
+        pass_filenames: false

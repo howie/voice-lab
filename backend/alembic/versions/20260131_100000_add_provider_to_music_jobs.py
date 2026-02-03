@@ -1,7 +1,7 @@
 """Add provider column to music_generation_jobs.
 
 Revision ID: a3b4c5d6e7f8
-Revises: 20260129_100000
+Revises: 20260130_100001
 Create Date: 2026-01-31 10:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a3b4c5d6e7f8"
-down_revision: str | None = None
+down_revision: str | None = "20260130_100001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

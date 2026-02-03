@@ -1,8 +1,8 @@
 """Fix voice_sync_jobs table schema to match model
 
-Revision ID: 20260130_100000
-Revises: 20260129_110000
-Create Date: 2026-01-30 10:00:00
+Revision ID: 20260130_100001
+Revises: 20260130_100000
+Create Date: 2026-01-30 10:00:01
 
 """
 
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "20260130_100000"
-down_revision: str | None = "20260129_110000"
+revision: str = "20260130_100001"
+down_revision: str | None = "20260130_100000"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

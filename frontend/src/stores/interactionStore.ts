@@ -245,7 +245,7 @@ export const useInteractionStore = create<InteractionStoreState>()(
                   }
                 : {
                     stt_provider: 'azure',
-                    llm_provider: 'openai',
+                    llm_provider: 'gemini',
                     tts_provider: 'azure',
                   },
             // Lightweight mode for realtime V2V

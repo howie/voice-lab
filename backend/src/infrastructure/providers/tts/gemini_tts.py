@@ -9,6 +9,7 @@ Implements TTS synthesis using Gemini 2.5 TTS models with support for:
 import base64
 import contextlib
 import io
+import logging
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -19,6 +20,8 @@ from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
 from src.domain.errors import QuotaExceededError, RateLimitError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiTTSProvider(BaseTTSProvider):
@@ -156,10 +159,40 @@ class GeminiTTSProvider(BaseTTSProvider):
 
         result = response.json()
 
+        # Check for empty or blocked candidates
+        candidates = result.get("candidates", [])
+        if not candidates:
+            logger.error("Gemini TTS returned no candidates: %s", result)
+            raise ValueError(
+                "Gemini TTS returned no candidates. "
+                "The input may have been blocked by safety filters."
+            )
+
+        candidate = candidates[0]
+        finish_reason = candidate.get("finishReason", "")
+
+        # Detect safety-blocked responses (candidates exist but no content)
+        if "content" not in candidate:
+            logger.error(
+                "Gemini TTS candidate has no content (finishReason=%s): %s",
+                finish_reason,
+                candidate,
+            )
+            if finish_reason == "SAFETY":
+                raise ValueError(
+                    "Gemini TTS blocked the request due to safety filters. "
+                    "Try rephrasing the text or using a different style prompt."
+                )
+            raise ValueError(
+                f"Gemini TTS returned no audio content (finishReason={finish_reason}). "
+                "The request may have been filtered or the model produced an empty response."
+            )
+
         # Extract audio data from response
         try:
-            audio_base64 = result["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            audio_base64 = candidate["content"]["parts"][0]["inlineData"]["data"]
         except (KeyError, IndexError) as e:
+            logger.error("Unexpected Gemini TTS response structure: %s", candidate)
             raise ValueError(f"Invalid API response structure: {e}") from e
 
         pcm_data = base64.b64decode(audio_base64)

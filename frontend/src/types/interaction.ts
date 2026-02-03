@@ -316,8 +316,9 @@ export interface InteractionOptions {
 export const DEFAULT_INTERACTION_OPTIONS: InteractionOptions = {
   mode: 'realtime',
   providerConfig: {
-    provider: 'openai',
-    voice: 'alloy',
+    provider: 'gemini',
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+    voice: 'Kore',
   },
   systemPrompt: '',
   // US4 defaults

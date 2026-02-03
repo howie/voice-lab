@@ -43,7 +43,7 @@ class RealtimeModeFactory:
             ValueError: If provider is not supported
             ValueError: If API key is not provided or found
         """
-        provider = config.get("provider", "openai").lower()
+        provider = config.get("provider", "gemini").lower()
 
         if provider not in SUPPORTED_PROVIDERS:
             raise ValueError(
@@ -141,7 +141,7 @@ class RealtimeModeFactory:
 
 # Convenience function for creating services
 def create_realtime_service(
-    provider: str = "openai",
+    provider: str = "gemini",
     api_key: str | None = None,
     **config: Any,
 ) -> InteractionModeService:

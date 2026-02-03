@@ -3,7 +3,7 @@
  * T032: Secure input field for API keys with show/hide toggle
  */
 
-import { useState, ChangeEvent, KeyboardEvent } from 'react'
+import { useState, ChangeEvent, KeyboardEvent, FormEvent } from 'react'
 import { Eye, EyeOff, Key, Loader2 } from 'lucide-react'
 
 interface ApiKeyInputProps {
@@ -47,8 +47,15 @@ export function ApiKeyInput({
     setShowKey(!showKey)
   }
 
+  const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (onSubmit && !disabled && !isValidating) {
+      onSubmit()
+    }
+  }
+
   return (
-    <div className="space-y-2">
+    <form className="space-y-2" onSubmit={handleFormSubmit}>
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
           <Key className="h-4 w-4 text-muted-foreground" />
@@ -96,6 +103,6 @@ export function ApiKeyInput({
       <p className="text-xs text-muted-foreground">
         Your API key is encrypted and stored securely.
       </p>
-    </div>
+    </form>
   )
 }

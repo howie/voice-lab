@@ -87,9 +87,7 @@ class TestProviderUsageTracker:
     def test_record_quota_error_increments_quota_counters(self) -> None:
         tracker = ProviderUsageTracker()
         tracker.record_request("user1", "gemini")
-        tracker.record_error(
-            "user1", "gemini", is_quota_error=True, retry_after=3600
-        )
+        tracker.record_error("user1", "gemini", is_quota_error=True, retry_after=3600)
 
         usage = tracker.get_usage("user1", "gemini")
         assert usage.minute_errors == 1
@@ -167,17 +165,13 @@ class TestEstimateRpmLimit:
         assert result is None
 
     def test_estimates_from_error_count_when_hit(self) -> None:
-        minute = UsageWindow(
-            request_count=8, error_count=2, quota_error_count=1
-        )
+        minute = UsageWindow(request_count=8, error_count=2, quota_error_count=1)
         result = _estimate_rpm_limit("gemini", minute)
         # Hit at request_count + error_count = 10
         assert result == 10
 
     def test_prefers_observed_over_known_when_quota_hit(self) -> None:
-        minute = UsageWindow(
-            request_count=45, error_count=5, quota_error_count=2
-        )
+        minute = UsageWindow(request_count=45, error_count=5, quota_error_count=2)
         result = _estimate_rpm_limit("gemini", minute)
         # Observed: 45 + 5 = 50 (overrides known 10)
         assert result == 50

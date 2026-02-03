@@ -78,6 +78,13 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
   const processorRef = useRef<AudioProcessorResult | null>(null)
   const recordedChunksRef = useRef<Float32Array[]>([])
   const animationFrameRef = useRef<number | null>(null)
+  const isRecordingRef = useRef(false)
+
+  // Store callbacks in refs to stabilize function identity
+  const onAudioChunkRef = useRef(onAudioChunk)
+  onAudioChunkRef.current = onAudioChunk
+  const onVolumeChangeRef = useRef(onVolumeChange)
+  onVolumeChangeRef.current = onVolumeChange
 
   // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -120,15 +127,18 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
     const rms = Math.sqrt(sum / dataArray.length) / 255
 
     setVolume(rms)
-    onVolumeChange?.(rms)
+    onVolumeChangeRef.current?.(rms)
 
-    if (isRecording) {
+    if (isRecordingRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateVolume)
     }
-  }, [isRecording, onVolumeChange])
+  }, [])
 
   // Start recording
   const startRecording = useCallback(async () => {
+    // Guard against duplicate starts (e.g. from effect re-runs)
+    if (isRecordingRef.current) return
+
     try {
       setError(null)
       recordedChunksRef.current = []
@@ -165,12 +175,13 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
         onAudioChunk: (chunk, chunkSampleRate) => {
           // Store for later use
           recordedChunksRef.current.push(chunk)
-          // Notify listener
-          onAudioChunk?.(chunk, chunkSampleRate)
+          // Notify listener via ref to avoid stale closure
+          onAudioChunkRef.current?.(chunk, chunkSampleRate)
         },
       })
       processorRef.current = processor
 
+      isRecordingRef.current = true
       setIsRecording(true)
 
       // Start volume monitoring
@@ -185,7 +196,6 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
     channelCount,
     noiseSuppression,
     echoCancellation,
-    onAudioChunk,
     updateVolume,
   ])
 
@@ -216,6 +226,7 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
     }
 
     analyserRef.current = null
+    isRecordingRef.current = false
     setIsRecording(false)
     setVolume(0)
   }, [])

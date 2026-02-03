@@ -76,6 +76,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isManualDisconnectRef = useRef(false)
   const connectRef = useRef<() => void>(() => {})
+  const suppressWarningsRef = useRef(false)
 
   // Update status and notify
   const updateStatus = useCallback(
@@ -146,6 +147,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
     clearTimeouts()
     isManualDisconnectRef.current = false
+    suppressWarningsRef.current = false
     setError(null)
     updateStatus('connecting')
 
@@ -206,6 +208,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
     isManualDisconnectRef.current = true
+    suppressWarningsRef.current = true
     clearTimeouts()
 
     if (wsRef.current) {
@@ -219,7 +222,9 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   // Send JSON message
   const sendMessage = useCallback(<T,>(type: WSMessageType, data: T) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket is not connected')
+      if (!suppressWarningsRef.current) {
+        console.warn('WebSocket is not connected')
+      }
       return
     }
 
@@ -230,7 +235,9 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   // Send binary data
   const sendBinary = useCallback((data: ArrayBuffer | Blob) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket is not connected')
+      if (!suppressWarningsRef.current) {
+        console.warn('WebSocket is not connected')
+      }
       return
     }
 

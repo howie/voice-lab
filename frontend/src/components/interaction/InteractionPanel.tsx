@@ -420,6 +420,12 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     onStatusChange: setConnectionStatus,
   })
 
+  // Ref to track wsStatus for use in closures (avoids stale closure in onAudioChunk/onVolumeChange)
+  const wsStatusRef = useRef<ConnectionStatus>(wsStatus)
+  useEffect(() => {
+    wsStatusRef.current = wsStatus
+  }, [wsStatus])
+
   // Microphone hook
   const {
     isRecording: micRecording,
@@ -428,7 +434,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     error: micError,
   } = useMicrophone({
     onAudioChunk: (chunk: Float32Array, actualSampleRate: number) => {
-      if (wsStatus === 'connected') {
+      if (wsStatusRef.current === 'connected') {
         // Debug: Log sample rate on first chunk to help diagnose audio issues
         if (!audioSampleRateLoggedRef.current) {
           console.log(`[Audio] Actual sample rate from AudioContext: ${actualSampleRate}Hz`)
@@ -457,9 +463,9 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
       setInputVolume(vol)
 
       // VAD state machine: auto send end_turn when user stops speaking
-      // Use ref for interactionState to avoid stale closure
+      // Use ref for interactionState and wsStatus to avoid stale closure
       const currentState = interactionStateRef.current
-      if (wsStatus === 'connected' && currentState === 'listening') {
+      if (wsStatusRef.current === 'connected' && currentState === 'listening') {
         const now = Date.now()
 
         // Hysteresis: Use higher threshold to confirm speaking, lower threshold to confirm silence
@@ -627,6 +633,17 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setInteractionState('idle')
     isConnectingRef.current = false
   }
+
+  // Keep ref to latest handleDisconnect for unmount cleanup
+  const handleDisconnectRef = useRef(handleDisconnect)
+  handleDisconnectRef.current = handleDisconnect
+
+  // Cleanup on unmount — ensures WebSocket, microphone, and audio are released
+  useEffect(() => {
+    return () => {
+      handleDisconnectRef.current()
+    }
+  }, [])
 
   // Handle interrupt
   const handleInterrupt = () => {

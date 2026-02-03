@@ -14,6 +14,14 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.bufferSize = 1024
     this.buffer = new Float32Array(this.bufferSize)
     this.bufferIndex = 0
+    this._stopped = false
+
+    // Listen for stop command from main thread
+    this.port.onmessage = (event) => {
+      if (event.data?.type === 'stop') {
+        this._stopped = true
+      }
+    }
   }
 
   /**
@@ -21,9 +29,11 @@ class AudioProcessor extends AudioWorkletProcessor {
    * @param {Float32Array[][]} inputs - Input audio data
    * @param {Float32Array[][]} outputs - Output audio data (unused)
    * @param {Record<string, Float32Array>} parameters - Audio parameters (unused)
-   * @returns {boolean} - Return true to keep processor alive
+   * @returns {boolean} - Return true to keep processor alive, false to terminate
    */
   process(inputs, outputs, parameters) {
+    if (this._stopped) return false
+
     const input = inputs[0]
     if (!input || !input[0]) return true
 

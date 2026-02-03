@@ -127,8 +127,8 @@ class GCPTTSProvider(BaseTTSProvider):
 
             voices.append(
                 VoiceProfile(
+                    id=f"gcp:{voice.name}",
                     voice_id=voice.name,
-                    name=voice.name,
                     display_name=voice.name,
                     provider="gcp",
                     language=lang,
@@ -139,6 +139,42 @@ class GCPTTSProvider(BaseTTSProvider):
             )
 
         return voices
+
+    async def get_voice(self, voice_id: str) -> VoiceProfile | None:
+        """Get a specific GCP voice profile.
+
+        Args:
+            voice_id: Voice name (can be "gcp:en-US-..." or "en-US-...")
+
+        Returns:
+            Voice profile if found, None otherwise
+        """
+        # Strip provider prefix if present
+        lookup_id = voice_id
+        if lookup_id.startswith("gcp:"):
+            lookup_id = lookup_id[4:]
+
+        # Try to find in all voices (GCP voices are dynamic)
+        voices = await self.list_voices()
+        for voice in voices:
+            if voice.voice_id == lookup_id:
+                return voice
+        return None
+
+    def get_supported_params(self) -> dict:
+        """Get supported parameters and their valid ranges.
+
+        GCP Cloud TTS supports wider speed range (0.25-4.0) and
+        dB-based volume control.
+
+        Returns:
+            Dictionary with parameter names and their constraints
+        """
+        return {
+            "speed": {"min": 0.25, "max": 4.0, "default": 1.0},
+            "pitch": {"min": -20.0, "max": 20.0, "default": 0.0},
+            "volume": {"min": 0.0, "max": 2.0, "default": 1.0},
+        }
 
     def _map_language(self, language: str | None) -> str:
         """Map language code to GCP format."""

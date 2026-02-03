@@ -164,6 +164,24 @@ class Container:
             except Exception as e:
                 print(f"Failed to initialize VoAI TTS: {e}")
 
+        # GCP Cloud TTS - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
+        # or running in GCP environment (Cloud Run uses ADC automatically)
+        gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
+        enable_gcp_tts = (
+            gcp_credentials
+            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            or os.getenv("K_SERVICE")  # Cloud Run sets this
+            or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
+            or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
+        )
+        if enable_gcp_tts:
+            try:
+                from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
+
+                providers["gcp"] = GCPTTSProvider(credentials_path=gcp_credentials)
+            except Exception as e:
+                print(f"Failed to initialize GCP TTS: {e}")
+
         return providers
 
     def _create_stt_providers(self) -> dict[str, ISTTProvider]:

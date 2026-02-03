@@ -73,13 +73,20 @@ async function createWorkletProcessor(
   return {
     node: workletNode,
     cleanup: () => {
-      // 1. Remove event listener to prevent residual messages
+      // 1. Signal worklet to stop processing (returns false from process())
+      try {
+        workletNode.port.postMessage({ type: 'stop' })
+      } catch {
+        // Port may already be closed
+      }
+
+      // 2. Remove event listener to prevent residual messages
       workletNode.port.onmessage = null
 
-      // 2. Close MessagePort
+      // 3. Close MessagePort
       workletNode.port.close()
 
-      // 3. Disconnect node
+      // 4. Disconnect node
       workletNode.disconnect()
     },
   }

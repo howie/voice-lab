@@ -37,7 +37,8 @@ help:
 	@echo "$(GREEN)程式碼品質:$(RESET)"
 	@echo "  make lint             - 檢查程式碼風格"
 	@echo "  make format           - 格式化程式碼"
-	@echo "  make check            - 執行所有檢查（lint + typecheck）"
+	@echo "  make check            - 執行所有檢查（lint + typecheck + migration）"
+	@echo "  make check-migrations - 檢查 migration 完整性（重複 ID、多 head）"
 	@echo ""
 	@echo "$(GREEN)手動測試:$(RESET)"
 	@echo "  make manual-test      - 啟動手動測試環境（背景執行）"
@@ -195,8 +196,12 @@ format-front:
 	@echo "$(CYAN)格式化前端程式碼...$(RESET)"
 	cd frontend && npm run lint:fix
 
-check: lint typecheck
+check: lint typecheck check-migrations
 	@echo "$(GREEN)✓ 所有檢查完成$(RESET)"
+
+check-migrations:
+	@echo "$(CYAN)檢查 Alembic migration 完整性...$(RESET)"
+	@bash scripts/check-migrations.sh
 
 typecheck:
 	@echo "$(CYAN)執行型別檢查...$(RESET)"

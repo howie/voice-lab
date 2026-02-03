@@ -1,8 +1,8 @@
 """Add music_generation_jobs table for Mureka AI integration
 
-Revision ID: 20260129_100000
-Revises: 20260122_100000
-Create Date: 2026-01-29 10:00:00
+Revision ID: 20260129_100001
+Revises: 20260129_100000
+Create Date: 2026-01-29 10:00:01
 
 """
 
@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "20260129_100000"
-down_revision: str | None = "20260122_100000"
+revision: str = "20260129_100001"
+down_revision: str | None = "20260129_100000"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

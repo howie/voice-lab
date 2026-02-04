@@ -30,6 +30,25 @@ const mockMediaStream = {
   ]),
 }
 
+// Mock PermissionStatus with real EventTarget behavior
+function createMockPermissionStatus(state: PermissionState = 'prompt') {
+  const listeners = new Map<string, Set<EventListener>>()
+  return {
+    state,
+    addEventListener: vi.fn((type: string, handler: EventListener) => {
+      if (!listeners.has(type)) listeners.set(type, new Set())
+      listeners.get(type)!.add(handler)
+    }),
+    removeEventListener: vi.fn((type: string, handler: EventListener) => {
+      listeners.get(type)?.delete(handler)
+    }),
+    /** Test helper: simulate a permission state change */
+    _emit(type: string) {
+      listeners.get(type)?.forEach(fn => fn(new Event(type)))
+    },
+  } as unknown as PermissionStatus & { _emit: (type: string) => void }
+}
+
 // Mock AudioContext
 const mockAudioContext = {
   createAnalyser: vi.fn(() => ({
@@ -65,11 +84,7 @@ beforeEach(() => {
   // Mock navigator.permissions.query
   Object.defineProperty(navigator, 'permissions', {
     value: {
-      query: vi.fn().mockResolvedValue({
-        state: 'prompt',
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
+      query: vi.fn().mockResolvedValue(createMockPermissionStatus('prompt')),
     },
     writable: true,
   })
@@ -286,11 +301,9 @@ describe('AudioRecorder', () => {
       )
 
       // Also update permission status
-      vi.mocked(navigator.permissions.query).mockResolvedValueOnce({
-        state: 'denied',
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      } as unknown as PermissionStatus)
+      vi.mocked(navigator.permissions.query).mockResolvedValueOnce(
+        createMockPermissionStatus('denied')
+      )
 
       render(<AudioRecorder />)
 

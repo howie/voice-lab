@@ -4,6 +4,7 @@ Synthesizes multi-role dialogue by making separate TTS requests per turn
 and merging the audio segments using pydub.
 """
 
+import asyncio
 import io
 import time
 from collections.abc import Callable
@@ -38,6 +39,9 @@ class MergeConfig:
 
     output_format: AudioFormat = AudioFormat.MP3
     """Output audio format."""
+
+    request_delay_ms: int = 0
+    """Delay between TTS requests in milliseconds (to avoid rate limiting)."""
 
 
 class SegmentedMergerService:
@@ -137,6 +141,10 @@ class SegmentedMergerService:
             # Callback for progress tracking
             if on_turn_complete:
                 on_turn_complete(i, len(turns))
+
+            # Delay between requests to avoid rate limiting
+            if self._config.request_delay_ms > 0 and i < len(turns) - 1:
+                await asyncio.sleep(self._config.request_delay_ms / 1000)
 
         # Merge segments
         merged = self._merge_segments(segments)

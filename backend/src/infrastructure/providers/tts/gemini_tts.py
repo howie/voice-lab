@@ -46,6 +46,11 @@ class GeminiTTSProvider(BaseTTSProvider):
     _MAX_RETRIES = 2  # total attempts = _MAX_RETRIES + 1
     _RETRY_BACKOFFS = (0.5, 1.0)
 
+    # Retry config for 429 rate limit errors (independent counter)
+    _MAX_429_RETRIES = 3
+    _429_RETRY_BACKOFFS = (1.0, 2.0, 4.0)
+    _429_MAX_RETRY_AFTER = 30  # cap Retry-After header value for sleep
+
     # 30 Gemini prebuilt voices
     VOICES: dict[str, dict[str, str]] = {
         "Zephyr": {"gender": "male", "description": "Bright and cheerful"},
@@ -158,7 +163,49 @@ class GeminiTTSProvider(BaseTTSProvider):
         # Retry loop for transient finishReason=OTHER errors
         last_error: ValueError | None = None
         for attempt in range(self._MAX_RETRIES + 1):
-            response = await self._client.post(url, json=payload, headers=headers)
+            # Inner retry loop for 429 rate limiting (independent counter)
+            for retry_429 in range(self._MAX_429_RETRIES + 1):
+                response = await self._client.post(url, json=payload, headers=headers)
+
+                if response.status_code != 429:
+                    break  # Not a 429, proceed to normal handling
+
+                # Extract 429 error details
+                try:
+                    error_json = response.json()
+                    error_message_429 = error_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    error_message_429 = response.text
+
+                if retry_429 < self._MAX_429_RETRIES:
+                    # Determine wait: prefer Retry-After header (capped), else backoff
+                    wait = self._429_RETRY_BACKOFFS[retry_429]
+                    if "retry-after" in response.headers:
+                        with contextlib.suppress(ValueError, TypeError):
+                            ra = int(response.headers["retry-after"])
+                            wait = min(float(ra), float(self._429_MAX_RETRY_AFTER))
+
+                    logger.warning(
+                        "Gemini TTS 429 on attempt %d/%d, retrying after %.1fs: %s",
+                        retry_429 + 1,
+                        self._MAX_429_RETRIES + 1,
+                        wait,
+                        error_message_429,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+
+                # All 429 retries exhausted → always RateLimitError
+                retry_after_val = None
+                if "retry-after" in response.headers:
+                    with contextlib.suppress(ValueError, TypeError):
+                        retry_after_val = int(response.headers["retry-after"])
+
+                raise RateLimitError(
+                    provider="gemini",
+                    retry_after=retry_after_val,
+                    original_error=error_message_429,
+                )
 
             if response.status_code != 200:
                 # Extract error details from Gemini API response
@@ -168,23 +215,15 @@ class GeminiTTSProvider(BaseTTSProvider):
                 except Exception:
                     error_message = response.text
 
-                # T008: Detect 429 rate limit / quota exceeded
+                # Detect quota exhaustion in non-429 responses (e.g., status 400)
                 is_quota_exhausted = "exceeded your current quota" in error_message.lower()
-                if response.status_code == 429 or is_quota_exhausted:
+                if is_quota_exhausted:
                     retry_after = None
                     if "retry-after" in response.headers:
                         with contextlib.suppress(ValueError, TypeError):
                             retry_after = int(response.headers["retry-after"])
 
-                    if is_quota_exhausted:
-                        raise QuotaExceededError(
-                            provider="gemini",
-                            retry_after=retry_after,
-                            original_error=error_message,
-                        )
-
-                    # 429 without quota exhaustion message → rate limit
-                    raise RateLimitError(
+                    raise QuotaExceededError(
                         provider="gemini",
                         retry_after=retry_after,
                         original_error=error_message,

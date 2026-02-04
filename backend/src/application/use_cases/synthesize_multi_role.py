@@ -36,6 +36,11 @@ from src.infrastructure.providers.tts.multi_role import (
 
 logger = logging.getLogger(__name__)
 
+# Per-provider delay between segmented TTS requests (ms) to avoid RPM limits
+PROVIDER_REQUEST_DELAYS: dict[str, int] = {
+    "gemini": 200,
+}
+
 
 @dataclass
 class SynthesizeMultiRoleInput:
@@ -377,10 +382,12 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
         except ValueError:
             audio_format = AudioFormat.MP3  # Default to MP3
 
+        request_delay_ms = PROVIDER_REQUEST_DELAYS.get(input_data.provider.lower(), 0)
         config = MergeConfig(
             gap_ms=input_data.gap_ms,
             crossfade_ms=input_data.crossfade_ms,
             output_format=audio_format,
+            request_delay_ms=request_delay_ms,
         )
         merger = SegmentedMergerService(provider=provider, config=config)
 

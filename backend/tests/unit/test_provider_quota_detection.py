@@ -68,10 +68,10 @@ class TestGeminiTTSQuotaDetection:
     """T008: Gemini TTS distinguishes quota exhaustion from rate limiting."""
 
     @pytest.mark.asyncio()
-    async def test_http_429_with_quota_message_raises_quota_error(
+    async def test_http_429_with_quota_message_raises_rate_limit_error(
         self, tts_request: TTSRequest
     ) -> None:
-        """HTTP 429 with quota exhaustion message should raise QuotaExceededError."""
+        """HTTP 429 with quota message should raise RateLimitError (all 429s are rate limit)."""
         from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
 
         provider = GeminiTTSProvider(api_key="test-key")
@@ -91,12 +91,15 @@ class TestGeminiTTSQuotaDetection:
             output_mode=OutputMode.BATCH,
         )
 
-        with pytest.raises(QuotaExceededError) as exc_info:
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            pytest.raises(RateLimitError) as exc_info,
+        ):
             await provider._do_synthesize(request)
 
         assert exc_info.value.details["provider"] == "gemini"
         assert exc_info.value.details["retry_after"] == 3600
-        assert "exceeded your current quota" in exc_info.value.details["original_error"]
+        assert "請求過於頻繁" in exc_info.value.message
 
     @pytest.mark.asyncio()
     async def test_http_429_without_quota_message_raises_rate_limit_error(
@@ -122,7 +125,10 @@ class TestGeminiTTSQuotaDetection:
             output_mode=OutputMode.BATCH,
         )
 
-        with pytest.raises(RateLimitError) as exc_info:
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            pytest.raises(RateLimitError) as exc_info,
+        ):
             await provider._do_synthesize(request)
 
         assert exc_info.value.details["provider"] == "gemini"
@@ -183,6 +189,152 @@ class TestGeminiTTSQuotaDetection:
 
         with pytest.raises(RuntimeError, match="Gemini TTS API error"):
             await provider._do_synthesize(request)
+
+
+class TestGeminiTTS429Retry:
+    """Tests for Gemini TTS 429 retry logic."""
+
+    @pytest.mark.asyncio()
+    async def test_429_retry_succeeds_on_second_attempt(self) -> None:
+        """First request 429, second succeeds → should return audio data."""
+        import base64
+
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = GeminiTTSProvider(api_key="test-key")
+
+        # Mock 429 response
+        mock_429 = _mock_httpx_429(
+            text="Resource has been exhausted",
+            json_body={"error": {"message": "Resource has been exhausted"}},
+        )
+
+        # Mock 200 response with valid audio
+        pcm_data = b"\x00" * 4800  # 0.1s of silence at 24kHz 16-bit mono
+        mock_200 = Mock()
+        mock_200.status_code = 200
+        mock_200.json.return_value = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"inlineData": {"data": base64.b64encode(pcm_data).decode()}}]
+                    },
+                    "finishReason": "STOP",
+                }
+            ]
+        }
+
+        provider._client = AsyncMock()
+        provider._client.post = AsyncMock(side_effect=[mock_429, mock_200])
+
+        request = TTSRequest(
+            text="Test",
+            voice_id="Kore",
+            provider="gemini",
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            result = await provider._do_synthesize(request)
+
+        assert result.data is not None
+        assert len(result.data) > 0
+        mock_sleep.assert_called_once()
+
+    @pytest.mark.asyncio()
+    async def test_429_all_retries_exhausted_raises_rate_limit_error(self) -> None:
+        """All 429 retry attempts exhausted → RateLimitError."""
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = GeminiTTSProvider(api_key="test-key")
+        mock_response = _mock_httpx_429(
+            text="Resource has been exhausted",
+            json_body={"error": {"message": "Resource has been exhausted"}},
+        )
+        provider._client = AsyncMock()
+        provider._client.post = AsyncMock(return_value=mock_response)
+
+        request = TTSRequest(
+            text="Test",
+            voice_id="Kore",
+            provider="gemini",
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            pytest.raises(RateLimitError),
+        ):
+            await provider._do_synthesize(request)
+
+        # Should have slept _MAX_429_RETRIES times (3 retries before final raise)
+        assert mock_sleep.call_count == GeminiTTSProvider._MAX_429_RETRIES
+
+    @pytest.mark.asyncio()
+    async def test_429_retry_respects_retry_after_header(self) -> None:
+        """Retry-After header value should be used for sleep duration."""
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = GeminiTTSProvider(api_key="test-key")
+        mock_response = _mock_httpx_429(
+            text="Resource has been exhausted",
+            headers={"retry-after": "5"},
+            json_body={"error": {"message": "Resource has been exhausted"}},
+        )
+        provider._client = AsyncMock()
+        provider._client.post = AsyncMock(return_value=mock_response)
+
+        request = TTSRequest(
+            text="Test",
+            voice_id="Kore",
+            provider="gemini",
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            pytest.raises(RateLimitError),
+        ):
+            await provider._do_synthesize(request)
+
+        # All sleep calls should use Retry-After value (5s), not default backoffs
+        for call in mock_sleep.call_args_list:
+            assert call.args[0] == 5.0
+
+    @pytest.mark.asyncio()
+    async def test_429_retry_after_capped_at_max(self) -> None:
+        """Retry-After exceeding max should be capped."""
+        from src.infrastructure.providers.tts.gemini_tts import GeminiTTSProvider
+
+        provider = GeminiTTSProvider(api_key="test-key")
+        mock_response = _mock_httpx_429(
+            text="Resource has been exhausted",
+            headers={"retry-after": "3600"},  # 1 hour, way above 30s cap
+            json_body={"error": {"message": "Resource has been exhausted"}},
+        )
+        provider._client = AsyncMock()
+        provider._client.post = AsyncMock(return_value=mock_response)
+
+        request = TTSRequest(
+            text="Test",
+            voice_id="Kore",
+            provider="gemini",
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            pytest.raises(RateLimitError),
+        ):
+            await provider._do_synthesize(request)
+
+        # Sleep should be capped at _429_MAX_RETRY_AFTER (30s)
+        for call in mock_sleep.call_args_list:
+            assert call.args[0] == float(GeminiTTSProvider._429_MAX_RETRY_AFTER)
 
 
 class TestElevenLabsTTSQuotaDetection:

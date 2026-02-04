@@ -62,6 +62,8 @@ async def list_voices(
     """List all available voices with optional filters and customization data.
 
     Returns a paginated list of voice profiles with customization info.
+    When voice cache is empty for a provider, falls back to the provider's
+    built-in voice list to ensure voices are always available.
     """
     filters = VoiceListFilters(
         provider=provider,
@@ -77,6 +79,43 @@ async def list_voices(
 
     use_case = ListVoicesWithCustomizationUseCase(voice_cache_repo, customization_repo)
     result = await use_case.execute(filters)
+
+    # Fallback: when voice cache is empty, use provider's built-in voice list
+    if not result.items and provider:
+        voice_filter = VoiceFilter(
+            provider=provider,
+            language=language,
+            gender=gender,
+            age_group=age_group,
+        )
+        fallback_voices = await list_voices_use_case.execute(filter=voice_filter, limit=limit, offset=offset)
+
+        items = []
+        for v in fallback_voices:
+            items.append({
+                "id": f"{v.provider}:{v.id}",
+                "provider": v.provider,
+                "voice_id": v.id,
+                "name": v.name,
+                "display_name": v.name,
+                "language": v.language,
+                "gender": v.gender,
+                "age_group": v.age_group,
+                "styles": v.supported_styles or [],
+                "use_cases": [],
+                "sample_audio_url": v.sample_url,
+                "is_deprecated": False,
+                "is_favorite": False,
+                "is_hidden": False,
+                "customization": None,
+            })
+
+        return {
+            "items": items,
+            "total": len(items),
+            "limit": limit,
+            "offset": offset,
+        }
 
     # Get customization map to include in response
     voice_ids = [v.id for v in result.items]

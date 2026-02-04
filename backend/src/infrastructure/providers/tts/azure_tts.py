@@ -93,13 +93,18 @@ class AzureTTSProvider(BaseTTSProvider):
         # Map language to Azure locale
         lang = self._map_language(request.language)
 
+        # Strip provider prefix if present (e.g., "azure:zh-TW-HsiaoChenNeural" -> "zh-TW-HsiaoChenNeural")
+        voice_id = request.voice_id
+        if voice_id.startswith("azure:"):
+            voice_id = voice_id[6:]
+
         # Build prosody attributes
         rate = f"{int(request.speed * 100)}%"
         pitch_val = f"{int(request.pitch * 10):+d}Hz" if request.pitch else "+0Hz"
 
         ssml = f"""
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="{lang}">
-            <voice name="{request.voice_id}">
+            <voice name="{voice_id}">
                 <prosody rate="{rate}" pitch="{pitch_val}">
                     {self._escape_xml(request.text)}
                 </prosody>
@@ -140,8 +145,9 @@ class AzureTTSProvider(BaseTTSProvider):
 
             voices.append(
                 VoiceProfile(
+                    id=f"azure:{voice.short_name}",
                     voice_id=voice.short_name,
-                    name=voice.local_name,
+                    display_name=voice.local_name,
                     provider="azure",
                     language=voice.locale,
                     gender=gender,

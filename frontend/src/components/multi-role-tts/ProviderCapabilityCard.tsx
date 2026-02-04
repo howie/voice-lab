@@ -43,6 +43,14 @@ const ELEVENLABS_AUDIO_TAGS: Record<string, { description: string; example: stri
   },
 }
 
+// Azure TTS feature descriptions
+const AZURE_FEATURES: Record<string, { description: string; example: string }> = {
+  'express-as styles': {
+    description: 'Express-as 語氣風格 — 在文字中使用 [style] 標記，自動轉換為 SSML',
+    example: '[cheerful] 太好了！ [sad] 可惜...',
+  },
+}
+
 // Gemini TTS feature descriptions
 const GEMINI_FEATURES: Record<string, { description: string; example: string }> = {
   'style prompts': {
@@ -167,6 +175,16 @@ export function ProviderCapabilityCard({
                     <p className="font-medium mb-1">{ELEVENLABS_AUDIO_TAGS[feature].description}</p>
                     <p className="text-[10px] opacity-70 font-mono">
                       範例: {ELEVENLABS_AUDIO_TAGS[feature].example}
+                    </p>
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+                  </div>
+                )}
+                {/* Enhanced Tooltip for Azure TTS Features */}
+                {AZURE_FEATURES[feature] && (
+                  <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-lg group-hover:block w-64">
+                    <p className="font-medium mb-1">{AZURE_FEATURES[feature].description}</p>
+                    <p className="text-[10px] opacity-70 font-mono">
+                      範例: {AZURE_FEATURES[feature].example}
                     </p>
                     <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
                   </div>

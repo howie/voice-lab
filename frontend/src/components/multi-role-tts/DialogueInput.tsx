@@ -54,6 +54,75 @@ export function DialogueInput({
         </div>
       </div>
 
+      {/* Azure TTS specific guidance */}
+      {provider === 'azure' && (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
+            <div className="text-xs text-sky-800">
+              <p className="font-medium">Azure 原生多角色合成：</p>
+              <p className="mt-1 opacity-80">
+                Azure 會自動將每位說話者轉換為獨立的 SSML{' '}
+                <code className="rounded bg-sky-100 px-1">&lt;voice&gt;</code>{' '}
+                標籤，原生支援多角色語音合成。
+              </p>
+              <div className="mt-1.5 space-y-1.5">
+                <div>
+                  <p className="font-medium">輸入格式範例</p>
+                  <pre className="mt-0.5 whitespace-pre-wrap rounded bg-sky-100 px-1.5 py-1 font-mono leading-relaxed">
+{`A: 各位觀眾朋友大家好，歡迎收聽今天的節目。
+B: 主持人好，很高興來到這裡。
+A: 今天我們要聊的主題是人工智慧。
+B: 沒錯，這是一個非常熱門的話題。`}
+                  </pre>
+                </div>
+                <div>
+                  <p className="font-medium">Express-as 語氣標籤</p>
+                  <p className="opacity-80">
+                    在文字中使用{' '}
+                    <code className="rounded bg-sky-100 px-1">[style]</code>{' '}
+                    標記，自動轉換為 SSML express-as 風格：
+                  </p>
+                  <pre className="mt-0.5 whitespace-pre-wrap rounded bg-sky-100 px-1.5 py-1 font-mono leading-relaxed">
+{`A: [cheerful] 太好了，歡迎大家！
+B: [sad] 可惜今天是最後一集了。
+A: [excited] 但我們準備了精彩的內容！`}
+                  </pre>
+                  <p className="mt-1 opacity-60">
+                    常用風格：cheerful、sad、excited、angry、calm、friendly、whispering、narration-relaxed
+                  </p>
+                </div>
+              </div>
+              <details className="mt-2">
+                <summary className="cursor-pointer font-medium hover:opacity-80">
+                  Azure 產生的 SSML 結構
+                </summary>
+                <pre className="mt-1.5 whitespace-pre-wrap rounded bg-sky-100 p-2 font-mono text-[10px] leading-relaxed">
+{`<speak version="1.0" xmlns="..." xml:lang="zh-TW">
+  <voice name="zh-TW-HsiaoChenNeural">
+    <prosody rate="+0%" pitch="+0Hz">
+      各位觀眾朋友大家好。
+    </prosody>
+  </voice>
+  <break time="300ms"/>
+  <voice name="zh-TW-YunJheNeural">
+    <mstts:express-as style="cheerful">
+      <prosody rate="+0%" pitch="+0Hz">
+        太好了，很高興來到這裡！
+      </prosody>
+    </mstts:express-as>
+  </voice>
+</speak>`}
+                </pre>
+              </details>
+              <p className="mt-2 opacity-60">
+                每位說話者可指定不同的 Azure 語音，系統自動產生完整 SSML
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Gemini TTS specific guidance */}
       {provider === 'gemini' && (
         <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">

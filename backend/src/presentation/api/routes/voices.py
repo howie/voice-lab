@@ -88,27 +88,31 @@ async def list_voices(
             gender=gender,
             age_group=age_group,
         )
-        fallback_voices = await list_voices_use_case.execute(filter=voice_filter, limit=limit, offset=offset)
+        fallback_voices = await list_voices_use_case.execute(
+            filter=voice_filter, limit=limit, offset=offset
+        )
 
         items = []
         for v in fallback_voices:
-            items.append({
-                "id": f"{v.provider}:{v.id}",
-                "provider": v.provider,
-                "voice_id": v.id,
-                "name": v.name,
-                "display_name": v.name,
-                "language": v.language,
-                "gender": v.gender,
-                "age_group": v.age_group,
-                "styles": v.supported_styles or [],
-                "use_cases": [],
-                "sample_audio_url": v.sample_url,
-                "is_deprecated": False,
-                "is_favorite": False,
-                "is_hidden": False,
-                "customization": None,
-            })
+            items.append(
+                {
+                    "id": f"{v.provider}:{v.id}",
+                    "provider": v.provider,
+                    "voice_id": v.id,
+                    "name": v.name,
+                    "display_name": v.name,
+                    "language": v.language,
+                    "gender": v.gender,
+                    "age_group": v.age_group,
+                    "styles": v.supported_styles or [],
+                    "use_cases": [],
+                    "sample_audio_url": v.sample_url,
+                    "is_deprecated": False,
+                    "is_favorite": False,
+                    "is_hidden": False,
+                    "customization": None,
+                }
+            )
 
         return {
             "items": items,

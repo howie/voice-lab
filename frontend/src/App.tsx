@@ -1,26 +1,29 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Dashboard } from '@/routes/Dashboard'
-import { TTSPage } from '@/routes/tts/TTSPage'
-import { STTPage } from '@/routes/stt/STTPage'
-import { STTHistoryPage } from '@/routes/stt/STTHistoryPage'
-import { InteractionPage } from '@/routes/interaction/InteractionPage'
-import { InteractionHistoryPage } from '@/routes/interaction/InteractionHistoryPage'
-import { HistoryPage } from '@/routes/history/HistoryPage'
-import { AdvancedPage } from '@/routes/advanced/AdvancedPage'
-import { ProviderSettings } from '@/routes/settings/ProviderSettings'
-import { MultiRoleTTSPage } from '@/routes/multi-role-tts/MultiRoleTTSPage'
-import { JobsPage } from '@/routes/jobs'
-import { MagicDJPage } from '@/routes/magic-dj/MagicDJPage'
-import { VoiceManagementPage } from '@/routes/voice-management'
-import { QuotaDashboardPage } from '@/routes/quota/QuotaDashboardPage'
-import { MusicPage } from '@/routes/music'
-import { GeminiLiveTestPage } from '@/routes/gemini-live-test/GeminiLiveTestPage'
 import { LoginPage } from '@/routes/auth/LoginPage'
 import { AuthCallback } from '@/routes/auth/AuthCallback'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useAuthStore } from '@/stores/authStore'
+import { Spinner } from '@/components/tts/LoadingIndicator'
+
+// Lazy-loaded route pages (code splitting)
+const Dashboard = lazy(() => import('@/routes/Dashboard').then(m => ({ default: m.Dashboard })))
+const TTSPage = lazy(() => import('@/routes/tts/TTSPage').then(m => ({ default: m.TTSPage })))
+const STTPage = lazy(() => import('@/routes/stt/STTPage').then(m => ({ default: m.STTPage })))
+const STTHistoryPage = lazy(() => import('@/routes/stt/STTHistoryPage').then(m => ({ default: m.STTHistoryPage })))
+const InteractionPage = lazy(() => import('@/routes/interaction/InteractionPage').then(m => ({ default: m.InteractionPage })))
+const InteractionHistoryPage = lazy(() => import('@/routes/interaction/InteractionHistoryPage').then(m => ({ default: m.InteractionHistoryPage })))
+const HistoryPage = lazy(() => import('@/routes/history/HistoryPage').then(m => ({ default: m.HistoryPage })))
+const AdvancedPage = lazy(() => import('@/routes/advanced/AdvancedPage').then(m => ({ default: m.AdvancedPage })))
+const ProviderSettings = lazy(() => import('@/routes/settings/ProviderSettings').then(m => ({ default: m.ProviderSettings })))
+const MultiRoleTTSPage = lazy(() => import('@/routes/multi-role-tts/MultiRoleTTSPage').then(m => ({ default: m.MultiRoleTTSPage })))
+const JobsPage = lazy(() => import('@/routes/jobs').then(m => ({ default: m.JobsPage })))
+const MagicDJPage = lazy(() => import('@/routes/magic-dj/MagicDJPage').then(m => ({ default: m.MagicDJPage })))
+const VoiceManagementPage = lazy(() => import('@/routes/voice-management').then(m => ({ default: m.VoiceManagementPage })))
+const QuotaDashboardPage = lazy(() => import('@/routes/quota/QuotaDashboardPage').then(m => ({ default: m.QuotaDashboardPage })))
+const MusicPage = lazy(() => import('@/routes/music').then(m => ({ default: m.MusicPage })))
+const GeminiLiveTestPage = lazy(() => import('@/routes/gemini-live-test/GeminiLiveTestPage').then(m => ({ default: m.GeminiLiveTestPage })))
 
 function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
@@ -50,6 +53,7 @@ function AppContent() {
   }, [setToken, checkAuth])
 
   return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner className="h-8 w-8" /></div>}>
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
@@ -82,6 +86,7 @@ function AppContent() {
         <Route path="gemini-live-test" element={<GeminiLiveTestPage />} />
       </Route>
     </Routes>
+    </Suspense>
   )
 }
 

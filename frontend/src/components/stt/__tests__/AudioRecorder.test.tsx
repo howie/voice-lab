@@ -68,6 +68,7 @@ beforeEach(() => {
       query: vi.fn().mockResolvedValue({
         state: 'prompt',
         addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       }),
     },
     writable: true,
@@ -288,6 +289,7 @@ describe('AudioRecorder', () => {
       vi.mocked(navigator.permissions.query).mockResolvedValueOnce({
         state: 'denied',
         addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       } as unknown as PermissionStatus)
 
       render(<AudioRecorder />)

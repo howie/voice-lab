@@ -27,22 +27,20 @@ const STATUS_FILTERS: Array<{ value: JobStatus | null; label: string }> = [
 ]
 
 export function JobList({ onSelectJob, selectedJobId }: JobListProps) {
-  const {
-    jobs,
-    total,
-    limit,
-    offset,
-    statusFilter,
-    isLoading,
-    error,
-    fetchJobs,
-    setStatusFilter,
-    setPage,
-    cancelJob,
-    startPolling,
-    stopPolling,
-    clearError,
-  } = useJobStore()
+  const jobs = useJobStore(s => s.jobs)
+  const total = useJobStore(s => s.total)
+  const limit = useJobStore(s => s.limit)
+  const offset = useJobStore(s => s.offset)
+  const statusFilter = useJobStore(s => s.statusFilter)
+  const isLoading = useJobStore(s => s.isLoading)
+  const error = useJobStore(s => s.error)
+  const fetchJobs = useJobStore(s => s.fetchJobs)
+  const setStatusFilter = useJobStore(s => s.setStatusFilter)
+  const setPage = useJobStore(s => s.setPage)
+  const cancelJob = useJobStore(s => s.cancelJob)
+  const startPolling = useJobStore(s => s.startPolling)
+  const stopPolling = useJobStore(s => s.stopPolling)
+  const clearError = useJobStore(s => s.clearError)
 
   // Initial load and polling
   useEffect(() => {

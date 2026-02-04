@@ -192,7 +192,9 @@ export function SoundLibrary({
   onEditTrack,
   onDeleteTrack,
 }: SoundLibraryProps) {
-  const { tracks, channelQueues, cueList } = useMagicDJStore()
+  const tracks = useMagicDJStore(s => s.tracks)
+  const channelQueues = useMagicDJStore(s => s.channelQueues)
+  const cueList = useMagicDJStore(s => s.cueList)
 
   // Compute set of trackIds already placed in channels or cue list
   const placedTrackIds = useMemo(() => {

@@ -30,6 +30,10 @@ PROVIDER_LIMITS: dict[str, ProviderLimits] = {
         provider_id="elevenlabs",
         max_text_length=5000,
     ),
+    "gemini": ProviderLimits(
+        provider_id="gemini",
+        max_text_length=4000,  # Gemini limit is 4000 bytes; use bytes for CJK safety
+    ),
     "voai": ProviderLimits(
         provider_id="voai",
         max_text_length=500,  # VoAI API hard limit

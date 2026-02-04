@@ -6,6 +6,7 @@ Implements TTS synthesis using Gemini 2.5 TTS models with support for:
 - PCM to MP3/WAV/OGG conversion
 """
 
+import asyncio
 import base64
 import contextlib
 import io
@@ -36,6 +37,14 @@ class GeminiTTSProvider(BaseTTSProvider):
     """
 
     API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+
+    # Gemini TTS input limit is 4000 bytes (not characters).
+    # CJK characters are 3 bytes each in UTF-8, so ~1333 characters max.
+    GEMINI_MAX_INPUT_BYTES = 4000
+
+    # Retry config for transient finishReason=OTHER errors
+    _MAX_RETRIES = 2  # total attempts = _MAX_RETRIES + 1
+    _RETRY_BACKOFFS = (0.5, 1.0)
 
     # 30 Gemini prebuilt voices
     VOICES: dict[str, dict[str, str]] = {
@@ -87,6 +96,28 @@ class GeminiTTSProvider(BaseTTSProvider):
         self._model = model
         self._client = httpx.AsyncClient(timeout=180.0)
 
+    @staticmethod
+    def _validate_input_byte_length(text_content: str) -> None:
+        """Validate that text_content does not exceed Gemini's byte limit.
+
+        Gemini TTS API limits input to 4000 bytes (UTF-8). CJK characters
+        use 3 bytes each, so the character limit varies by language.
+
+        Args:
+            text_content: The full text to send (including style prompt if any).
+
+        Raises:
+            ValueError: If text exceeds the byte limit.
+        """
+        byte_length = len(text_content.encode("utf-8"))
+        if byte_length > GeminiTTSProvider.GEMINI_MAX_INPUT_BYTES:
+            char_length = len(text_content)
+            raise ValueError(
+                f"Gemini TTS input exceeds the {GeminiTTSProvider.GEMINI_MAX_INPUT_BYTES}-byte limit: "
+                f"{byte_length} bytes ({char_length} characters). "
+                "CJK characters use 3 bytes each. Please shorten the text or split into smaller segments."
+            )
+
     async def _do_synthesize(self, request: TTSRequest) -> AudioData:
         """Synthesize speech using Gemini TTS API.
 
@@ -102,6 +133,9 @@ class GeminiTTSProvider(BaseTTSProvider):
         text_content = request.text
         if request.style_prompt:
             text_content = f"{request.style_prompt}: {request.text}"
+
+        # Validate byte-level input length before calling API
+        self._validate_input_byte_length(text_content)
 
         # Extract voice name - strip provider prefix if present (e.g., "gemini:Kore" -> "Kore")
         voice_name = request.voice_id
@@ -121,90 +155,109 @@ class GeminiTTSProvider(BaseTTSProvider):
             "x-goog-api-key": self._api_key,
         }
 
-        response = await self._client.post(url, json=payload, headers=headers)
+        # Retry loop for transient finishReason=OTHER errors
+        last_error: ValueError | None = None
+        for attempt in range(self._MAX_RETRIES + 1):
+            response = await self._client.post(url, json=payload, headers=headers)
 
-        if response.status_code != 200:
-            # Extract error details from Gemini API response
-            try:
-                error_json = response.json()
-                error_message = error_json.get("error", {}).get("message", response.text)
-            except Exception:
-                error_message = response.text
+            if response.status_code != 200:
+                # Extract error details from Gemini API response
+                try:
+                    error_json = response.json()
+                    error_message = error_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    error_message = response.text
 
-            # T008: Detect 429 rate limit / quota exceeded
-            is_quota_exhausted = "exceeded your current quota" in error_message.lower()
-            if response.status_code == 429 or is_quota_exhausted:
-                retry_after = None
-                if "retry-after" in response.headers:
-                    with contextlib.suppress(ValueError, TypeError):
-                        retry_after = int(response.headers["retry-after"])
+                # T008: Detect 429 rate limit / quota exceeded
+                is_quota_exhausted = "exceeded your current quota" in error_message.lower()
+                if response.status_code == 429 or is_quota_exhausted:
+                    retry_after = None
+                    if "retry-after" in response.headers:
+                        with contextlib.suppress(ValueError, TypeError):
+                            retry_after = int(response.headers["retry-after"])
 
-                if is_quota_exhausted:
-                    raise QuotaExceededError(
+                    if is_quota_exhausted:
+                        raise QuotaExceededError(
+                            provider="gemini",
+                            retry_after=retry_after,
+                            original_error=error_message,
+                        )
+
+                    # 429 without quota exhaustion message → rate limit
+                    raise RateLimitError(
                         provider="gemini",
                         retry_after=retry_after,
                         original_error=error_message,
                     )
 
-                # 429 without quota exhaustion message → rate limit
-                raise RateLimitError(
-                    provider="gemini",
-                    retry_after=retry_after,
-                    original_error=error_message,
+                raise RuntimeError(
+                    f"Gemini TTS API error (status {response.status_code}): {error_message}"
                 )
 
-            raise RuntimeError(
-                f"Gemini TTS API error (status {response.status_code}): {error_message}"
-            )
+            result = response.json()
 
-        result = response.json()
-
-        # Check for empty or blocked candidates
-        candidates = result.get("candidates", [])
-        if not candidates:
-            logger.error("Gemini TTS returned no candidates: %s", result)
-            raise ValueError(
-                "Gemini TTS returned no candidates. "
-                "The input may have been blocked by safety filters."
-            )
-
-        candidate = candidates[0]
-        finish_reason = candidate.get("finishReason", "")
-
-        # Detect safety-blocked responses (candidates exist but no content)
-        if "content" not in candidate:
-            logger.error(
-                "Gemini TTS candidate has no content (finishReason=%s): %s",
-                finish_reason,
-                candidate,
-            )
-            if finish_reason == "SAFETY":
+            # Check for empty or blocked candidates
+            candidates = result.get("candidates", [])
+            if not candidates:
+                logger.error("Gemini TTS returned no candidates: %s", result)
                 raise ValueError(
-                    "Gemini TTS blocked the request due to safety filters. "
-                    "Try rephrasing the text or using a different style prompt."
+                    "Gemini TTS returned no candidates. "
+                    "The input may have been blocked by safety filters."
                 )
-            raise ValueError(
-                f"Gemini TTS returned no audio content (finishReason={finish_reason}). "
-                "The request may have been filtered or the model produced an empty response."
+
+            candidate = candidates[0]
+            finish_reason = candidate.get("finishReason", "")
+
+            # Detect safety-blocked responses (candidates exist but no content)
+            if "content" not in candidate:
+                if finish_reason == "SAFETY":
+                    raise ValueError(
+                        "Gemini TTS blocked the request due to safety filters. "
+                        "Try rephrasing the text or using a different style prompt."
+                    )
+
+                # finishReason=OTHER may be transient — retry
+                byte_len = len(text_content.encode("utf-8"))
+                char_len = len(text_content)
+                logger.warning(
+                    "Gemini TTS finishReason=%s on attempt %d/%d (text: %d bytes, %d chars)",
+                    finish_reason,
+                    attempt + 1,
+                    self._MAX_RETRIES + 1,
+                    byte_len,
+                    char_len,
+                )
+                last_error = ValueError(
+                    f"Gemini TTS returned no audio content (finishReason={finish_reason}). "
+                    "This may be caused by Gemini's internal safety filters (e.g. PII detection). "
+                    "Try avoiding personal names, addresses, phone numbers, or other "
+                    "personally identifiable information in the text."
+                )
+                if attempt < self._MAX_RETRIES:
+                    await asyncio.sleep(self._RETRY_BACKOFFS[attempt])
+                    continue
+                raise last_error
+
+            # Extract audio data from response
+            try:
+                audio_base64 = candidate["content"]["parts"][0]["inlineData"]["data"]
+            except (KeyError, IndexError) as e:
+                logger.error("Unexpected Gemini TTS response structure: %s", candidate)
+                raise ValueError(f"Invalid API response structure: {e}") from e
+
+            pcm_data = base64.b64decode(audio_base64)
+
+            # Convert PCM to target format
+            audio_data = await self._convert_pcm_to_format(pcm_data, request.output_format)
+
+            return AudioData(
+                data=audio_data,
+                format=request.output_format,
+                sample_rate=24000,
             )
 
-        # Extract audio data from response
-        try:
-            audio_base64 = candidate["content"]["parts"][0]["inlineData"]["data"]
-        except (KeyError, IndexError) as e:
-            logger.error("Unexpected Gemini TTS response structure: %s", candidate)
-            raise ValueError(f"Invalid API response structure: {e}") from e
-
-        pcm_data = base64.b64decode(audio_base64)
-
-        # Convert PCM to target format
-        audio_data = await self._convert_pcm_to_format(pcm_data, request.output_format)
-
-        return AudioData(
-            data=audio_data,
-            format=request.output_format,
-            sample_rate=24000,
-        )
+        # Should not reach here, but just in case
+        raise last_error  # type: ignore[misc]
 
     async def _convert_pcm_to_format(self, pcm_data: bytes, target_format: AudioFormat) -> bytes:
         """Convert PCM 24kHz to target audio format.

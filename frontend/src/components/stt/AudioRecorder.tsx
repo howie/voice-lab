@@ -74,22 +74,29 @@ export function AudioRecorder({
 
   // Check microphone permission status on mount
   useEffect(() => {
+    let permissionResult: PermissionStatus | null = null
+
+    function handlePermissionChange(this: PermissionStatus) {
+      setPermissionStatus(this.state as 'prompt' | 'granted' | 'denied')
+    }
+
     async function checkPermission() {
       try {
-        const result = await navigator.permissions.query({
+        permissionResult = await navigator.permissions.query({
           name: 'microphone' as PermissionName,
         })
-        setPermissionStatus(result.state as 'prompt' | 'granted' | 'denied')
-
-        result.addEventListener('change', () => {
-          setPermissionStatus(result.state as 'prompt' | 'granted' | 'denied')
-        })
+        setPermissionStatus(permissionResult.state as 'prompt' | 'granted' | 'denied')
+        permissionResult.addEventListener('change', handlePermissionChange)
       } catch {
         // Permission API not supported, will check on first use
         setPermissionStatus('unknown')
       }
     }
     checkPermission()
+
+    return () => {
+      permissionResult?.removeEventListener('change', handlePermissionChange)
+    }
   }, [])
 
   // Cleanup on unmount

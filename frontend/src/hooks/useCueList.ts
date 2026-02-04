@@ -55,17 +55,15 @@ export function useCueList(): UseCueListReturn {
   const cueList = useMagicDJStore(selectCueList)
   const remainingCount = useMagicDJStore(selectCueListRemainingCount)
 
-  const {
-    tracks,
-    addToCueList: storeAddToCueList,
-    removeFromCueList: storeRemoveFromCueList,
-    reorderCueList: storeReorderCueList,
-    playNextCue: storePlayNextCue,
-    resetCuePosition: storeResetCuePosition,
-    clearCueList: storeClearCueList,
-    advanceCuePosition: storeAdvanceCuePosition,
-    validateCueList,
-  } = useMagicDJStore()
+  const tracks = useMagicDJStore(s => s.tracks)
+  const storeAddToCueList = useMagicDJStore(s => s.addToCueList)
+  const storeRemoveFromCueList = useMagicDJStore(s => s.removeFromCueList)
+  const storeReorderCueList = useMagicDJStore(s => s.reorderCueList)
+  const storePlayNextCue = useMagicDJStore(s => s.playNextCue)
+  const storeResetCuePosition = useMagicDJStore(s => s.resetCuePosition)
+  const storeClearCueList = useMagicDJStore(s => s.clearCueList)
+  const storeAdvanceCuePosition = useMagicDJStore(s => s.advanceCuePosition)
+  const validateCueList = useMagicDJStore(s => s.validateCueList)
 
   // Validate cue list when tracks change (EC-006)
   useEffect(() => {

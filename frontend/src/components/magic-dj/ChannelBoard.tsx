@@ -82,7 +82,12 @@ export function ChannelBoard({
   onResetCueList,
   onClearCueList,
 }: ChannelBoardProps) {
-  const { tracks, addToChannel, reorderChannel, addToCueList, reorderCueList, reorderTracks } = useMagicDJStore()
+  const tracks = useMagicDJStore(s => s.tracks)
+  const addToChannel = useMagicDJStore(s => s.addToChannel)
+  const reorderChannel = useMagicDJStore(s => s.reorderChannel)
+  const addToCueList = useMagicDJStore(s => s.addToCueList)
+  const reorderCueList = useMagicDJStore(s => s.reorderCueList)
+  const reorderTracks = useMagicDJStore(s => s.reorderTracks)
   const cueList = useMagicDJStore(selectCueList)
   const remainingCount = useMagicDJStore(selectCueListRemainingCount)
   const [draggedTrack, setDraggedTrack] = useState<Track | null>(null)

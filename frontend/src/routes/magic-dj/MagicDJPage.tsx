@@ -54,27 +54,25 @@ export function MagicDJPage() {
   const [isBGMGeneratorOpen, setIsBGMGeneratorOpen] = useState(false)
 
   // Stores
-  const {
-    tracks,
-    currentMode,
-    setMode,
-    settings,
-    startSession,
-    stopSession,
-    isSessionActive,
-    logOperation,
-    startAIWaiting,
-    stopAIWaiting,
-    setAIConnected,
-    addTrack,
-    removeTrack,
-    updateTrack,
-    initializeStorage,
-    saveAudioToStorage,
-  } = useMagicDJStore()
+  const tracks = useMagicDJStore(s => s.tracks)
+  const currentMode = useMagicDJStore(s => s.currentMode)
+  const setMode = useMagicDJStore(s => s.setMode)
+  const settings = useMagicDJStore(s => s.settings)
+  const startSession = useMagicDJStore(s => s.startSession)
+  const stopSession = useMagicDJStore(s => s.stopSession)
+  const isSessionActive = useMagicDJStore(s => s.isSessionActive)
+  const logOperation = useMagicDJStore(s => s.logOperation)
+  const startAIWaiting = useMagicDJStore(s => s.startAIWaiting)
+  const stopAIWaiting = useMagicDJStore(s => s.stopAIWaiting)
+  const setAIConnected = useMagicDJStore(s => s.setAIConnected)
+  const addTrack = useMagicDJStore(s => s.addTrack)
+  const removeTrack = useMagicDJStore(s => s.removeTrack)
+  const updateTrack = useMagicDJStore(s => s.updateTrack)
+  const initializeStorage = useMagicDJStore(s => s.initializeStorage)
+  const saveAudioToStorage = useMagicDJStore(s => s.saveAudioToStorage)
 
   // Interaction options for Gemini AI config
-  const { options: interactionOptions } = useInteractionStore()
+  const interactionOptions = useInteractionStore(s => s.options)
 
   // Multi-track player
   const {

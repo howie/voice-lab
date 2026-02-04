@@ -18,27 +18,25 @@ import { QuotaErrorAlert } from '@/components/tts/QuotaErrorAlert'
 import { getProviderConfig } from '@/config/providers'
 
 export function TTSPage() {
-  const {
-    text,
-    setText,
-    provider,
-    setProvider,
-    voiceId,
-    setVoiceId,
-    language,
-    setLanguage,
-    speed,
-    setSpeed,
-    pitch,
-    setPitch,
-    volume,
-    setVolume,
-    result,
-    isLoading,
-    error,
-    quotaError,
-    synthesize,
-  } = useTTSStore()
+  const text = useTTSStore(s => s.text)
+  const setText = useTTSStore(s => s.setText)
+  const provider = useTTSStore(s => s.provider)
+  const setProvider = useTTSStore(s => s.setProvider)
+  const voiceId = useTTSStore(s => s.voiceId)
+  const setVoiceId = useTTSStore(s => s.setVoiceId)
+  const language = useTTSStore(s => s.language)
+  const setLanguage = useTTSStore(s => s.setLanguage)
+  const speed = useTTSStore(s => s.speed)
+  const setSpeed = useTTSStore(s => s.setSpeed)
+  const pitch = useTTSStore(s => s.pitch)
+  const setPitch = useTTSStore(s => s.setPitch)
+  const volume = useTTSStore(s => s.volume)
+  const setVolume = useTTSStore(s => s.setVolume)
+  const result = useTTSStore(s => s.result)
+  const isLoading = useTTSStore(s => s.isLoading)
+  const error = useTTSStore(s => s.error)
+  const quotaError = useTTSStore(s => s.quotaError)
+  const synthesize = useTTSStore(s => s.synthesize)
 
   const handleSynthesize = async () => {
     await synthesize()

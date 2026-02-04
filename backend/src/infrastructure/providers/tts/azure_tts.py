@@ -98,8 +98,9 @@ class AzureTTSProvider(BaseTTSProvider):
         if voice_id.startswith("azure:"):
             voice_id = voice_id[6:]
 
-        # Build prosody attributes
-        rate = f"{int(request.speed * 100)}%"
+        # Build prosody attributes (relative percentage: 1.0 → "+0%", 1.5 → "+50%")
+        rate_percent = (request.speed - 1.0) * 100
+        rate = f"+{rate_percent:.0f}%" if rate_percent >= 0 else f"{rate_percent:.0f}%"
         pitch_val = f"{int(request.pitch * 10):+d}Hz" if request.pitch else "+0Hz"
 
         ssml = f"""

@@ -15,6 +15,7 @@ from src.application.use_cases.synthesize_multi_role import (
     SynthesizeMultiRoleUseCase,
 )
 from src.domain.entities.multi_role_tts import DialogueTurn, VoiceAssignment
+from src.domain.errors import QuotaExceededError, RateLimitError
 from src.domain.services.dialogue_parser import parse_dialogue
 from src.infrastructure.providers.tts.multi_role import (
     get_provider_capability,
@@ -270,6 +271,8 @@ async def synthesize(request: SynthesizeRequest) -> SynthesizeResponse:
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except (QuotaExceededError, RateLimitError):
+        raise
     except Exception as e:
         logger.exception("Multi-role TTS synthesis failed")
         raise HTTPException(
@@ -356,6 +359,8 @@ async def synthesize_binary(request: SynthesizeRequest) -> Response:
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except (QuotaExceededError, RateLimitError):
+        raise
     except Exception as e:
         logger.exception("Multi-role TTS binary synthesis failed")
         raise HTTPException(

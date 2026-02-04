@@ -4,11 +4,55 @@ Feature: 008-voai-multi-role-voice-generation
 T011: Implement AzureSSMLBuilder.build_multi_voice_ssml()
 
 Builds SSML with multiple <voice> tags for native multi-role synthesis.
+Supports [style] tags for Azure express-as styles.
 """
 
+import re
 from dataclasses import dataclass
 
 from src.domain.entities.multi_role_tts import DialogueTurn
+
+KNOWN_STYLES: frozenset[str] = frozenset(
+    {
+        "advertisement_upbeat",
+        "affectionate",
+        "angry",
+        "assistant",
+        "calm",
+        "chat",
+        "cheerful",
+        "customerservice",
+        "depressed",
+        "disgruntled",
+        "documentary-narration",
+        "embarrassed",
+        "empathetic",
+        "envious",
+        "excited",
+        "fearful",
+        "friendly",
+        "gentle",
+        "hopeful",
+        "lyrical",
+        "narration-professional",
+        "narration-relaxed",
+        "newscast",
+        "newscast-casual",
+        "newscast-formal",
+        "poetry-reading",
+        "sad",
+        "serious",
+        "shouting",
+        "sports_commentary",
+        "sports_commentary_excited",
+        "story",
+        "terrified",
+        "unfriendly",
+        "whispering",
+    }
+)
+
+_STYLE_TAG_RE = re.compile(r"\[([a-zA-Z][a-zA-Z0-9_-]*)\]")
 
 
 @dataclass
@@ -17,7 +61,7 @@ class AzureSSMLConfig:
 
     language: str = "zh-TW"
     gap_ms: int = 300
-    default_rate: str = "0%"
+    default_rate: str = "+0%"
     default_pitch: str = "+0Hz"
 
 
@@ -111,13 +155,9 @@ class AzureSSMLBuilder:
 
         for i, turn in enumerate(sorted_turns):
             voice_name = voice_map[turn.speaker]
-            escaped_text = self._escape_xml(turn.text)
 
             ssml_parts.append(f'    <voice name="{voice_name}">')
-            ssml_parts.append(
-                f'        <prosody rate="{self.config.default_rate}" '
-                f'pitch="{self.config.default_pitch}">{escaped_text}</prosody>'
-            )
+            ssml_parts.extend(self._build_turn_ssml(turn.text))
             ssml_parts.append("    </voice>")
 
             # Add break between turns (except after last turn)
@@ -159,14 +199,21 @@ class AzureSSMLBuilder:
         # Per-turn overhead (voice tag, prosody, break)
         per_turn_overhead = 150
 
-        # Text content
-        text_chars = sum(len(t.text) for t in turns)
+        # Text content + style tag overhead
+        text_chars = 0
+        style_overhead = 0
+        for t in turns:
+            text_chars += len(t.text)
+            style_overhead += len(_STYLE_TAG_RE.findall(t.text)) * 80
 
         # Voice name length (average)
         avg_voice_name_len = sum(len(v) for v in voice_map.values()) / max(len(voice_map), 1)
 
         return int(
-            base_overhead + (per_turn_overhead + avg_voice_name_len) * len(turns) + text_chars
+            base_overhead
+            + (per_turn_overhead + avg_voice_name_len) * len(turns)
+            + text_chars
+            + style_overhead
         )
 
     def can_use_native(
@@ -205,3 +252,91 @@ class AzureSSMLBuilder:
             .replace('"', "&quot;")
             .replace("'", "&apos;")
         )
+
+    def _parse_style_segments(self, text: str) -> list[tuple[str | None, str]]:
+        """Parse style tags from text into segments.
+
+        Splits text by [tag] markers. Known styles become style segments;
+        unknown tags are kept as literal text.
+
+        Args:
+            text: Raw dialogue text possibly containing [style] tags.
+
+        Returns:
+            List of (style_or_none, text) tuples.
+        """
+        parts = _STYLE_TAG_RE.split(text)
+        segments: list[tuple[str | None, str]] = []
+        current_style: str | None = None
+
+        for part in parts:
+            lower = part.lower()
+            if lower in KNOWN_STYLES:
+                current_style = lower
+                continue
+
+            # If it matches the tag pattern but is unknown, restore brackets
+            if _STYLE_TAG_RE.fullmatch(f"[{part}]") and lower not in KNOWN_STYLES:
+                # This part came from a split — it was between brackets
+                # but is not a known style, so treat as plain text
+                chunk = f"[{part}]"
+                if segments and segments[-1][0] == current_style:
+                    segments[-1] = (current_style, segments[-1][1] + chunk)
+                else:
+                    segments.append((current_style, chunk))
+                current_style = None
+                continue
+
+            stripped = part.strip()
+            if not stripped:
+                continue
+
+            segments.append((current_style, stripped))
+
+        return segments
+
+    def _build_turn_ssml(
+        self,
+        text: str,
+        rate: str | None = None,
+        pitch: str | None = None,
+    ) -> list[str]:
+        """Build SSML fragments for a single turn, handling style segments.
+
+        Args:
+            text: Raw dialogue text possibly containing [style] tags.
+            rate: Prosody rate override.
+            pitch: Prosody pitch override.
+
+        Returns:
+            List of SSML lines for this turn.
+        """
+        r = rate or self.config.default_rate
+        p = pitch or self.config.default_pitch
+
+        segments = self._parse_style_segments(text)
+
+        # No style tags found — backward compatible plain prosody
+        if not segments:
+            escaped = self._escape_xml(text.strip())
+            return [
+                f'        <prosody rate="{r}" pitch="{p}">{escaped}</prosody>',
+            ]
+
+        # Check if all segments have no style — backward compatible
+        if all(s is None for s, _ in segments):
+            combined = self._escape_xml(" ".join(t for _, t in segments))
+            return [
+                f'        <prosody rate="{r}" pitch="{p}">{combined}</prosody>',
+            ]
+
+        lines: list[str] = []
+        for style, segment_text in segments:
+            escaped = self._escape_xml(segment_text)
+            if style:
+                lines.append(f'        <mstts:express-as style="{style}">')
+                lines.append(f'            <prosody rate="{r}" pitch="{p}">{escaped}</prosody>')
+                lines.append("        </mstts:express-as>")
+            else:
+                lines.append(f'        <prosody rate="{r}" pitch="{p}">{escaped}</prosody>')
+        return lines

@@ -227,6 +227,10 @@ class TestGeminiTTS429Retry:
         provider._client = AsyncMock()
         provider._client.post = AsyncMock(side_effect=[mock_429, mock_200])
 
+        # Mock PCM→MP3 conversion (ffmpeg not available in CI)
+        mock_mp3 = b"fake-mp3-data"
+        provider._convert_pcm_to_format = AsyncMock(return_value=mock_mp3)
+
         request = TTSRequest(
             text="Test",
             voice_id="Kore",

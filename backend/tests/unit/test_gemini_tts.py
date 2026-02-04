@@ -327,3 +327,179 @@ class TestGeminiVoices:
         """Test Kore is recommended for Chinese."""
         kore_info = GeminiTTSProvider.VOICES["Kore"]
         assert "chinese" in kore_info["description"].lower()
+
+
+class TestGeminiByteValidation:
+    """Tests for Gemini TTS byte-level input validation."""
+
+    @pytest.mark.asyncio
+    async def test_synthesize_byte_limit_cjk_text(self, gemini_provider: GeminiTTSProvider):
+        """Test that CJK text exceeding 4000 bytes is rejected before API call."""
+        # 1400 CJK characters × 3 bytes = 4200 bytes > 4000 limit
+        long_cjk_text = "你" * 1400
+        request = TTSRequest(
+            text=long_cjk_text,
+            voice_id="Kore",
+            provider="gemini",
+            language="zh-TW",
+            speed=1.0,
+            pitch=0.0,
+            volume=1.0,
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        with pytest.raises(ValueError, match="4000-byte limit"):
+            await gemini_provider.synthesize(request)
+
+    @pytest.mark.asyncio
+    async def test_synthesize_byte_limit_with_style_prompt(
+        self, gemini_provider: GeminiTTSProvider
+    ):
+        """Test that style_prompt + text combined byte count is validated."""
+        # style_prompt (~40 bytes) + 1330 CJK chars (3990 bytes) + ": " (2 bytes) > 4000
+        long_cjk_text = "你" * 1330
+        request = TTSRequest(
+            text=long_cjk_text,
+            voice_id="Kore",
+            provider="gemini",
+            language="zh-TW",
+            speed=1.0,
+            pitch=0.0,
+            volume=1.0,
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+            style_prompt="Say this cheerfully with excitement",
+        )
+
+        with pytest.raises(ValueError, match="4000-byte limit"):
+            await gemini_provider.synthesize(request)
+
+    @pytest.mark.asyncio
+    async def test_synthesize_byte_limit_within_limit(self, gemini_provider: GeminiTTSProvider):
+        """Test that text within byte limit passes validation and calls API normally."""
+        # 100 CJK characters × 3 bytes = 300 bytes, well within limit
+        short_text = "你" * 100
+        request = TTSRequest(
+            text=short_text,
+            voice_id="Kore",
+            provider="gemini",
+            language="zh-TW",
+            speed=1.0,
+            pitch=0.0,
+            volume=1.0,
+            output_format=AudioFormat.MP3,
+            output_mode=OutputMode.BATCH,
+        )
+
+        pcm_data = b"\x00\x00" * 24000
+        mock_response_data = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"inlineData": {"data": base64.b64encode(pcm_data).decode()}}]
+                    }
+                }
+            ]
+        }
+        mock_mp3_data = b"mock-mp3-audio-data"
+
+        with (
+            patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post,
+            patch.object(
+                gemini_provider, "_convert_pcm_to_format", new_callable=AsyncMock
+            ) as mock_convert,
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            mock_convert.return_value = mock_mp3_data
+
+            result = await gemini_provider.synthesize(request)
+            assert result is not None
+            assert result.audio.data == mock_mp3_data
+            mock_post.assert_called_once()
+
+
+class TestGeminiFinishReasonRetry:
+    """Tests for Gemini TTS finishReason=OTHER retry logic."""
+
+    @pytest.mark.asyncio
+    async def test_synthesize_finish_reason_other_retries_exhausted(
+        self, gemini_provider: GeminiTTSProvider, sample_request: TTSRequest
+    ):
+        """Test that finishReason=OTHER retries 3 times then raises error."""
+        other_response_data = {"candidates": [{"finishReason": "OTHER"}]}
+
+        with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = other_response_data
+            mock_post.return_value = mock_response
+
+            with pytest.raises(ValueError, match="finishReason=OTHER"):
+                await gemini_provider.synthesize(sample_request)
+
+            # Should have been called 3 times (1 initial + 2 retries)
+            assert mock_post.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_synthesize_finish_reason_other_succeeds_on_retry(
+        self, gemini_provider: GeminiTTSProvider, sample_request: TTSRequest
+    ):
+        """Test that finishReason=OTHER succeeds on second attempt."""
+        pcm_data = b"\x00\x00" * 24000
+        other_response_data = {"candidates": [{"finishReason": "OTHER"}]}
+        success_response_data = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"inlineData": {"data": base64.b64encode(pcm_data).decode()}}]
+                    }
+                }
+            ]
+        }
+        mock_mp3_data = b"mock-mp3-audio-data"
+
+        with (
+            patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post,
+            patch.object(
+                gemini_provider, "_convert_pcm_to_format", new_callable=AsyncMock
+            ) as mock_convert,
+        ):
+            # First call returns OTHER, second call succeeds
+            fail_response = MagicMock()
+            fail_response.status_code = 200
+            fail_response.json.return_value = other_response_data
+
+            success_response = MagicMock()
+            success_response.status_code = 200
+            success_response.json.return_value = success_response_data
+
+            mock_post.side_effect = [fail_response, success_response]
+            mock_convert.return_value = mock_mp3_data
+
+            result = await gemini_provider.synthesize(sample_request)
+            assert result is not None
+            assert result.audio.data == mock_mp3_data
+            assert mock_post.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_synthesize_finish_reason_safety_no_retry(
+        self, gemini_provider: GeminiTTSProvider, sample_request: TTSRequest
+    ):
+        """Test that finishReason=SAFETY does not retry and raises immediately."""
+        safety_response_data = {"candidates": [{"finishReason": "SAFETY"}]}
+
+        with patch.object(gemini_provider._client, "post", new_callable=AsyncMock) as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = safety_response_data
+            mock_post.return_value = mock_response
+
+            with pytest.raises(ValueError, match="safety filters"):
+                await gemini_provider.synthesize(sample_request)
+
+            # Should only be called once — no retries for SAFETY
+            assert mock_post.call_count == 1

@@ -58,6 +58,7 @@ class VoiceAssignment:
     speaker: str
     voice_id: str
     voice_name: str | None = None
+    style_prompt: str | None = None
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
@@ -124,6 +125,7 @@ class MultiRoleTTSRequest:
     output_format: str = "mp3"
     gap_ms: int = 300
     crossfade_ms: int = 50
+    style_prompt: str | None = None
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""

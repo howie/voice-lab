@@ -29,11 +29,14 @@ PROVIDER_CAPABILITIES: dict[str, ProviderMultiRoleCapability] = {
     ),
     "gemini": ProviderMultiRoleCapability(
         provider_name="gemini",
-        support_type=MultiRoleSupportType.SEGMENTED,
+        support_type=MultiRoleSupportType.NATIVE,
         max_speakers=6,
-        character_limit=4000,
-        advanced_features=["style prompts", "SSML", "inline emotions"],
-        notes="支援 Style Prompt（自然語言語氣描述）、SSML 標記及行內情緒標籤 [tag]",
+        character_limit=1333,
+        advanced_features=["style prompts", "SSML", "inline emotions", "multi-speaker"],
+        notes=(
+            "原生 multiSpeakerVoiceConfig 多角色模式（上限 4000 bytes / ~1333 CJK 字元），"
+            "超過自動 fallback 到 SEGMENTED。支援 Style Prompt。"
+        ),
     ),
     "openai": ProviderMultiRoleCapability(
         provider_name="openai",

@@ -22,6 +22,7 @@ from src.domain.entities.multi_role_tts import (
     MultiRoleTTSResult,
     VoiceAssignment,
 )
+from src.domain.errors import QuotaExceededError, RateLimitError
 from src.infrastructure.providers.tts.factory import (
     ProviderNotSupportedError,
     TTSProviderFactory,
@@ -29,6 +30,7 @@ from src.infrastructure.providers.tts.factory import (
 from src.infrastructure.providers.tts.multi_role import (
     AzureSSMLBuilder,
     ElevenLabsDialogueBuilder,
+    GeminiDialogueBuilder,
     MergeConfig,
     SegmentedMergerService,
     get_provider_capability,
@@ -53,6 +55,7 @@ class SynthesizeMultiRoleInput:
     output_format: str = "mp3"
     gap_ms: int = 300
     crossfade_ms: int = 50
+    style_prompt: str | None = None
 
 
 class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSResult]):
@@ -156,6 +159,11 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
         elif provider == "elevenlabs":
             builder = ElevenLabsDialogueBuilder()
             return builder.can_use_native(input_data.turns, voice_map)
+        elif provider == "gemini":
+            gemini_builder = GeminiDialogueBuilder()
+            return gemini_builder.can_use_native(
+                input_data.turns, voice_map, style_prompt=input_data.style_prompt
+            )
         else:
             # For other providers marked as NATIVE but without specific builder,
             # use simple character limit check
@@ -190,9 +198,9 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
             return await self._synthesize_azure_native(input_data, voice_map)
         elif provider == "elevenlabs":
             return await self._synthesize_elevenlabs_native(input_data, voice_map)
+        elif provider == "gemini":
+            return await self._synthesize_gemini_native(input_data, voice_map)
         else:
-            # For GCP or other native providers without implementation,
-            # fall back to segmented
             logger.info(f"Native synthesis not implemented for {provider}, using segmented mode")
             return await self._synthesize_segmented(input_data, voice_map)
 
@@ -353,6 +361,176 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
             turn_timings=None,
         )
 
+    async def _synthesize_gemini_native(
+        self,
+        input_data: SynthesizeMultiRoleInput,
+        voice_map: dict[str, str],
+    ) -> MultiRoleTTSResult:
+        """Synthesize using Gemini native multi-speaker API.
+
+        Uses multiSpeakerVoiceConfig for native multi-speaker synthesis
+        in a single API call.
+
+        Args:
+            input_data: Synthesis parameters.
+            voice_map: Speaker to voice ID mapping.
+
+        Returns:
+            MultiRoleTTSResult with synthesized audio.
+
+        Raises:
+            ValueError: If synthesis fails.
+        """
+        import base64
+        import io
+        import os
+
+        import httpx
+        from pydub import AudioSegment
+
+        start_time = time.time()
+
+        # Build payload
+        builder = GeminiDialogueBuilder()
+        payload = builder.build_multi_speaker_payload(
+            turns=input_data.turns,
+            voice_map=voice_map,
+            style_prompt=input_data.style_prompt,
+        )
+
+        # Get API key and model
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("Gemini API key not configured (GEMINI_API_KEY or GOOGLE_API_KEY)")
+
+        model = builder.config.model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        }
+
+        # Call Gemini API with retry for 429
+        max_429_retries = 3
+        retry_backoffs = (1.0, 2.0, 4.0)
+
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            for retry_429 in range(max_429_retries + 1):
+                response = await client.post(url, json=payload, headers=headers)
+
+                if response.status_code != 429:
+                    break
+
+                if retry_429 < max_429_retries:
+                    wait = retry_backoffs[retry_429]
+                    if "retry-after" in response.headers:
+                        import contextlib
+
+                        with contextlib.suppress(ValueError, TypeError):
+                            ra = int(response.headers["retry-after"])
+                            wait = min(float(ra), 30.0)
+                    logger.warning(
+                        "Gemini multi-speaker 429 on attempt %d/%d, retrying after %.1fs",
+                        retry_429 + 1,
+                        max_429_retries + 1,
+                        wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+
+                # All 429 retries exhausted
+                try:
+                    error_json = response.json()
+                    error_msg = error_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    error_msg = response.text
+                raise RateLimitError(
+                    provider="gemini",
+                    retry_after=None,
+                    original_error=error_msg,
+                )
+
+        if response.status_code != 200:
+            try:
+                error_json = response.json()
+                error_message = error_json.get("error", {}).get("message", response.text)
+            except Exception:
+                error_message = response.text
+
+            if "exceeded your current quota" in error_message.lower():
+                raise QuotaExceededError(
+                    provider="gemini",
+                    retry_after=None,
+                    original_error=error_message,
+                )
+            raise ValueError(
+                f"Gemini multi-speaker API error (status {response.status_code}): {error_message}"
+            )
+
+        result_json = response.json()
+
+        # Extract audio
+        candidates = result_json.get("candidates", [])
+        if not candidates:
+            raise ValueError(
+                "Gemini multi-speaker returned no candidates. "
+                "The input may have been blocked by safety filters."
+            )
+
+        candidate = candidates[0]
+        finish_reason = candidate.get("finishReason", "")
+
+        if "content" not in candidate:
+            if finish_reason == "SAFETY":
+                raise ValueError(
+                    "Gemini multi-speaker blocked by safety filters. "
+                    "Try rephrasing the text or using a different style prompt."
+                )
+            raise ValueError(
+                f"Gemini multi-speaker returned no audio (finishReason={finish_reason})."
+            )
+
+        try:
+            audio_base64 = candidate["content"]["parts"][0]["inlineData"]["data"]
+        except (KeyError, IndexError) as e:
+            raise ValueError(f"Invalid Gemini multi-speaker response structure: {e}") from e
+
+        # Convert PCM 24kHz to target format
+        pcm_data = base64.b64decode(audio_base64)
+        audio = AudioSegment(
+            data=pcm_data,
+            sample_width=2,
+            frame_rate=24000,
+            channels=1,
+        )
+
+        output_buffer = io.BytesIO()
+        format_map = {"mp3": "mp3", "wav": "wav", "ogg": "ogg", "opus": "opus", "flac": "flac"}
+        export_format = format_map.get(input_data.output_format.lower(), "mp3")
+        audio.export(output_buffer, format=export_format)
+        audio_content = output_buffer.getvalue()
+
+        latency_ms = int((time.time() - start_time) * 1000)
+        duration_ms = len(audio)
+
+        content_type_map = {
+            "mp3": "audio/mpeg",
+            "wav": "audio/wav",
+            "ogg": "audio/ogg",
+            "opus": "audio/opus",
+            "flac": "audio/flac",
+        }
+
+        return MultiRoleTTSResult(
+            audio_content=audio_content,
+            content_type=content_type_map.get(input_data.output_format.lower(), "audio/mpeg"),
+            duration_ms=duration_ms,
+            latency_ms=latency_ms,
+            provider="gemini",
+            synthesis_mode=MultiRoleSupportType.NATIVE,
+            turn_timings=None,
+        )
+
     async def _synthesize_segmented(
         self,
         input_data: SynthesizeMultiRoleInput,
@@ -391,11 +569,27 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
         )
         merger = SegmentedMergerService(provider=provider, config=config)
 
+        # Build style map from voice assignments and global style_prompt
+        style_map: dict[str, str] | None = None
+        per_speaker_styles = {
+            va.speaker: va.style_prompt for va in input_data.voice_assignments if va.style_prompt
+        }
+        if per_speaker_styles or input_data.style_prompt:
+            style_map = {}
+            speakers = {turn.speaker for turn in input_data.turns}
+            for speaker in speakers:
+                # Per-speaker style takes priority over global style
+                if speaker in per_speaker_styles:
+                    style_map[speaker] = per_speaker_styles[speaker]
+                elif input_data.style_prompt:
+                    style_map[speaker] = input_data.style_prompt
+
         # Synthesize and merge
         result = await merger.synthesize_and_merge(
             turns=input_data.turns,
             voice_map=voice_map,
             language=input_data.language,
+            style_map=style_map,
         )
 
         return result

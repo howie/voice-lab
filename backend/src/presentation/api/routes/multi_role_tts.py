@@ -76,6 +76,7 @@ class VoiceAssignmentRequest(BaseModel):
     speaker: str
     voice_id: str
     voice_name: str | None = None
+    style_prompt: str | None = None
 
 
 class DialogueTurnRequest(BaseModel):
@@ -96,6 +97,7 @@ class SynthesizeRequest(BaseModel):
     output_format: str = "mp3"
     gap_ms: int = Field(default=300, ge=0, le=2000)
     crossfade_ms: int = Field(default=50, ge=0, le=500)
+    style_prompt: str | None = None
 
 
 class TurnTimingResponse(BaseModel):
@@ -231,6 +233,7 @@ async def synthesize(request: SynthesizeRequest) -> SynthesizeResponse:
                 speaker=va.speaker,
                 voice_id=va.voice_id,
                 voice_name=va.voice_name,
+                style_prompt=va.style_prompt,
             )
             for va in request.voice_assignments
         ]
@@ -245,6 +248,7 @@ async def synthesize(request: SynthesizeRequest) -> SynthesizeResponse:
             output_format=request.output_format,
             gap_ms=request.gap_ms,
             crossfade_ms=request.crossfade_ms,
+            style_prompt=request.style_prompt,
         )
 
         result = await use_case.execute(input_data)
@@ -328,6 +332,7 @@ async def synthesize_binary(request: SynthesizeRequest) -> Response:
                 speaker=va.speaker,
                 voice_id=va.voice_id,
                 voice_name=va.voice_name,
+                style_prompt=va.style_prompt,
             )
             for va in request.voice_assignments
         ]
@@ -342,6 +347,7 @@ async def synthesize_binary(request: SynthesizeRequest) -> Response:
             output_format=request.output_format,
             gap_ms=request.gap_ms,
             crossfade_ms=request.crossfade_ms,
+            style_prompt=request.style_prompt,
         )
 
         result = await use_case.execute(input_data)

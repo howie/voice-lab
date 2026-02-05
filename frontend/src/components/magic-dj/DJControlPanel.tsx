@@ -1,15 +1,19 @@
 /**
  * DJ Control Panel
  * Feature: 010-magic-dj-controller
+ * Feature: 015-magic-dj-ai-prompts
  *
  * T015, T021, T026, T031, T034, T035, T036, T045: Main control panel assembling
  * all US1-US4 components into cohesive layout with DJ-style interface.
+ * 015-T014~T016, T019~T022: AI prompt template integration with four-column layout.
  */
 
 import { useEffect, useRef, useState } from 'react'
 
 import { ChannelBoard } from './ChannelBoard'
-import { AIVoiceChannelStrip } from './AIVoiceChannelStrip'
+import { AIControlBar } from './AIControlBar'
+import { PromptTemplatePanel } from './PromptTemplatePanel'
+import { StoryPromptPanel } from './StoryPromptPanel'
 import { ModeSwitch } from './ModeSwitch'
 import { SessionTimer } from './SessionTimer'
 import { ExportPanel } from './ExportPanel'
@@ -17,7 +21,7 @@ import { TrackConfigPanel } from './TrackConfigPanel'
 import { PresetSelector } from './PresetSelector'
 import { useMagicDJStore, selectIsAITimeout } from '@/stores/magicDJStore'
 import type { ConnectionStatus } from '@/types/interaction'
-import type { Track } from '@/types/magic-dj'
+import type { PromptTemplate, Track } from '@/types/magic-dj'
 
 // =============================================================================
 // Types
@@ -48,6 +52,12 @@ export interface DJControlPanelProps {
   micVolume?: number
   isListening?: boolean
   onToggleListening?: () => void
+  /** Prompt template handlers (015) */
+  onSendPromptTemplate?: (template: PromptTemplate) => void
+  onSendStoryPrompt?: (text: string) => void
+  onAddPromptTemplate?: () => void
+  onEditPromptTemplate?: (template: PromptTemplate) => void
+  onDeletePromptTemplate?: (template: PromptTemplate) => void
 }
 
 // =============================================================================
@@ -58,8 +68,8 @@ export function DJControlPanel({
   onForceSubmit,
   onInterrupt,
   onFillerSound,
-  onRescueWait,
-  onRescueEnd,
+  onRescueWait: _onRescueWait,
+  onRescueEnd: _onRescueEnd,
   onToggleMode,
   onPlayTrack,
   onStopTrack,
@@ -77,10 +87,19 @@ export function DJControlPanel({
   micVolume = 0,
   isListening = false,
   onToggleListening,
+  onSendPromptTemplate,
+  onSendStoryPrompt,
+  onAddPromptTemplate,
+  onEditPromptTemplate,
+  onDeletePromptTemplate,
 }: DJControlPanelProps) {
   const { currentMode, isSessionActive, isWaitingForAI, settings } =
     useMagicDJStore()
+  const promptTemplates = useMagicDJStore(s => s.promptTemplates)
+  const storyPrompts = useMagicDJStore(s => s.storyPrompts)
+  const lastSentPromptId = useMagicDJStore(s => s.lastSentPromptId)
   const isAITimeout = useMagicDJStore(selectIsAITimeout)
+  const isAIConnected = wsStatus === 'connected'
 
   // AI timeout warning flash
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
@@ -124,6 +143,21 @@ export function DJControlPanel({
         <ModeSwitch onToggle={onToggleMode} wsStatus={wsStatus} />
       </div>
 
+      {/* AI Control Bar — only in AI conversation mode (015-T009) */}
+      {currentMode === 'ai-conversation' && (
+        <AIControlBar
+          wsStatus={wsStatus}
+          isSessionActive={isSessionActive}
+          isWaitingForAI={isWaitingForAI}
+          onForceSubmit={onForceSubmit}
+          onInterrupt={onInterrupt}
+          onFillerSound={onFillerSound}
+          micVolume={micVolume}
+          isListening={isListening}
+          onToggleListening={onToggleListening}
+        />
+      )}
+
       {/* AI Timeout Warning Banner (T029) */}
       {isAITimeout && isWaitingForAI && (
         <div
@@ -156,24 +190,33 @@ export function DJControlPanel({
           />
         </div>
       ) : (
-        /* AI Conversation Mode: AI Channel + 4 Channels + Sound Library (no CueList) */
+        /* AI Conversation Mode: Prompt Templates + Story Prompts + SFX + Music (015-DD-001) */
         <div className="flex flex-1 min-h-0">
           <ChannelBoard
+            aiMode
             leadingChannel={
-              <AIVoiceChannelStrip
-                wsStatus={wsStatus}
-                isSessionActive={isSessionActive}
-                isWaitingForAI={isWaitingForAI}
-                isAITimeout={isAITimeout}
-                onForceSubmit={onForceSubmit}
-                onInterrupt={onInterrupt}
-                onFillerSound={onFillerSound}
-                onRescueWait={onRescueWait}
-                onRescueEnd={onRescueEnd}
-                micVolume={micVolume}
-                isListening={isListening}
-                onToggleListening={onToggleListening}
-              />
+              <>
+                {/* Column 1: Prompt Templates */}
+                {onSendPromptTemplate && (
+                  <PromptTemplatePanel
+                    templates={promptTemplates}
+                    disabled={!isAIConnected}
+                    lastSentPromptId={lastSentPromptId}
+                    onSendPrompt={onSendPromptTemplate}
+                    onAddTemplate={onAddPromptTemplate}
+                    onEditTemplate={onEditPromptTemplate}
+                    onDeleteTemplate={onDeletePromptTemplate}
+                  />
+                )}
+                {/* Column 2: Story Prompts */}
+                {onSendStoryPrompt && (
+                  <StoryPromptPanel
+                    storyPrompts={storyPrompts}
+                    disabled={!isAIConnected}
+                    onSendStoryPrompt={onSendStoryPrompt}
+                  />
+                )}
+              </>
             }
             onPlayTrack={onPlayTrack}
             onStopTrack={onStopTrack}

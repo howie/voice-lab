@@ -6,16 +6,24 @@
  * Integrates microphone input, audio playback, transcripts, and status indicators.
  */
 
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState, useRef, memo } from 'react'
 
 import { AudioVisualizer } from './AudioVisualizer'
 import { LatencyDisplay } from './LatencyDisplay'
-import { ModeSelector } from './ModeSelector'
-import { PerformanceSettings } from './PerformanceSettings'
+import { ModeSelector as ModeSelectorBase } from './ModeSelector'
+import { PerformanceSettings as PerformanceSettingsBase } from './PerformanceSettings'
 import { TranscriptDisplay } from './TranscriptDisplay'
-import { RoleScenarioEditor } from './RoleScenarioEditor'
-import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
+import { RoleScenarioEditor as RoleScenarioEditorBase } from './RoleScenarioEditor'
+import { ScenarioTemplateSelector as ScenarioTemplateSelectorBase } from './ScenarioTemplateSelector'
 
+// Memoize child components that don't receive high-frequency props.
+// Prevents re-renders caused by inputVolume (20-60Hz) and streaming transcripts.
+const ModeSelector = memo(ModeSelectorBase)
+const PerformanceSettings = memo(PerformanceSettingsBase)
+const RoleScenarioEditor = memo(RoleScenarioEditorBase)
+const ScenarioTemplateSelector = memo(ScenarioTemplateSelectorBase)
+
+import { useShallow } from 'zustand/react/shallow'
 import { useInteractionStore } from '@/stores/interactionStore'
 import type { ScenarioTemplate, TurnLatencyData } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -81,6 +89,17 @@ function FallbackPrompt({ isRealtimeMode, hasError, onSwitchToCascade }: Fallbac
   )
 }
 
+// Static config hoisted outside component to avoid re-creation on each render
+const STATUS_CONFIG: Record<DisplayStatus, { label: string; color: string; pulse: boolean }> = {
+  idle: { label: '閒置', color: 'bg-gray-400', pulse: false },
+  connecting: { label: '連接中...', color: 'bg-yellow-400', pulse: true },
+  ready: { label: '已連線', color: 'bg-green-400', pulse: false },
+  listening: { label: '聆聽中', color: 'bg-green-400', pulse: true },
+  processing: { label: '處理中', color: 'bg-blue-400', pulse: true },
+  speaking: { label: 'AI 回應中', color: 'bg-purple-400', pulse: true },
+  error: { label: '錯誤', color: 'bg-red-400', pulse: false },
+}
+
 // Status indicator component
 function StatusIndicator({
   connectionStatus,
@@ -99,18 +118,7 @@ function StatusIndicator({
   }
 
   const displayStatus = getDisplayStatus()
-
-  const statusConfig: Record<DisplayStatus, { label: string; color: string; pulse: boolean }> = {
-    idle: { label: '閒置', color: 'bg-gray-400', pulse: false },
-    connecting: { label: '連接中...', color: 'bg-yellow-400', pulse: true },
-    ready: { label: '已連線', color: 'bg-green-400', pulse: false },
-    listening: { label: '聆聽中', color: 'bg-green-400', pulse: true },
-    processing: { label: '處理中', color: 'bg-blue-400', pulse: true },
-    speaking: { label: 'AI 回應中', color: 'bg-purple-400', pulse: true },
-    error: { label: '錯誤', color: 'bg-red-400', pulse: false },
-  }
-
-  const config = statusConfig[displayStatus]
+  const config = STATUS_CONFIG[displayStatus]
 
   return (
     <div className="flex items-center gap-2">
@@ -188,21 +196,39 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const MIN_SPEAKING_DURATION_MS = 500 // User must speak for at least 500ms before silence detection activates
   const SPEAKING_FRAMES_REQUIRED = 4 // Require 4 consecutive frames above threshold to confirm speaking
 
-  // Store state
+  // Store state — split by update frequency to minimize re-renders
+  // HIGH FREQUENCY: inputVolume updates 20-60Hz during recording
+  const inputVolume = useInteractionStore((s) => s.inputVolume)
+
+  // STREAMING: updates incrementally during AI response
+  const userTranscript = useInteractionStore((s) => s.userTranscript)
+  const aiResponseText = useInteractionStore((s) => s.aiResponseText)
+  const isTranscriptFinal = useInteractionStore((s) => s.isTranscriptFinal)
+
+  // MODERATE FREQUENCY: changes on connection/interaction state transitions
+  const { connectionStatus, interactionState, isRecording, error } = useInteractionStore(
+    useShallow((s) => ({
+      connectionStatus: s.connectionStatus,
+      interactionState: s.interactionState,
+      isRecording: s.isRecording,
+      error: s.error,
+    }))
+  )
+
+  // LOW FREQUENCY: changes on user configuration or turn completion
+  const { options, turnHistory, currentLatency, currentTurnLatency, sessionStats } =
+    useInteractionStore(
+      useShallow((s) => ({
+        options: s.options,
+        turnHistory: s.turnHistory,
+        currentLatency: s.currentLatency,
+        currentTurnLatency: s.currentTurnLatency,
+        sessionStats: s.sessionStats,
+      }))
+    )
+
+  // ACTIONS: stable references, never trigger re-renders
   const {
-    connectionStatus,
-    interactionState,
-    options,
-    turnHistory,
-    userTranscript,
-    aiResponseText,
-    isTranscriptFinal,
-    isRecording,
-    inputVolume,
-    currentLatency,
-    currentTurnLatency,
-    sessionStats,
-    error,
     setConnectionStatus,
     setInteractionState,
     setSession,
@@ -218,15 +244,35 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setProviderConfig,
     setError,
     resetSession,
-    // US4: Role and scenario configuration
     setUserRole,
     setAiRole,
     setScenarioContext,
-    // US5: Barge-in configuration
     setBargeInEnabled,
-    // Performance optimization
     setLightweightMode,
-  } = useInteractionStore()
+  } = useInteractionStore(
+    useShallow((s) => ({
+      setConnectionStatus: s.setConnectionStatus,
+      setInteractionState: s.setInteractionState,
+      setSession: s.setSession,
+      addTurnToHistory: s.addTurnToHistory,
+      setUserTranscript: s.setUserTranscript,
+      appendAIResponse: s.appendAIResponse,
+      clearTranscripts: s.clearTranscripts,
+      setIsRecording: s.setIsRecording,
+      setInputVolume: s.setInputVolume,
+      setCurrentLatency: s.setCurrentLatency,
+      setCurrentTurnLatency: s.setCurrentTurnLatency,
+      setMode: s.setMode,
+      setProviderConfig: s.setProviderConfig,
+      setError: s.setError,
+      resetSession: s.resetSession,
+      setUserRole: s.setUserRole,
+      setAiRole: s.setAiRole,
+      setScenarioContext: s.setScenarioContext,
+      setBargeInEnabled: s.setBargeInEnabled,
+      setLightweightMode: s.setLightweightMode,
+    }))
+  )
 
   // Determine WebSocket URL (must include user_id query parameter)
   // Use buildWebSocketUrl to get the correct backend API URL (not frontend domain)

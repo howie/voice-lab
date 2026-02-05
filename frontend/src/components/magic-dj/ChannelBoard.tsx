@@ -48,6 +48,8 @@ export interface ChannelBoardProps {
   onRemoveFromCueList?: (cueItemId: string) => void
   onResetCueList?: () => void
   onClearCueList?: () => void
+  /** When true, only show SFX and Music channels (015-DD-001 AI mode layout) */
+  aiMode?: boolean
 }
 
 // =============================================================================
@@ -63,6 +65,9 @@ function DragOverlayContent({ track }: { track: Track | null }) {
     </div>
   )
 }
+
+// AI mode only shows SFX and Music channels (015-DD-001)
+const AI_MODE_CHANNELS: ReadonlySet<ChannelType> = new Set(['sfx', 'music'])
 
 // =============================================================================
 // Component
@@ -81,8 +86,8 @@ export function ChannelBoard({
   onRemoveFromCueList,
   onResetCueList,
   onClearCueList,
+  aiMode = false,
 }: ChannelBoardProps) {
-  const tracks = useMagicDJStore(s => s.tracks)
   const addToChannel = useMagicDJStore(s => s.addToChannel)
   const reorderChannel = useMagicDJStore(s => s.reorderChannel)
   const addToCueList = useMagicDJStore(s => s.addToCueList)
@@ -91,6 +96,10 @@ export function ChannelBoard({
   const cueList = useMagicDJStore(selectCueList)
   const remainingCount = useMagicDJStore(selectCueListRemainingCount)
   const [draggedTrack, setDraggedTrack] = useState<Track | null>(null)
+
+  const visibleChannels = aiMode
+    ? CHANNEL_CONFIGS.filter((c) => AI_MODE_CHANNELS.has(c.type))
+    : CHANNEL_CONFIGS
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -110,10 +119,10 @@ export function ChannelBoard({
     if (data?.source === 'library' && data.track) {
       setDraggedTrack(data.track as Track)
     } else {
-      // Dragging from within a channel queue - find the track
+      // Dragging from within a channel queue - find the track on demand
       const trackId = data?.trackId as string | undefined
       if (trackId) {
-        const track = tracks.find((t) => t.id === trackId)
+        const track = useMagicDJStore.getState().tracks.find((t) => t.id === trackId)
         setDraggedTrack(track ?? null)
       }
     }
@@ -215,9 +224,9 @@ export function ChannelBoard({
         {leadingChannel}
 
 
-        {/* 4 Channel Strips */}
+        {/* Channel Strips (all 4 in normal mode, SFX+Music in AI mode) */}
         <div className="flex gap-2">
-          {CHANNEL_CONFIGS.map((config) => (
+          {visibleChannels.map((config) => (
             <ChannelStrip
               key={config.type}
               config={config}

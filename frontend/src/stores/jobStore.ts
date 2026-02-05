@@ -92,8 +92,8 @@ export const useJobStore = create<JobStore>((set, get) => ({
     try {
       const job = await createJob(request)
 
-      // Refresh job list after submission
-      await get().fetchJobs()
+      // Refresh job list after submission (non-blocking)
+      void get().fetchJobs()
 
       set({ isSubmitting: false })
       return job

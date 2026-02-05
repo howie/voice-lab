@@ -3,7 +3,7 @@
 **Input**: Design documents from `/docs/features/015-magic-dj-ai-prompts/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
 
-**Tests**: Not explicitly requested in spec. Test tasks included in final Polish phase as optional.
+**Tests**: Test tasks included alongside implementation phases per Constitution Principle I (TDD).
 
 **Organization**: Tasks grouped by user story (US1-US4) per spec.md priority order.
 
@@ -32,7 +32,11 @@
 - [ ] T007 Update magicDJStore persist partialize to include promptTemplates and storyPrompts in `frontend/src/stores/magicDJStore.ts`
 - [ ] T008 Add store version migration: load DEFAULT_PROMPT_TEMPLATES and DEFAULT_STORY_PROMPTS for pre-015 state in `frontend/src/stores/magicDJStore.ts`
 
-**Checkpoint**: Types compile, store can read/write promptTemplates and storyPrompts, persist/rehydrate works
+### Tests for Phase 1
+
+- [ ] T036 [P] Create promptTemplateStore unit tests: CRUD operations (add, update, remove, reorder), default template protection (isDefault cannot be deleted), persist/rehydrate verification, store version migration from pre-015 state in `frontend/tests/unit/magic-dj/promptTemplateStore.test.ts`
+
+**Checkpoint**: Types compile, store can read/write promptTemplates and storyPrompts, persist/rehydrate works, store tests pass
 
 ---
 
@@ -64,7 +68,12 @@
 - [ ] T015 [US1] Update DJControlPanelProps interface: add onSendPromptTemplate and onSendStoryPrompt callbacks in `frontend/src/components/magic-dj/DJControlPanel.tsx`
 - [ ] T016 [US1] Wire prompt template props through DJControlPanel → PromptTemplatePanel → PromptTemplateButton in `frontend/src/components/magic-dj/DJControlPanel.tsx`
 
-**Checkpoint**: Click prompt template button → WebSocket sends text_input → Gemini receives prompt. Prerecorded mode unaffected.
+### Tests for Phase 3
+
+- [ ] T037 [P] [US1] Create PromptTemplatePanel tests: render all templates, click triggers onSendPrompt callback with correct template, disabled state when AI not connected, "+" button renders in `frontend/tests/unit/magic-dj/PromptTemplatePanel.test.tsx`
+- [ ] T038 [US1] Add EC-002 rapid successive trigger test: verify that multiple rapid clicks (<500ms interval) on different prompt template buttons all invoke sendMessage in order without loss — no debounce should drop messages (spec EC-002) in `frontend/tests/unit/magic-dj/PromptTemplatePanel.test.tsx`
+
+**Checkpoint**: Click prompt template button → WebSocket sends text_input → Gemini receives prompt. Prerecorded mode unaffected. All US1 tests pass.
 
 ---
 
@@ -81,7 +90,11 @@
 - [ ] T019 [US2] Integrate StoryPromptPanel into DJControlPanel AI mode: add as second column in the four-column AI mode layout in `frontend/src/components/magic-dj/DJControlPanel.tsx`
 - [ ] T020 [US2] Wire story prompt props through DJControlPanel → StoryPromptPanel in `frontend/src/components/magic-dj/DJControlPanel.tsx`
 
-**Checkpoint**: Select story template or type custom text → text_input sent → AI transitions to story scenario
+### Tests for Phase 4
+
+- [ ] T039 [P] [US2] Create StoryPromptPanel tests: render preset story templates, click preset triggers onSendStoryPrompt callback, textarea submit sends custom text, empty textarea submit is prevented, disabled state when AI not connected in `frontend/tests/unit/magic-dj/StoryPromptPanel.test.tsx`
+
+**Checkpoint**: Select story template or type custom text → text_input sent → AI transitions to story scenario. All US2 tests pass.
 
 ---
 
@@ -130,6 +143,8 @@
 - [ ] T033 [P] Add StoryPromptPanel UX polish: clear textarea after submit, show "已送出" toast, disable submit when empty or AI disconnected in `frontend/src/components/magic-dj/StoryPromptPanel.tsx`
 - [ ] T034 Update ChannelBoard SoundLibrary filter: in AI mode, only show SFX and Music type tracks in the library (hide rescue and voice tracks) in `frontend/src/components/magic-dj/ChannelBoard.tsx`
 - [ ] T035 Verify prerecorded mode is fully unaffected: test mode switch between prerecorded and AI modes, confirm CueList and 4-channel layout still work in `frontend/src/components/magic-dj/DJControlPanel.tsx`
+- [ ] T040 [SC-001] Add performance verification for prompt template send latency: instrument handleSendPromptTemplate with timestamp measurement, verify text_input WebSocket message is dispatched within 100ms of button click in `frontend/tests/unit/magic-dj/PromptTemplatePanel.test.tsx`
+- [ ] T041 [SC-004] Add performance verification for 20+ templates rendering: test that PromptTemplatePanel renders 25 PromptTemplateButton items without frame drops, verify scrollable container maintains smooth interaction in `frontend/tests/unit/magic-dj/PromptTemplatePanel.test.tsx`
 
 ---
 
@@ -137,33 +152,35 @@
 
 ### Phase Dependencies
 
-- **Phase 1 (Setup)**: No dependencies — can start immediately
-- **Phase 2 (Foundational)**: Depends on T001-T005 (types must exist) — BLOCKS all user stories
-- **Phase 3 (US1)**: Depends on Phase 2 completion
-- **Phase 4 (US2)**: Depends on Phase 2 completion; can run in parallel with US1 (different components)
+- **Phase 1 (Setup)**: No dependencies — can start immediately. T036 (store tests) runs after T006-T008.
+- **Phase 2 (Foundational)**: Depends on T001 (types must exist) — BLOCKS all user stories. Note: AIControlBar depends on existing AIVoiceChannelStrip props, not full Phase 1 completion.
+- **Phase 3 (US1)**: Depends on Phase 2 completion. T037-T038 (tests) run after T011-T016 implementation.
+- **Phase 4 (US2)**: Depends on Phase 2 completion; can run in parallel with US1 (different components). T039 (tests) runs after T017-T020.
 - **Phase 5 (US3)**: Depends on Phase 3 and Phase 4 (needs four-column layout assembled)
 - **Phase 6 (US4)**: Depends on Phase 3 (needs PromptTemplateButton to exist)
-- **Phase 7 (Polish)**: Depends on all user stories being complete
+- **Phase 7 (Polish)**: Depends on all user stories being complete. T040-T041 (performance tests) verify SC-001 and SC-004.
 
 ### User Story Dependencies
 
 ```
 Phase 1 (Setup) ─────┐
+  └─ T036 (store tests)
                       ▼
 Phase 2 (Foundation) ─┬──────────────────┐
                       ▼                  ▼
-Phase 3 (US1: Prompt Templates)   Phase 4 (US2: Story Prompts)
+Phase 3 (US1)                     Phase 4 (US2)
+  └─ T037, T038 (tests)            └─ T039 (tests)
       │                                  │
       └──────────┬───────────────────────┘
                  ▼
 Phase 5 (US3: Concurrent Audio + Layout Assembly)
                  │
-Phase 3 ────────►│
                  ▼
 Phase 6 (US4: Template CRUD)
                  │
                  ▼
-Phase 7 (Polish)
+Phase 7 (Polish + Performance Tests)
+  └─ T040 (SC-001), T041 (SC-004)
 ```
 
 ### Within Each User Story
@@ -176,6 +193,7 @@ Phase 7 (Polish)
 
 **Phase 1 (all parallel)**:
 - T001, T002, T003 can all run in parallel (different sections of same file, but independent content)
+- T036 (store tests) runs after T006-T008
 
 **Phase 2 (parallel)**:
 - T009, T010 can run in parallel (different files)
@@ -183,12 +201,14 @@ Phase 7 (Polish)
 **Phase 3 + Phase 4 (cross-story parallel)**:
 - T011, T012 (US1 components) can run in parallel with T017 (US2 component)
 - All three are different files with no dependencies
+- T037, T038 (US1 tests) can run in parallel with T039 (US2 tests)
 
 **Phase 6 (partial parallel)**:
 - T025 (editor modal) can run in parallel with other stories
 
 **Phase 7 (mostly parallel)**:
 - T029, T030, T031, T032, T033 can all run in parallel (different files)
+- T040, T041 (performance tests) can run in parallel with other Phase 7 tasks
 
 ---
 
@@ -215,10 +235,10 @@ Task: T019 "[US2] Integrate StoryPromptPanel into DJControlPanel"
 
 ### MVP First (US1 Only)
 
-1. Complete Phase 1: Types & Store (T001-T008)
+1. Complete Phase 1: Types & Store (T001-T008) + Store Tests (T036)
 2. Complete Phase 2: AIControlBar extraction (T009-T010)
-3. Complete Phase 3: US1 — Prompt Template buttons working (T011-T016)
-4. **STOP and VALIDATE**: Click prompt template → text_input sent → AI behavior changes
+3. Complete Phase 3: US1 — Prompt Template buttons working (T011-T016) + Tests (T037-T038)
+4. **STOP and VALIDATE**: Click prompt template → text_input sent → AI behavior changes. All tests pass.
 5. This alone delivers the core value: RD can instantly control AI behavior
 
 ### Incremental Delivery
@@ -232,8 +252,8 @@ Task: T019 "[US2] Integrate StoryPromptPanel into DJControlPanel"
 
 ### Single Developer Strategy
 
-1. Phase 1 → Phase 2 → Phase 3 (US1) → Phase 4 (US2) → Phase 5 (US3) → Phase 6 (US4) → Phase 7
-2. Validate at each checkpoint before proceeding
+1. Phase 1 + T036 → Phase 2 → Phase 3 + T037-T038 → Phase 4 + T039 → Phase 5 → Phase 6 → Phase 7 + T040-T041
+2. Validate at each checkpoint before proceeding (tests must pass)
 
 ---
 
@@ -241,16 +261,17 @@ Task: T019 "[US2] Integrate StoryPromptPanel into DJControlPanel"
 
 | Metric | Value |
 |--------|-------|
-| **Total tasks** | 35 |
-| **Phase 1 (Setup)** | 8 tasks |
+| **Total tasks** | 41 |
+| **Phase 1 (Setup + Tests)** | 9 tasks (8 impl + 1 test) |
 | **Phase 2 (Foundation)** | 2 tasks |
-| **Phase 3 (US1 - Prompt Templates)** | 6 tasks |
-| **Phase 4 (US2 - Story Prompts)** | 4 tasks |
+| **Phase 3 (US1 + Tests)** | 8 tasks (6 impl + 2 tests) |
+| **Phase 4 (US2 + Tests)** | 5 tasks (4 impl + 1 test) |
 | **Phase 5 (US3 - Concurrent Audio)** | 4 tasks |
 | **Phase 6 (US4 - Template CRUD)** | 4 tasks |
-| **Phase 7 (Polish)** | 7 tasks |
-| **Parallel opportunities** | 14 tasks marked [P] |
-| **MVP scope** | Phase 1-3 (16 tasks) |
+| **Phase 7 (Polish + Perf Tests)** | 9 tasks (7 polish + 2 perf tests) |
+| **Parallel opportunities** | 18 tasks marked [P] |
+| **MVP scope** | Phase 1-3 (19 tasks) |
+| **Test tasks** | 6 (T036-T041) |
 
 ## Notes
 

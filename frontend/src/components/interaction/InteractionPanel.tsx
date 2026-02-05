@@ -89,6 +89,17 @@ function FallbackPrompt({ isRealtimeMode, hasError, onSwitchToCascade }: Fallbac
   )
 }
 
+// Static config hoisted outside component to avoid re-creation on each render
+const STATUS_CONFIG: Record<DisplayStatus, { label: string; color: string; pulse: boolean }> = {
+  idle: { label: '閒置', color: 'bg-gray-400', pulse: false },
+  connecting: { label: '連接中...', color: 'bg-yellow-400', pulse: true },
+  ready: { label: '已連線', color: 'bg-green-400', pulse: false },
+  listening: { label: '聆聽中', color: 'bg-green-400', pulse: true },
+  processing: { label: '處理中', color: 'bg-blue-400', pulse: true },
+  speaking: { label: 'AI 回應中', color: 'bg-purple-400', pulse: true },
+  error: { label: '錯誤', color: 'bg-red-400', pulse: false },
+}
+
 // Status indicator component
 function StatusIndicator({
   connectionStatus,
@@ -107,18 +118,7 @@ function StatusIndicator({
   }
 
   const displayStatus = getDisplayStatus()
-
-  const statusConfig: Record<DisplayStatus, { label: string; color: string; pulse: boolean }> = {
-    idle: { label: '閒置', color: 'bg-gray-400', pulse: false },
-    connecting: { label: '連接中...', color: 'bg-yellow-400', pulse: true },
-    ready: { label: '已連線', color: 'bg-green-400', pulse: false },
-    listening: { label: '聆聽中', color: 'bg-green-400', pulse: true },
-    processing: { label: '處理中', color: 'bg-blue-400', pulse: true },
-    speaking: { label: 'AI 回應中', color: 'bg-purple-400', pulse: true },
-    error: { label: '錯誤', color: 'bg-red-400', pulse: false },
-  }
-
-  const config = statusConfig[displayStatus]
+  const config = STATUS_CONFIG[displayStatus]
 
   return (
     <div className="flex items-center gap-2">

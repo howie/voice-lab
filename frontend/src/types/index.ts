@@ -1,8 +1,31 @@
 // Re-export multi-role TTS types
-export * from './multi-role-tts'
+export type {
+  MultiRoleSupportType,
+  MultiRoleTTSProvider,
+  DialogueTurn,
+  VoiceAssignment,
+  ProviderMultiRoleCapability,
+  TurnTiming,
+  MultiRoleTTSRequest,
+  MultiRoleTTSResult,
+  ParseDialogueResponse,
+  CapabilitiesResponse,
+  MultiRoleTTSError,
+} from './multi-role-tts'
 
 // Re-export voice customization types
-export * from './voice-customization'
+export type {
+  VoiceCustomization,
+  VoiceWithCustomization,
+  UpdateVoiceCustomizationRequest,
+  BulkUpdateItem,
+  BulkUpdateVoiceCustomizationRequest,
+  BulkUpdateFailure,
+  BulkUpdateResult,
+  VoiceListResponse,
+  VoiceFilterParams,
+  CustomizationFilterParams,
+} from './voice-customization'
 
 // Provider types
 export type TTSProvider = 'gcp' | 'gemini' | 'azure' | 'elevenlabs' | 'voai'

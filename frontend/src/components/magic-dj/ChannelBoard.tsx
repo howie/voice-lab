@@ -66,6 +66,9 @@ function DragOverlayContent({ track }: { track: Track | null }) {
   )
 }
 
+// AI mode only shows SFX and Music channels (015-DD-001)
+const AI_MODE_CHANNELS: ReadonlySet<ChannelType> = new Set(['sfx', 'music'])
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -94,10 +97,8 @@ export function ChannelBoard({
   const remainingCount = useMagicDJStore(selectCueListRemainingCount)
   const [draggedTrack, setDraggedTrack] = useState<Track | null>(null)
 
-  // In AI mode, only show SFX and Music channels (015-DD-001)
-  const AI_MODE_CHANNELS: ChannelType[] = ['sfx', 'music']
   const visibleChannels = aiMode
-    ? CHANNEL_CONFIGS.filter((c) => AI_MODE_CHANNELS.includes(c.type))
+    ? CHANNEL_CONFIGS.filter((c) => AI_MODE_CHANNELS.has(c.type))
     : CHANNEL_CONFIGS
 
   const sensors = useSensors(

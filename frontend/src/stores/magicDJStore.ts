@@ -1013,27 +1013,30 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         const state = get()
         if (!state.currentPresetId || !state.isAuthenticated) return
 
+        const presetId = state.currentPresetId
         set({ isSyncing: true, syncError: null })
         try {
           // Update preset settings
-          await djApi.updatePreset(state.currentPresetId, {
+          await djApi.updatePreset(presetId, {
             settings: {
               master_volume: state.masterVolume,
               ...djApi.frontendSettingsToApi(state.settings),
             },
           })
 
-          // Update each track
-          for (const track of state.tracks) {
-            await djApi.updateTrack(state.currentPresetId, track.id, {
-              name: track.name,
-              type: track.type,
-              hotkey: track.hotkey,
-              loop: track.loop,
-              text_content: track.textContent,
-              volume: track.volume,
-            })
-          }
+          // Update all tracks in parallel
+          await Promise.all(
+            state.tracks.map((track) =>
+              djApi.updateTrack(presetId, track.id, {
+                name: track.name,
+                type: track.type,
+                hotkey: track.hotkey,
+                loop: track.loop,
+                text_content: track.textContent,
+                volume: track.volume,
+              })
+            )
+          )
 
           set({ isSyncing: false })
         } catch (error) {

@@ -16,6 +16,7 @@ import { TranscriptDisplay } from './TranscriptDisplay'
 import { RoleScenarioEditor } from './RoleScenarioEditor'
 import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
 
+import { useShallow } from 'zustand/react/shallow'
 import { useInteractionStore } from '@/stores/interactionStore'
 import type { ScenarioTemplate, TurnLatencyData } from '@/types/interaction'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -188,21 +189,39 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
   const MIN_SPEAKING_DURATION_MS = 500 // User must speak for at least 500ms before silence detection activates
   const SPEAKING_FRAMES_REQUIRED = 4 // Require 4 consecutive frames above threshold to confirm speaking
 
-  // Store state
+  // Store state — split by update frequency to minimize re-renders
+  // HIGH FREQUENCY: inputVolume updates 20-60Hz during recording
+  const inputVolume = useInteractionStore((s) => s.inputVolume)
+
+  // STREAMING: updates incrementally during AI response
+  const userTranscript = useInteractionStore((s) => s.userTranscript)
+  const aiResponseText = useInteractionStore((s) => s.aiResponseText)
+  const isTranscriptFinal = useInteractionStore((s) => s.isTranscriptFinal)
+
+  // MODERATE FREQUENCY: changes on connection/interaction state transitions
+  const { connectionStatus, interactionState, isRecording, error } = useInteractionStore(
+    useShallow((s) => ({
+      connectionStatus: s.connectionStatus,
+      interactionState: s.interactionState,
+      isRecording: s.isRecording,
+      error: s.error,
+    }))
+  )
+
+  // LOW FREQUENCY: changes on user configuration or turn completion
+  const { options, turnHistory, currentLatency, currentTurnLatency, sessionStats } =
+    useInteractionStore(
+      useShallow((s) => ({
+        options: s.options,
+        turnHistory: s.turnHistory,
+        currentLatency: s.currentLatency,
+        currentTurnLatency: s.currentTurnLatency,
+        sessionStats: s.sessionStats,
+      }))
+    )
+
+  // ACTIONS: stable references, never trigger re-renders
   const {
-    connectionStatus,
-    interactionState,
-    options,
-    turnHistory,
-    userTranscript,
-    aiResponseText,
-    isTranscriptFinal,
-    isRecording,
-    inputVolume,
-    currentLatency,
-    currentTurnLatency,
-    sessionStats,
-    error,
     setConnectionStatus,
     setInteractionState,
     setSession,
@@ -218,15 +237,35 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     setProviderConfig,
     setError,
     resetSession,
-    // US4: Role and scenario configuration
     setUserRole,
     setAiRole,
     setScenarioContext,
-    // US5: Barge-in configuration
     setBargeInEnabled,
-    // Performance optimization
     setLightweightMode,
-  } = useInteractionStore()
+  } = useInteractionStore(
+    useShallow((s) => ({
+      setConnectionStatus: s.setConnectionStatus,
+      setInteractionState: s.setInteractionState,
+      setSession: s.setSession,
+      addTurnToHistory: s.addTurnToHistory,
+      setUserTranscript: s.setUserTranscript,
+      appendAIResponse: s.appendAIResponse,
+      clearTranscripts: s.clearTranscripts,
+      setIsRecording: s.setIsRecording,
+      setInputVolume: s.setInputVolume,
+      setCurrentLatency: s.setCurrentLatency,
+      setCurrentTurnLatency: s.setCurrentTurnLatency,
+      setMode: s.setMode,
+      setProviderConfig: s.setProviderConfig,
+      setError: s.setError,
+      resetSession: s.resetSession,
+      setUserRole: s.setUserRole,
+      setAiRole: s.setAiRole,
+      setScenarioContext: s.setScenarioContext,
+      setBargeInEnabled: s.setBargeInEnabled,
+      setLightweightMode: s.setLightweightMode,
+    }))
+  )
 
   // Determine WebSocket URL (must include user_id query parameter)
   // Use buildWebSocketUrl to get the correct backend API URL (not frontend domain)

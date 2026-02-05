@@ -72,6 +72,7 @@ class SegmentedMergerService:
         voice_map: dict[str, str],
         language: str = "zh-TW",
         on_turn_complete: Callable[[int, int], None] | None = None,
+        style_map: dict[str, str] | None = None,
     ) -> MultiRoleTTSResult:
         """Synthesize dialogue turns and merge into single audio.
 
@@ -105,12 +106,14 @@ class SegmentedMergerService:
             voice_id = voice_map[turn.speaker]
 
             # Create TTS request for this turn
+            turn_style = style_map.get(turn.speaker) if style_map else None
             request = TTSRequest(
                 text=turn.text,
                 voice_id=voice_id,
                 provider=self._provider.name,
                 language=language,
                 output_format=self._config.output_format,
+                style_prompt=turn_style,
             )
 
             # Synthesize

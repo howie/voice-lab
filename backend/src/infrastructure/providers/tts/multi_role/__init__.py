@@ -13,6 +13,10 @@ from src.infrastructure.providers.tts.multi_role.elevenlabs_dialogue_builder imp
     ElevenLabsDialogueConfig,
     ElevenLabsDialogueRequest,
 )
+from src.infrastructure.providers.tts.multi_role.gemini_dialogue_builder import (
+    GeminiDialogueBuilder,
+    GeminiDialogueConfig,
+)
 from src.infrastructure.providers.tts.multi_role.segmented_merger import (
     MergeConfig,
     SegmentedMergerService,
@@ -28,4 +32,6 @@ __all__ = [
     "ElevenLabsDialogueBuilder",
     "ElevenLabsDialogueConfig",
     "ElevenLabsDialogueRequest",
+    "GeminiDialogueBuilder",
+    "GeminiDialogueConfig",
 ]

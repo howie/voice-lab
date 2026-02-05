@@ -48,6 +48,8 @@ export interface ChannelBoardProps {
   onRemoveFromCueList?: (cueItemId: string) => void
   onResetCueList?: () => void
   onClearCueList?: () => void
+  /** When true, only show SFX and Music channels (015-DD-001 AI mode layout) */
+  aiMode?: boolean
 }
 
 // =============================================================================
@@ -81,6 +83,7 @@ export function ChannelBoard({
   onRemoveFromCueList,
   onResetCueList,
   onClearCueList,
+  aiMode = false,
 }: ChannelBoardProps) {
   const tracks = useMagicDJStore(s => s.tracks)
   const addToChannel = useMagicDJStore(s => s.addToChannel)
@@ -91,6 +94,12 @@ export function ChannelBoard({
   const cueList = useMagicDJStore(selectCueList)
   const remainingCount = useMagicDJStore(selectCueListRemainingCount)
   const [draggedTrack, setDraggedTrack] = useState<Track | null>(null)
+
+  // In AI mode, only show SFX and Music channels (015-DD-001)
+  const AI_MODE_CHANNELS: ChannelType[] = ['sfx', 'music']
+  const visibleChannels = aiMode
+    ? CHANNEL_CONFIGS.filter((c) => AI_MODE_CHANNELS.includes(c.type))
+    : CHANNEL_CONFIGS
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -215,9 +224,9 @@ export function ChannelBoard({
         {leadingChannel}
 
 
-        {/* 4 Channel Strips */}
+        {/* Channel Strips (all 4 in normal mode, SFX+Music in AI mode) */}
         <div className="flex gap-2">
-          {CHANNEL_CONFIGS.map((config) => (
+          {visibleChannels.map((config) => (
             <ChannelStrip
               key={config.type}
               config={config}

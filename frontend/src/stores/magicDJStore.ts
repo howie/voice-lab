@@ -21,7 +21,9 @@ import type {
   OperationLog,
   OperationMode,
   PendingOperation,
+  PromptTemplate,
   SessionRecord,
+  StoryPrompt,
   Track,
   TrackPlaybackState,
   TrackSource,
@@ -31,6 +33,8 @@ import {
   DEFAULT_CHANNEL_STATES,
   DEFAULT_CUE_LIST,
   DEFAULT_DJ_SETTINGS,
+  DEFAULT_PROMPT_TEMPLATES,
+  DEFAULT_STORY_PROMPTS,
   DEFAULT_TRACKS,
   OperationPriority,
 } from '@/types/magic-dj'
@@ -118,6 +122,17 @@ interface MagicDJStoreState extends MagicDJState {
   importToBackend: (presetName: string) => Promise<string>
   switchToLocalStorage: () => void
 
+  // === Prompt Template Actions (015) ===
+  setLastSentPrompt: (id: string) => void
+  clearLastSentPrompt: () => void
+  addPromptTemplate: (template: Omit<PromptTemplate, 'id' | 'createdAt'>) => void
+  updatePromptTemplate: (id: string, updates: Partial<PromptTemplate>) => void
+  removePromptTemplate: (id: string) => void
+  reorderPromptTemplates: (ids: string[]) => void
+  addStoryPrompt: (prompt: Omit<StoryPrompt, 'id'>) => void
+  updateStoryPrompt: (id: string, updates: Partial<StoryPrompt>) => void
+  removeStoryPrompt: (id: string) => void
+
   // === IndexedDB Storage Actions (011 Phase 4) ===
   storageQuota: StorageQuota | null
   storageError: AudioStorageError | null
@@ -186,6 +201,11 @@ const initialState: MagicDJState & {
   channelStates: DEFAULT_CHANNEL_STATES,
   // Cue List (US3)
   cueList: DEFAULT_CUE_LIST,
+  // Prompt Templates (015)
+  promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+  storyPrompts: DEFAULT_STORY_PROMPTS,
+  lastSentPromptId: null,
+  lastSentPromptTime: null,
   currentMode: 'prerecorded',
   isAIConnected: false,
   isSessionActive: false,
@@ -851,6 +871,82 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
       setCueList: (cueList) => set({ cueList }),
 
+      // === Prompt Template Actions (015) ===
+
+      setLastSentPrompt: (id) =>
+        set({ lastSentPromptId: id, lastSentPromptTime: Date.now() }),
+
+      clearLastSentPrompt: () =>
+        set({ lastSentPromptId: null, lastSentPromptTime: null }),
+
+      addPromptTemplate: (template) =>
+        set((prev) => ({
+          promptTemplates: [
+            ...prev.promptTemplates,
+            {
+              ...template,
+              id: `pt_custom_${crypto.randomUUID().slice(0, 8)}`,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        })),
+
+      updatePromptTemplate: (id, updates) =>
+        set((prev) => ({
+          promptTemplates: prev.promptTemplates.map((t) =>
+            t.id === id ? { ...t, ...updates } : t
+          ),
+        })),
+
+      removePromptTemplate: (id) =>
+        set((prev) => ({
+          promptTemplates: prev.promptTemplates.filter(
+            (t) => t.id !== id || t.isDefault
+          ),
+        })),
+
+      reorderPromptTemplates: (ids) =>
+        set((prev) => {
+          const ordered = ids
+            .map((id) => prev.promptTemplates.find((t) => t.id === id))
+            .filter(Boolean) as PromptTemplate[]
+          // Append any templates not in the ids list
+          const remaining = prev.promptTemplates.filter(
+            (t) => !ids.includes(t.id)
+          )
+          return {
+            promptTemplates: [...ordered, ...remaining].map((t, i) => ({
+              ...t,
+              order: i + 1,
+            })),
+          }
+        }),
+
+      addStoryPrompt: (prompt) =>
+        set((prev) => ({
+          storyPrompts: [
+            ...prev.storyPrompts,
+            {
+              ...prompt,
+              id: `sp_custom_${crypto.randomUUID().slice(0, 8)}`,
+            },
+          ],
+        })),
+
+      updateStoryPrompt: (id, updates) =>
+        set((prev) => ({
+          storyPrompts: prev.storyPrompts.map((s) =>
+            s.id === id ? { ...s, ...updates } : s
+          ),
+        })),
+
+      removeStoryPrompt: (id) =>
+        set((prev) => ({
+          storyPrompts: prev.storyPrompts.filter(
+            (s) => s.id !== id || s.isDefault
+          ),
+        })),
+
       // === Backend Sync Actions (011 Phase 3) ===
       setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
 
@@ -1226,6 +1322,9 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
         channelStates: state.channelStates,
         // Persist cue list (FR-037)
         cueList: state.cueList,
+        // Persist prompt templates (015)
+        promptTemplates: state.promptTemplates,
+        storyPrompts: state.storyPrompts,
       }),
       // After rehydration completes, trigger IndexedDB audio restoration.
       // This eliminates the race condition where components render with empty
@@ -1266,6 +1365,13 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
           channelStates: persisted.channelStates ?? DEFAULT_CHANNEL_STATES,
           // Restore cue list (FR-037)
           cueList: persisted.cueList ?? DEFAULT_CUE_LIST,
+          // Restore prompt templates (015) — fallback to defaults for pre-015 stores
+          promptTemplates: persisted.promptTemplates?.length
+            ? persisted.promptTemplates
+            : DEFAULT_PROMPT_TEMPLATES,
+          storyPrompts: persisted.storyPrompts?.length
+            ? persisted.storyPrompts
+            : DEFAULT_STORY_PROMPTS,
         }
       },
     }

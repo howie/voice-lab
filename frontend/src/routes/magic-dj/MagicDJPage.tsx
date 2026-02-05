@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
+import { PromptTemplateEditor } from '@/components/magic-dj/PromptTemplateEditor'
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useInteractionStore } from '@/stores/interactionStore'
@@ -21,7 +22,7 @@ import { useCueList } from '@/hooks/useCueList'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { buildWebSocketUrl } from '@/services/interactionApi'
-import type { Track } from '@/types/magic-dj'
+import type { PromptTemplate, PromptTemplateColor, Track } from '@/types/magic-dj'
 
 // =============================================================================
 // Utilities
@@ -53,6 +54,10 @@ export function MagicDJPage() {
   // BGM Generator Modal state
   const [isBGMGeneratorOpen, setIsBGMGeneratorOpen] = useState(false)
 
+  // Prompt Template Editor Modal state (015)
+  const [isPromptEditorOpen, setIsPromptEditorOpen] = useState(false)
+  const [editingPromptTemplate, setEditingPromptTemplate] = useState<PromptTemplate | null>(null)
+
   // Stores
   const tracks = useMagicDJStore(s => s.tracks)
   const currentMode = useMagicDJStore(s => s.currentMode)
@@ -70,6 +75,12 @@ export function MagicDJPage() {
   const updateTrack = useMagicDJStore(s => s.updateTrack)
   const initializeStorage = useMagicDJStore(s => s.initializeStorage)
   const saveAudioToStorage = useMagicDJStore(s => s.saveAudioToStorage)
+
+  // Prompt template store actions (015)
+  const setLastSentPrompt = useMagicDJStore(s => s.setLastSentPrompt)
+  const addPromptTemplate = useMagicDJStore(s => s.addPromptTemplate)
+  const updatePromptTemplate = useMagicDJStore(s => s.updatePromptTemplate)
+  const removePromptTemplate = useMagicDJStore(s => s.removePromptTemplate)
 
   // Interaction options for Gemini AI config
   const interactionOptions = useInteractionStore(s => s.options)
@@ -266,6 +277,69 @@ export function MagicDJPage() {
       stopSession()
     }
   }, [sendMessage, stopAll, playTrack, logOperation, stopAIWaiting, isSessionActive, stopSession])
+
+  // === Prompt Template Handlers (015) ===
+
+  const handleSendPromptTemplate = useCallback(
+    (template: PromptTemplate) => {
+      if (wsStatus !== 'connected') return
+      sendMessage('text_input', { text: template.prompt })
+      setLastSentPrompt(template.id)
+      logOperation('send_prompt_template', { templateId: template.id, name: template.name })
+    },
+    [wsStatus, sendMessage, setLastSentPrompt, logOperation]
+  )
+
+  const handleSendStoryPrompt = useCallback(
+    (text: string) => {
+      if (wsStatus !== 'connected' || !text.trim()) return
+      sendMessage('text_input', { text: text.trim() })
+      logOperation('send_story_prompt', { text: text.trim().slice(0, 50) })
+    },
+    [wsStatus, sendMessage, logOperation]
+  )
+
+  const handleAddPromptTemplate = useCallback(() => {
+    setEditingPromptTemplate(null)
+    setIsPromptEditorOpen(true)
+  }, [])
+
+  const handleEditPromptTemplate = useCallback((template: PromptTemplate) => {
+    setEditingPromptTemplate(template)
+    setIsPromptEditorOpen(true)
+  }, [])
+
+  const handleDeletePromptTemplate = useCallback(
+    (template: PromptTemplate) => {
+      if (template.isDefault) return
+      if (confirm(`確定要刪除「${template.name}」嗎？`)) {
+        removePromptTemplate(template.id)
+      }
+    },
+    [removePromptTemplate]
+  )
+
+  const handleSavePromptTemplate = useCallback(
+    (data: { name: string; prompt: string; color: PromptTemplateColor }) => {
+      if (editingPromptTemplate) {
+        updatePromptTemplate(editingPromptTemplate.id, data)
+      } else {
+        addPromptTemplate({
+          name: data.name,
+          prompt: data.prompt,
+          color: data.color,
+          order: useMagicDJStore.getState().promptTemplates.length + 1,
+          isDefault: false,
+        })
+      }
+    },
+    [editingPromptTemplate, updatePromptTemplate, addPromptTemplate]
+  )
+
+  const handleClosePromptEditor = useCallback(() => {
+    setIsPromptEditorOpen(false)
+    setEditingPromptTemplate(null)
+  }, [])
 
   const handleToggleMode = useCallback(() => {
     const newMode = currentMode === 'prerecorded' ? 'ai-conversation' : 'prerecorded'
@@ -558,6 +632,11 @@ export function MagicDJPage() {
         micVolume={micVolume}
         isListening={isListening}
         onToggleListening={handleToggleListening}
+        onSendPromptTemplate={handleSendPromptTemplate}
+        onSendStoryPrompt={handleSendStoryPrompt}
+        onAddPromptTemplate={handleAddPromptTemplate}
+        onEditPromptTemplate={handleEditPromptTemplate}
+        onDeletePromptTemplate={handleDeletePromptTemplate}
       />
 
       {/* Track Editor Modal */}
@@ -574,6 +653,14 @@ export function MagicDJPage() {
         isOpen={isBGMGeneratorOpen}
         onClose={handleCloseBGMGenerator}
         onSave={handleSaveBGMTrack}
+      />
+
+      {/* Prompt Template Editor Modal (015) */}
+      <PromptTemplateEditor
+        isOpen={isPromptEditorOpen}
+        onClose={handleClosePromptEditor}
+        onSave={handleSavePromptTemplate}
+        editingTemplate={editingPromptTemplate}
       />
     </div>
   )

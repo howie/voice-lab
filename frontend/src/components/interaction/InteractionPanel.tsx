@@ -6,15 +6,22 @@
  * Integrates microphone input, audio playback, transcripts, and status indicators.
  */
 
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState, useRef, memo } from 'react'
 
 import { AudioVisualizer } from './AudioVisualizer'
 import { LatencyDisplay } from './LatencyDisplay'
-import { ModeSelector } from './ModeSelector'
-import { PerformanceSettings } from './PerformanceSettings'
+import { ModeSelector as ModeSelectorBase } from './ModeSelector'
+import { PerformanceSettings as PerformanceSettingsBase } from './PerformanceSettings'
 import { TranscriptDisplay } from './TranscriptDisplay'
-import { RoleScenarioEditor } from './RoleScenarioEditor'
-import { ScenarioTemplateSelector } from './ScenarioTemplateSelector'
+import { RoleScenarioEditor as RoleScenarioEditorBase } from './RoleScenarioEditor'
+import { ScenarioTemplateSelector as ScenarioTemplateSelectorBase } from './ScenarioTemplateSelector'
+
+// Memoize child components that don't receive high-frequency props.
+// Prevents re-renders caused by inputVolume (20-60Hz) and streaming transcripts.
+const ModeSelector = memo(ModeSelectorBase)
+const PerformanceSettings = memo(PerformanceSettingsBase)
+const RoleScenarioEditor = memo(RoleScenarioEditorBase)
+const ScenarioTemplateSelector = memo(ScenarioTemplateSelectorBase)
 
 import { useShallow } from 'zustand/react/shallow'
 import { useInteractionStore } from '@/stores/interactionStore'

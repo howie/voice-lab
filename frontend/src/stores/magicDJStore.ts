@@ -1062,8 +1062,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             },
           })
 
-          // Refresh preset list
-          await get().fetchPresets()
+          // Refresh preset list (non-blocking)
+          void get().fetchPresets()
 
           set({ isLoading: false })
           return response.id
@@ -1093,8 +1093,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
             isLoading: false,
           })
 
-          // Refresh preset list
-          await get().fetchPresets()
+          // Refresh preset list (non-blocking)
+          void get().fetchPresets()
         } catch (error) {
           console.error('Failed to delete preset:', error)
           set({
@@ -1129,8 +1129,8 @@ export const useMagicDJStore = create<MagicDJStoreState>()(
 
           const response = await djApi.importFromLocalStorage(presetName, localStorageData)
 
-          // Refresh preset list
-          await get().fetchPresets()
+          // Refresh preset list (non-blocking)
+          void get().fetchPresets()
 
           set({ isLoading: false })
           return response.id

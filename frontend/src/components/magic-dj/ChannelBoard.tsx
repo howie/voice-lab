@@ -85,7 +85,6 @@ export function ChannelBoard({
   onClearCueList,
   aiMode = false,
 }: ChannelBoardProps) {
-  const tracks = useMagicDJStore(s => s.tracks)
   const addToChannel = useMagicDJStore(s => s.addToChannel)
   const reorderChannel = useMagicDJStore(s => s.reorderChannel)
   const addToCueList = useMagicDJStore(s => s.addToCueList)
@@ -119,10 +118,10 @@ export function ChannelBoard({
     if (data?.source === 'library' && data.track) {
       setDraggedTrack(data.track as Track)
     } else {
-      // Dragging from within a channel queue - find the track
+      // Dragging from within a channel queue - find the track on demand
       const trackId = data?.trackId as string | undefined
       if (trackId) {
-        const track = tracks.find((t) => t.id === trackId)
+        const track = useMagicDJStore.getState().tracks.find((t) => t.id === trackId)
         setDraggedTrack(track ?? null)
       }
     }

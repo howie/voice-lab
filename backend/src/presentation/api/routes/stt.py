@@ -125,7 +125,9 @@ async def list_providers(
     for provider_name in stt_providers:
         provider_data = STTProviderFactory.get_provider_info(provider_name)
         cred_provider = stt_mapping.get(provider_name, provider_name)
-        status = credential_status.get(cred_provider, {"has_credentials": False, "is_valid": False})
+        # Provider exists in stt_providers = system has valid env-var credentials.
+        # User-level DB credentials override if present.
+        status = credential_status.get(cred_provider, {"has_credentials": True, "is_valid": True})
         providers_info.append(
             STTProviderResponse(
                 name=provider_data["name"],

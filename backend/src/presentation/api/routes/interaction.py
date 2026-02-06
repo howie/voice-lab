@@ -453,6 +453,9 @@ async def list_providers(
     # TTS providers: azure -> azure, gcp -> gcp, elevenlabs -> elevenlabs
 
     # Add credential status to each provider
+    # Providers listed here are already initialized via env vars (Container),
+    # so default to has_credentials=True, is_valid=True (system credentials).
+    # User-level DB credentials override if present.
     def add_credential_status(providers: list[dict], provider_mapping: dict) -> list[dict]:
         result = []
         for p in providers:
@@ -462,8 +465,8 @@ async def list_providers(
             status = credential_status.get(
                 cred_provider,
                 {
-                    "has_credentials": False,
-                    "is_valid": False,
+                    "has_credentials": True,
+                    "is_valid": True,
                 },
             )
             result.append(

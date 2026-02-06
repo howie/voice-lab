@@ -160,6 +160,14 @@ class SynthesizeMultiRoleUseCase(UseCase[SynthesizeMultiRoleInput, MultiRoleTTSR
             builder = ElevenLabsDialogueBuilder()
             return builder.can_use_native(input_data.turns, voice_map)
         elif provider == "gemini":
+            # Gemini multiSpeakerVoiceConfig only supports exactly 2 speakers
+            unique_speakers = {t.speaker for t in input_data.turns}
+            if len(unique_speakers) != 2:
+                logger.info(
+                    "Gemini native requires exactly 2 speakers, got %d; using segmented",
+                    len(unique_speakers),
+                )
+                return False
             gemini_builder = GeminiDialogueBuilder()
             return gemini_builder.can_use_native(
                 input_data.turns, voice_map, style_prompt=input_data.style_prompt

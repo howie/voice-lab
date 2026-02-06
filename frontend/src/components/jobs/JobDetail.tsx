@@ -5,7 +5,7 @@
  * Feature: 007-async-job-mgmt
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Download, RefreshCw, AlertCircle, Clock, Play, Pause, Volume2 } from 'lucide-react'
 import { useJobStore } from '@/stores/jobStore'
 import { JobStatusBadge } from './JobStatus'
@@ -15,6 +15,24 @@ import {
   downloadJobAudio,
   getDownloadUrl,
 } from '@/services/jobApi'
+
+/**
+ * Fetch audio with auth header and return an Object URL.
+ * HTML <audio> elements cannot send Authorization headers,
+ * so we fetch the blob manually and create a local URL.
+ */
+async function fetchAudioBlobUrl(jobId: string): Promise<string> {
+  const url = getDownloadUrl(jobId)
+  const token = localStorage.getItem('auth_token')
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) {
+    throw new Error(`Audio fetch failed: ${response.status} ${response.statusText}`)
+  }
+  const blob = await response.blob()
+  return URL.createObjectURL(blob)
+}
 
 interface JobDetailProps {
   jobId: string | null
@@ -26,6 +44,7 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioError, setAudioError] = useState<string | null>(null)
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null)
 
   // Fetch job details when ID changes
   useEffect(() => {
@@ -37,7 +56,34 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
     // Reset audio state when job changes
     setIsPlaying(false)
     setAudioError(null)
+    setAudioBlobUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
   }, [jobId, fetchJob, clearCurrentJob])
+
+  // Fetch audio blob with auth header when job has audio
+  const loadAudioBlob = useCallback(async (jId: string) => {
+    try {
+      const blobUrl = await fetchAudioBlobUrl(jId)
+      setAudioBlobUrl(blobUrl)
+      setAudioError(null)
+    } catch (err) {
+      setAudioError('音訊載入失敗: ' + (err instanceof Error ? err.message : String(err)))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentJob?.status === 'completed' && currentJob.audio_file_id) {
+      loadAudioBlob(currentJob.id)
+    }
+    return () => {
+      setAudioBlobUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+    }
+  }, [currentJob?.id, currentJob?.status, currentJob?.audio_file_id, loadAudioBlob])
 
   // Handle play/pause toggle
   const handlePlayPause = () => {
@@ -199,16 +245,18 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
                 <span className="text-sm font-medium">音訊預覽</span>
               </div>
 
-              {/* Hidden audio element */}
-              <audio
-                ref={audioRef}
-                src={getDownloadUrl(currentJob.id)}
-                onPlay={handleAudioPlay}
-                onPause={handleAudioPause}
-                onEnded={handleAudioEnded}
-                onError={handleAudioError}
-                preload="metadata"
-              />
+              {/* Hidden audio element - uses blob URL fetched with auth */}
+              {audioBlobUrl && (
+                <audio
+                  ref={audioRef}
+                  src={audioBlobUrl}
+                  onPlay={handleAudioPlay}
+                  onPause={handleAudioPause}
+                  onEnded={handleAudioEnded}
+                  onError={handleAudioError}
+                  preload="metadata"
+                />
+              )}
 
               {/* Audio error message */}
               {audioError && (

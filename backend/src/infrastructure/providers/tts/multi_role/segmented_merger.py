@@ -22,6 +22,9 @@ from src.domain.entities.multi_role_tts import (
     TurnTiming,
 )
 from src.domain.entities.tts import TTSRequest
+from src.infrastructure.providers.tts.multi_role.azure_ssml_builder import (
+    strip_style_tags,
+)
 
 
 @dataclass
@@ -106,9 +109,11 @@ class SegmentedMergerService:
             voice_id = voice_map[turn.speaker]
 
             # Create TTS request for this turn
+            # Strip known style tags so they aren't spoken aloud in segmented mode
+            clean_text = strip_style_tags(turn.text)
             turn_style = style_map.get(turn.speaker) if style_map else None
             request = TTSRequest(
-                text=turn.text,
+                text=clean_text,
                 voice_id=voice_id,
                 provider=self._provider.name,
                 language=language,

@@ -96,3 +96,29 @@ frontend/
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | N/A | N/A | N/A |
+
+## Improvement Phase (Branch: `quota-monitor-improvement`)
+
+**Date**: 2026-02-06
+
+### Discovered Issues
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| BUG-1 | CRITICAL | RateLimiter 單一計數器問題：general 和 strict 路徑共用計數器，導致 TTS remaining 數字不正確 |
+| BUG-2 | CRITICAL | STT Route 的 `except Exception` 吞掉 `QuotaExceededError`，導致 429 錯誤變成 500 |
+| BUG-3 | MODERATE | `ProviderQuotaInfo.PROVIDERS` 缺少 anthropic 和 speechmatics |
+| GAP-1 | MODERATE | Rate Limit Middleware 零測試覆蓋 |
+| GAP-2 | MODERATE | STT Route 缺少 Usage Tracking（TTS route 有但 STT 沒有） |
+| GAP-4 | LOW | Dashboard 無自動更新機制 |
+
+### Changes Made
+
+1. **RateLimiter 雙層計數器** (`rate_limit.py`): `RateLimitState` 新增 `strict_*` 計數器，general 流量不再影響 strict remaining
+2. **STT QuotaExceededError 處理** (`stt.py`): 在 `except Exception` 前加入 `except QuotaExceededError` 讓 error_handler 正確回傳 429
+3. **ProviderQuotaInfo 補齊** (`errors.py`): 新增 anthropic 和 speechmatics 的完整 quota info
+4. **STT Usage Tracking** (`stt.py`): 仿照 TTS route pattern 加入 `_track_success()` 和 `_track_quota_error()`
+5. **Rate Limit 測試** (`test_rate_limit.py`): 17 個測試覆蓋 general/strict 限制、窗口重置、client 隔離、BUG-1 迴歸
+6. **STT Tracking 測試** (`test_stt_route_quota_tracking.py`): 10 個測試覆蓋 success/error tracking
+7. **Dashboard 自動更新** (`QuotaDashboardPage.tsx`): 30 秒自動更新 + 暫停/恢復控制 + 倒數顯示
+8. **AppRateLimitCard 說明** (`QuotaDashboardPage.tsx`): 加入說明文字區分應用程式限制與 Provider 配額

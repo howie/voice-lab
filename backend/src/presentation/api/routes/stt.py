@@ -21,7 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.interfaces.storage_service import IStorageService
 from src.application.services.stt_service import STTService
 from src.domain.entities.audio_file import AudioFile, AudioFileFormat, AudioSource
+from src.domain.errors import QuotaExceededError
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
+from src.domain.services.usage_tracker import provider_usage_tracker
 from src.infrastructure.persistence.credential_repository import (
     SQLAlchemyProviderCredentialRepository,
 )
@@ -296,6 +298,9 @@ async def transcribe_audio(
             )
             await transcription_repo.save_wer_analysis(wer_entity)
 
+        # Track successful request
+        _track_success(user_id, provider)
+
         logger.info(
             f"Transcription completed: record_id={record_id}, provider={provider}, "
             f"latency_ms={result.latency_ms}, confidence={result.confidence}"
@@ -318,6 +323,9 @@ async def transcribe_audio(
         )
     except HTTPException:
         raise
+    except QuotaExceededError as e:
+        _track_quota_error(user_id, provider, e)
+        raise  # Let error_handler middleware return proper 429
     except ValueError as e:
         logger.error(f"Transcription validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -583,8 +591,15 @@ async def compare_providers(
                     else None,
                 }
 
+                # Track successful request
+                _track_success(user_id, provider_name)
+
                 return (transcribe_response, table_entry)
 
+            except QuotaExceededError as e:
+                _track_quota_error(user_id, provider_name, e)
+                logger.warning(f"Comparison quota exceeded for provider {provider_name}: {str(e)}")
+                return None
             except Exception as e:
                 # Log error but continue with other providers
                 logger.warning(
@@ -621,3 +636,36 @@ async def compare_providers(
     except Exception as e:
         logger.error(f"Provider comparison failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============== Usage Tracking Helpers ==============
+
+
+def _track_success(user_id: uuid.UUID | None, provider: str) -> None:
+    """Record a successful provider request in the usage tracker."""
+    uid = str(user_id) if user_id else "anonymous"
+    provider_usage_tracker.record_request(uid, provider)
+
+
+def _track_quota_error(
+    user_id: uuid.UUID | None,
+    provider: str,
+    exc: QuotaExceededError,
+) -> None:
+    """Record a quota error and enrich the exception with usage context."""
+    uid = str(user_id) if user_id else "anonymous"
+    retry_after = exc.details.get("retry_after") if exc.details else None
+
+    provider_usage_tracker.record_error(uid, provider, is_quota_error=True, retry_after=retry_after)
+
+    # Enrich error details with usage context
+    usage = provider_usage_tracker.get_usage(uid, provider)
+    if exc.details is not None:
+        exc.details["usage_context"] = {
+            "minute_requests": usage.minute_requests,
+            "hour_requests": usage.hour_requests,
+            "day_requests": usage.day_requests,
+            "quota_hits_today": usage.quota_hits_today,
+            "estimated_rpm_limit": usage.estimated_rpm_limit,
+            "usage_warning": usage.usage_warning,
+        }

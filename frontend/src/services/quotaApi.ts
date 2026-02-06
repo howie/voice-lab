@@ -29,6 +29,11 @@ export interface ProviderQuotaStatus {
   quota_hits_today: number
   estimated_rpm_limit: number | null
   usage_warning: string | null
+  // Real-time rate limit data (from provider response headers)
+  provider_rpm_limit: number | null
+  provider_rpm_remaining: number | null
+  provider_rate_limit_reset_at: string | null
+  rate_limit_data_age_seconds: number | null
   // Reference
   rate_limits: ProviderRateLimitInfo | null
   help_url: string | null

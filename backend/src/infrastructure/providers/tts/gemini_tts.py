@@ -21,6 +21,7 @@ from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
 from src.domain.errors import QuotaExceededError, RateLimitError
+from src.domain.services.usage_tracker import parse_rate_limit_headers
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 logger = logging.getLogger(__name__)
@@ -181,6 +182,9 @@ class GeminiTTSProvider(BaseTTSProvider):
             for retry_429 in range(self._MAX_429_RETRIES + 1):
                 async with _gemini_request_semaphore:
                     response = await self._client.post(url, json=payload, headers=headers)
+
+                # Capture rate limit headers from every response
+                self._last_rate_limit_headers = parse_rate_limit_headers(response.headers, "gemini")
 
                 if response.status_code != 429:
                     break  # Not a 429, proceed to normal handling

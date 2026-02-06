@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -6,6 +6,8 @@ import {
   ExternalLink,
   Gauge,
   Loader2,
+  Pause,
+  Play,
   RefreshCw,
   ShieldAlert,
   XCircle,
@@ -87,6 +89,31 @@ function ProviderQuotaCard({ status }: { status: ProviderQuotaStatus }) {
           </a>
         )}
       </div>
+
+      {/* Real-time Rate Limit (from provider response headers) */}
+      {status.provider_rpm_remaining !== null && status.provider_rpm_limit !== null && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">即時速率限制</p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">RPM</span>
+            <span className="font-medium">
+              {status.provider_rpm_remaining} / {status.provider_rpm_limit}
+            </span>
+          </div>
+          <UsageBar
+            percent={
+              ((status.provider_rpm_limit - status.provider_rpm_remaining) /
+                status.provider_rpm_limit) *
+              100
+            }
+          />
+          {status.rate_limit_data_age_seconds !== null && (
+            <p className="text-xs text-muted-foreground">
+              資料更新：{Math.round(status.rate_limit_data_age_seconds)} 秒前
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Tracked Usage (from in-memory tracker) */}
       {status.day_requests > 0 && (
@@ -208,10 +235,13 @@ function AppRateLimitCard({ limits }: { limits: AppRateLimitStatus }) {
 
   return (
     <div className="rounded-xl border bg-card p-5">
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-1 flex items-center gap-2">
         <Gauge className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold">應用程式速率限制</h2>
       </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        此為本伺服器的整體請求限制，獨立於各 Provider 的配額
+      </p>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* General Limits */}
@@ -264,13 +294,19 @@ function AppRateLimitCard({ limits }: { limits: AppRateLimitStatus }) {
   )
 }
 
+const AUTO_REFRESH_INTERVAL = 30_000 // 30 seconds
+
 export function QuotaDashboardPage() {
   const [data, setData] = useState<QuotaDashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [countdown, setCountdown] = useState(AUTO_REFRESH_INTERVAL / 1000)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const fetchData = async (isRefresh = false) => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true)
@@ -286,12 +322,32 @@ export function QuotaDashboardPage() {
     } finally {
       setLoading(false)
       setRefreshing(false)
+      setCountdown(AUTO_REFRESH_INTERVAL / 1000)
     }
-  }
+  }, [])
 
+  // Auto-refresh timer
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
+
+  useEffect(() => {
+    if (!autoRefresh) {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (countdownRef.current) clearInterval(countdownRef.current)
+      return
+    }
+
+    intervalRef.current = setInterval(() => fetchData(true), AUTO_REFRESH_INTERVAL)
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? AUTO_REFRESH_INTERVAL / 1000 : prev - 1))
+    }, 1000)
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [autoRefresh, fetchData])
 
   const configuredProviders = data?.providers.filter((p) => p.has_credential) ?? []
   const unconfiguredProviders = data?.providers.filter((p) => !p.has_credential) ?? []
@@ -306,14 +362,27 @@ export function QuotaDashboardPage() {
             查看各 Provider 的 API 配額和速率限制狀態
           </p>
         </div>
-        <button
-          onClick={() => fetchData(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-        >
-          <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
-          重新整理
-        </button>
+        <div className="flex items-center gap-2">
+          {autoRefresh && !loading && (
+            <span className="text-xs text-muted-foreground">{countdown}s</span>
+          )}
+          <button
+            onClick={() => setAutoRefresh((prev) => !prev)}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            title={autoRefresh ? '暫停自動更新' : '恢復自動更新'}
+          >
+            {autoRefresh ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {autoRefresh ? '暫停' : '自動'}
+          </button>
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+            重新整理
+          </button>
+        </div>
       </div>
 
       {loading ? (

@@ -240,3 +240,51 @@ Task: "Add 429 quota detection in backend/src/infrastructure/providers/stt/gcp_s
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Run `make check` frequently to catch lint/type issues early
+
+---
+
+## Phase 7: Improvement Tasks (Branch: `quota-monitor-improvement`)
+
+**Purpose**: Bug fixes, tracking integration, test coverage, and UX improvements discovered during post-implementation review.
+
+### Bug Fixes
+
+- [x] T031 [BUG-1] Fix RateLimiter dual-counter issue in `backend/src/presentation/api/middleware/rate_limit.py`
+  - Add `strict_minute_requests`, `strict_hour_requests`, `strict_minute_start`, `strict_hour_start` to `RateLimitState`
+  - Modify `check_rate_limit()`: strict paths check both general + strict limits
+  - Modify `get_remaining_for_path()`: use strict counters for strict paths
+
+- [x] T032 [BUG-2] Fix STT route swallowing QuotaExceededError in `backend/src/presentation/api/routes/stt.py`
+  - Add `except QuotaExceededError` before `except Exception` in `transcribe_audio`
+
+- [x] T033 [BUG-3] Add missing providers to ProviderQuotaInfo in `backend/src/domain/errors.py`
+  - Add anthropic and speechmatics entries to `PROVIDERS` dict
+
+### Tracking Integration
+
+- [x] T034 [GAP-2] Add usage tracking to STT route in `backend/src/presentation/api/routes/stt.py`
+  - Add `_track_success()` and `_track_quota_error()` helpers
+  - Call `_track_success()` on successful transcription
+  - Call `_track_quota_error()` in `except QuotaExceededError` handler
+
+### Test Coverage
+
+- [x] T035 [GAP-1] Add RateLimiter unit tests in `backend/tests/unit/presentation/test_rate_limit.py`
+  - 17 tests: general limits, strict limits, window resets, client isolation, BUG-1 regression, middleware integration
+
+- [x] T036 Add STT tracking tests in `backend/tests/unit/test_stt_route_quota_tracking.py`
+  - 10 tests: mirrors TTS tracking test structure for STT route helpers
+
+### Frontend Improvements
+
+- [x] T037 [GAP-4] Add auto-refresh to QuotaDashboardPage in `frontend/src/routes/quota/QuotaDashboardPage.tsx`
+  - 30-second auto-refresh interval with countdown display
+  - Pause/resume toggle button
+
+- [x] T038 Add description text to AppRateLimitCard in `frontend/src/routes/quota/QuotaDashboardPage.tsx`
+  - Clarify that app rate limits are independent of provider quotas
+
+### Documentation
+
+- [x] T039 Update plan.md with Improvement Phase section
+- [x] T040 Update tasks.md with Phase 7 improvement tasks

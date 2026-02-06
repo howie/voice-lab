@@ -11,6 +11,7 @@ from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest, TTSResult
 from src.domain.entities.voice import VoiceProfile
+from src.domain.services.usage_tracker import RateLimitHeaders
 
 
 class BaseTTSProvider(ITTSProvider):
@@ -29,6 +30,7 @@ class BaseTTSProvider(ITTSProvider):
             name: Provider identifier (e.g., 'gemini', 'azure')
         """
         self._name = name
+        self._last_rate_limit_headers: RateLimitHeaders | None = None
 
     @property
     def name(self) -> str:

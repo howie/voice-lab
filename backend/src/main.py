@@ -13,6 +13,14 @@ from src.config import get_settings
 from src.infrastructure.persistence.database import AsyncSessionLocal
 from src.infrastructure.workers.job_worker import JobWorker
 from src.presentation.api import api_router
+from src.presentation.api.middleware.error_handler import (
+    RequestIdMiddleware,
+    setup_error_handlers,
+)
+from src.presentation.api.middleware.rate_limit import (
+    RateLimitMiddleware,
+    default_rate_limiter,
+)
 
 # Configure logging to show INFO level from all modules
 # This ensures JobWorker and other module logs are visible
@@ -73,7 +81,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# Register unified error handlers (must be before middleware)
+setup_error_handlers(app)
+
+# Middleware (Starlette LIFO: last added = outermost)
+# Order in code: CORS → RateLimit → RequestId
+# Execution order: RequestId → RateLimit → CORS (innermost to outermost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -81,6 +94,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware, limiter=default_rate_limiter)
+app.add_middleware(RequestIdMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix=settings.api_prefix)

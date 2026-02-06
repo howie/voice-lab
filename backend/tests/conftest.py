@@ -14,6 +14,7 @@ import pytest
 from src.domain.entities.job import Job, JobStatus, JobType
 from src.main import app
 from src.presentation.api.middleware.auth import CurrentUser, get_current_user
+from src.presentation.api.middleware.rate_limit import default_rate_limiter
 from src.presentation.api.routes import credentials as credentials_module
 
 
@@ -26,6 +27,16 @@ def pytest_configure(config):
         "markers",
         "azure_integration: mark test as Azure Speech integration test requiring AZURE_SPEECH_KEY",
     )
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset the global rate limiter state before each test.
+
+    Without this, contract tests that share the app's rate limiter
+    accumulate request counts and eventually trigger RateLimitError.
+    """
+    default_rate_limiter._states.clear()
 
 
 def _is_database_available() -> bool:

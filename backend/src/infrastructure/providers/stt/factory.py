@@ -4,6 +4,7 @@ Feature: 003-stt-testing-module
 Creates STT provider instances based on configuration and credentials.
 """
 
+import os
 from typing import Any
 
 from src.application.interfaces.stt_provider import ISTTProvider
@@ -127,6 +128,44 @@ class STTProviderFactory:
         #     return cls._create_assemblyai(credentials)
         # elif provider_name == "elevenlabs":
         #     return cls._create_elevenlabs(credentials)
+        else:
+            raise ValueError(f"Unknown STT provider: {provider_name}")
+
+    @classmethod
+    def create_default(cls, provider_name: str) -> ISTTProvider:
+        """Create an STT provider with default system credentials from env vars.
+
+        Args:
+            provider_name: Name of the provider
+
+        Returns:
+            Configured STT provider instance
+
+        Raises:
+            ValueError: If provider is unknown or system credentials are missing
+        """
+        provider_name = provider_name.lower()
+
+        if provider_name == "azure":
+            api_key = os.getenv("AZURE_SPEECH_KEY", "")
+            region = os.getenv("AZURE_SPEECH_REGION", "eastasia")
+            if not api_key:
+                raise ValueError("Azure STT requires 'AZURE_SPEECH_KEY' environment variable")
+            return AzureSTTProvider(subscription_key=api_key, region=region)
+        elif provider_name == "gcp":
+            return GCPSTTProvider()
+        elif provider_name == "whisper":
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            if not api_key:
+                raise ValueError("Whisper STT requires 'OPENAI_API_KEY' environment variable")
+            return WhisperSTTProvider(api_key=api_key)
+        elif provider_name == "speechmatics":
+            api_key = os.getenv("SPEECHMATICS_API_KEY", "")
+            if not api_key:
+                raise ValueError(
+                    "Speechmatics STT requires 'SPEECHMATICS_API_KEY' environment variable"
+                )
+            return SpeechmaticsSTTProvider(api_key=api_key)
         else:
             raise ValueError(f"Unknown STT provider: {provider_name}")
 

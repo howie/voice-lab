@@ -116,13 +116,14 @@ class InteractionModeFactory:
         tts_cred_provider = _TTS_CREDENTIAL_MAPPING.get(tts_provider_name, tts_provider_name)
         tts_api_key = user_credentials.get(tts_cred_provider)
 
-        # Create STT provider
-        stt_credentials: dict = {}
+        # Create STT provider (with env var fallback like LLM/TTS)
         if stt_api_key:
-            stt_credentials["api_key"] = stt_api_key
+            stt_credentials: dict = {"api_key": stt_api_key}
             if stt_provider_name == "azure":
                 stt_credentials["subscription_key"] = stt_api_key
-        stt_provider = STTProviderFactory.create(stt_provider_name, stt_credentials)
+            stt_provider = STTProviderFactory.create(stt_provider_name, stt_credentials)
+        else:
+            stt_provider = STTProviderFactory.create_default(stt_provider_name)
 
         # Create LLM provider
         if llm_api_key:

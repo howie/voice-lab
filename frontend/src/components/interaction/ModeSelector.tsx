@@ -83,6 +83,7 @@ const DEFAULT_TTS_VOICES: Record<string, string> = {
   azure: 'zh-TW-HsiaoChenNeural',
   gcp: 'zh-TW-Standard-A',
   elevenlabs: 'Rachel',
+  gemini: 'zh-TW-Standard-A',
   voai: 'default',
 }
 
@@ -95,6 +96,8 @@ interface ModeSelectorProps {
   onModeChange: (mode: InteractionMode) => void
   /** Callback when provider config changes */
   onProviderChange: (config: ProviderConfig) => void
+  /** Callback when cascade config readiness changes (all providers have credentials) */
+  onConfigReadyChange?: (ready: boolean, missingProviders: string[]) => void
   /** Whether to disable the selector (e.g., during active session) */
   disabled?: boolean
   /** Additional CSS classes */
@@ -120,6 +123,7 @@ export function ModeSelector({
   providerConfig,
   onModeChange,
   onProviderChange,
+  onConfigReadyChange,
   disabled = false,
   className = '',
 }: ModeSelectorProps) {
@@ -179,11 +183,13 @@ export function ModeSelector({
     }
   }, [])
 
+  // Fetch providers when entering cascade mode (not just when expanded)
+  // so that config readiness validation works even before user expands settings
   useEffect(() => {
-    if (mode === 'cascade' && isExpanded && providers.stt.length === 0 && !providers.loading) {
+    if (mode === 'cascade' && providers.stt.length === 0 && !providers.loading) {
       fetchProviders()
     }
-  }, [mode, isExpanded, providers.stt.length, providers.loading, fetchProviders])
+  }, [mode, providers.stt.length, providers.loading, fetchProviders])
 
   // Get current Realtime provider settings
   const realtimeConfig = providerConfig as RealtimeProviderConfig
@@ -208,12 +214,44 @@ export function ModeSelector({
   // Fetch voices when TTS provider changes in cascade mode
   useEffect(() => {
     if (mode === 'cascade' && isExpanded && currentTTSProvider) {
+      // Clear old voices immediately when provider changes
+      setTtsVoices({ voices: [], loading: false, error: null })
       const ttsProvider = providers.tts.find((p) => p.name === currentTTSProvider)
       if (ttsProvider?.has_credentials && ttsProvider?.is_valid) {
         fetchVoices(currentTTSProvider)
       }
     }
   }, [mode, isExpanded, currentTTSProvider, providers.tts, fetchVoices])
+
+  // Notify parent about cascade config readiness (all providers have credentials)
+  useEffect(() => {
+    if (!onConfigReadyChange) return
+    if (mode !== 'cascade') {
+      onConfigReadyChange(true, [])
+      return
+    }
+    // Before providers are loaded, assume not ready
+    if (providers.stt.length === 0) return
+
+    const missing: string[] = []
+    const sttInfo = providers.stt.find((p) => p.name === currentSTTProvider)
+    if (sttInfo && !sttInfo.has_credentials) missing.push(sttInfo.display_name)
+    const llmInfo = providers.llm.find((p) => p.name === currentLLMProvider)
+    if (llmInfo && !llmInfo.has_credentials) missing.push(llmInfo.display_name)
+    const ttsInfo = providers.tts.find((p) => p.name === currentTTSProvider)
+    if (ttsInfo && !ttsInfo.has_credentials) missing.push(ttsInfo.display_name)
+
+    onConfigReadyChange(missing.length === 0, missing)
+  }, [
+    mode,
+    onConfigReadyChange,
+    currentSTTProvider,
+    currentLLMProvider,
+    currentTTSProvider,
+    providers.stt,
+    providers.llm,
+    providers.tts,
+  ])
 
   const handleModeChange = (newMode: InteractionMode) => {
     onModeChange(newMode)

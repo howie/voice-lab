@@ -161,10 +161,17 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
         startHeartbeat()
       }
 
-      ws.onclose = (_event) => {
+      ws.onclose = (event) => {
         clearTimeouts()
 
         if (!isManualDisconnectRef.current) {
+          // Server-initiated application errors (4000-4099): don't reconnect
+          // These are permanent errors like invalid config or missing credentials
+          if (event.code >= 4000 && event.code < 4100) {
+            setError(event.reason || 'Connection rejected by server')
+            updateStatus('error')
+            return
+          }
           updateStatus('disconnected')
           attemptReconnect()
         }

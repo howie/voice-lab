@@ -6,6 +6,7 @@ and merging the audio segments using pydub.
 
 import asyncio
 import io
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -25,6 +26,8 @@ from src.domain.entities.tts import TTSRequest
 from src.infrastructure.providers.tts.multi_role.azure_ssml_builder import (
     strip_style_tags,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,8 +108,23 @@ class SegmentedMergerService:
         turn_timings: list[TurnTiming] = []
         current_position_ms = 0
 
+        logger.info(
+            "Segmented synthesis: %d turns, voice_map=%s",
+            len(turns),
+            voice_map,
+        )
+
         for i, turn in enumerate(turns):
             voice_id = voice_map[turn.speaker]
+
+            logger.info(
+                "Turn %d/%d: speaker=%s, voice_id=%s, text_len=%d",
+                i + 1,
+                len(turns),
+                turn.speaker,
+                voice_id,
+                len(turn.text),
+            )
 
             # Create TTS request for this turn
             # Strip known style tags so they aren't spoken aloud in segmented mode

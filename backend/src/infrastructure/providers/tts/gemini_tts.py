@@ -147,6 +147,14 @@ class GeminiTTSProvider(BaseTTSProvider):
         if voice_name.startswith("gemini:"):
             voice_name = voice_name[7:]  # Remove "gemini:" prefix
 
+        logger.debug(
+            "Gemini TTS request: voice_id=%s -> voice_name=%s, text_len=%d, style=%s",
+            request.voice_id,
+            voice_name,
+            len(text_content),
+            request.style_prompt or "(none)",
+        )
+
         payload = {
             "contents": [{"parts": [{"text": text_content}]}],
             "generationConfig": {

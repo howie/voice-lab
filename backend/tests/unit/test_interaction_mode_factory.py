@@ -101,8 +101,8 @@ class TestInteractionModeFactory:
                 return_value=mock_credential_repo,
             ),
             patch(
-                "src.infrastructure.providers.stt.factory.STTProviderFactory.create"
-            ) as mock_stt_create,
+                "src.infrastructure.providers.stt.factory.STTProviderFactory.create_default"
+            ) as mock_stt_default,
             patch(
                 "src.infrastructure.providers.llm.factory.LLMProviderFactory.create_default"
             ) as mock_llm_default,
@@ -110,16 +110,14 @@ class TestInteractionModeFactory:
                 "src.infrastructure.providers.tts.factory.TTSProviderFactory.create_default"
             ) as mock_tts_default,
         ):
-            mock_stt_create.return_value = MagicMock()
+            mock_stt_default.return_value = MagicMock()
             mock_llm_default.return_value = MagicMock()
             mock_tts_default.return_value = MagicMock()
 
             await InteractionModeFactory.create("cascade", config, user_id=user_id, db=mock_db)
 
-            # STT gets empty credentials
-            mock_stt_create.assert_called_once_with("gcp", {})
-
-            # LLM and TTS fall back to defaults
+            # No credentials → all providers fall back to create_default
+            mock_stt_default.assert_called_once_with("gcp")
             mock_llm_default.assert_called_once_with("gemini")
             mock_tts_default.assert_called_once_with("gemini")
 
@@ -134,8 +132,8 @@ class TestInteractionModeFactory:
 
         with (
             patch(
-                "src.infrastructure.providers.stt.factory.STTProviderFactory.create"
-            ) as mock_stt_create,
+                "src.infrastructure.providers.stt.factory.STTProviderFactory.create_default"
+            ) as mock_stt_default,
             patch(
                 "src.infrastructure.providers.llm.factory.LLMProviderFactory.create_default"
             ) as mock_llm_default,
@@ -143,15 +141,15 @@ class TestInteractionModeFactory:
                 "src.infrastructure.providers.tts.factory.TTSProviderFactory.create_default"
             ) as mock_tts_default,
         ):
-            mock_stt_create.return_value = MagicMock()
+            mock_stt_default.return_value = MagicMock()
             mock_llm_default.return_value = MagicMock()
             mock_tts_default.return_value = MagicMock()
 
             # No user_id and no db
             await InteractionModeFactory.create("cascade", config)
 
-            # All should use defaults (no user credential lookup)
-            mock_stt_create.assert_called_once_with("gcp", {})
+            # All should use create_default (no user credential lookup)
+            mock_stt_default.assert_called_once_with("gcp")
             mock_llm_default.assert_called_once_with("gemini")
             mock_tts_default.assert_called_once_with("gemini")
 

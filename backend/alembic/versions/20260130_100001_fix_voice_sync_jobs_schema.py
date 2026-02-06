@@ -19,8 +19,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Drop old indexes that reference provider column
-    op.drop_index("idx_voice_sync_jobs_provider", table_name="voice_sync_jobs")
+    # Drop old indexes that reference provider column (if_exists for idempotency)
+    op.execute("DROP INDEX IF EXISTS idx_voice_sync_jobs_provider")
 
     # Drop old columns
     op.drop_column("voice_sync_jobs", "provider")

@@ -52,14 +52,22 @@ class RateLimitConfig:
 
 @dataclass
 class RateLimitState:
-    """State for tracking rate limits."""
+    """State for tracking rate limits.
 
+    Maintains separate counters for general and strict (TTS) paths so that
+    general API traffic does not inflate the strict-path remaining count.
+    """
+
+    # General counters (all requests)
     minute_requests: int = 0
     hour_requests: int = 0
     minute_start: float = field(default_factory=time.time)
     hour_start: float = field(default_factory=time.time)
-    tokens: float = 0.0
-    last_update: float = field(default_factory=time.time)
+    # Strict-path counters (TTS/STT synthesis only)
+    strict_minute_requests: int = 0
+    strict_hour_requests: int = 0
+    strict_minute_start: float = field(default_factory=time.time)
+    strict_hour_start: float = field(default_factory=time.time)
 
 
 class RateLimiter:
@@ -96,23 +104,15 @@ class RateLimiter:
         """Check if path is excluded from rate limiting."""
         return any(path.startswith(p) for p in self.config.excluded_paths)
 
-    def _get_limits(self, path: str) -> tuple[int, int]:
-        """Get rate limits for a path (per minute, per hour)."""
-        if self._is_strict_path(path):
-            return (
-                self.config.tts_requests_per_minute,
-                self.config.tts_requests_per_hour,
-            )
-        return (
-            self.config.requests_per_minute,
-            self.config.requests_per_hour,
-        )
-
     async def check_rate_limit(self, request: Request) -> int | None:
         """Check if request is within rate limits.
 
         Returns:
             None if allowed, or seconds until retry if rate limited.
+
+        For strict paths (TTS synthesis), the request must pass **both**
+        general and strict limits.  General counters are always incremented;
+        strict counters are only incremented for strict-path requests.
         """
         path = request.url.path
 
@@ -121,43 +121,63 @@ class RateLimiter:
             return None
 
         client_id = self._get_client_id(request)
-        per_minute, per_hour = self._get_limits(path)
+        is_strict = self._is_strict_path(path)
 
         async with self._lock:
             state = self._states[client_id]
             now = time.time()
 
-            # Reset minute window if needed
+            # --- Reset general windows ---
             if now - state.minute_start >= 60:
                 state.minute_requests = 0
                 state.minute_start = now
-
-            # Reset hour window if needed
             if now - state.hour_start >= 3600:
                 state.hour_requests = 0
                 state.hour_start = now
 
-            # Check minute limit
-            if state.minute_requests >= per_minute:
+            # --- Check general limits ---
+            gen_per_minute = self.config.requests_per_minute
+            gen_per_hour = self.config.requests_per_hour
+
+            if state.minute_requests >= gen_per_minute:
                 retry_after = int(60 - (now - state.minute_start))
                 return max(1, retry_after)
-
-            # Check hour limit
-            if state.hour_requests >= per_hour:
+            if state.hour_requests >= gen_per_hour:
                 retry_after = int(3600 - (now - state.hour_start))
                 return max(1, retry_after)
 
-            # Allow request and increment counters
+            # --- For strict paths, also check strict limits ---
+            if is_strict:
+                if now - state.strict_minute_start >= 60:
+                    state.strict_minute_requests = 0
+                    state.strict_minute_start = now
+                if now - state.strict_hour_start >= 3600:
+                    state.strict_hour_requests = 0
+                    state.strict_hour_start = now
+
+                if state.strict_minute_requests >= self.config.tts_requests_per_minute:
+                    retry_after = int(60 - (now - state.strict_minute_start))
+                    return max(1, retry_after)
+                if state.strict_hour_requests >= self.config.tts_requests_per_hour:
+                    retry_after = int(3600 - (now - state.strict_hour_start))
+                    return max(1, retry_after)
+
+            # Allow request — increment general counters always
             state.minute_requests += 1
             state.hour_requests += 1
+
+            # Increment strict counters only for strict paths
+            if is_strict:
+                state.strict_minute_requests += 1
+                state.strict_hour_requests += 1
 
             return None
 
     def get_remaining(self, request: Request) -> dict[str, int]:
-        """Get remaining requests for a client."""
+        """Get remaining *general* requests for a client."""
         client_id = self._get_client_id(request)
-        path = request.url.path
-        per_minute, per_hour = self._get_limits(path)
+        per_minute = self.config.requests_per_minute
+        per_hour = self.config.requests_per_hour
 
         state = self._states.get(client_id)
         if not state:
@@ -181,13 +201,52 @@ class RateLimiter:
             "hour_remaining": max(0, hour_remaining),
         }
 
+    def get_remaining_for_path(
+        self,
+        request: Request,
+        path_override: str,
+    ) -> dict[str, int]:
+        """Get remaining requests for a specific path type.
+
+        For strict paths, uses the **strict** counters so that general API
+        traffic does not deflate the TTS remaining count.
+        For general paths, delegates to ``get_remaining()``.
+        """
+        if not self._is_strict_path(path_override):
+            return self.get_remaining(request)
+
+        client_id = self._get_client_id(request)
+        per_minute = self.config.tts_requests_per_minute
+        per_hour = self.config.tts_requests_per_hour
+
+        state = self._states.get(client_id)
+        if not state:
+            return {
+                "minute_remaining": per_minute,
+                "hour_remaining": per_hour,
+            }
+
+        now = time.time()
+        minute_used = state.strict_minute_requests if (now - state.strict_minute_start) < 60 else 0
+        hour_used = state.strict_hour_requests if (now - state.strict_hour_start) < 3600 else 0
+
+        return {
+            "minute_remaining": max(0, per_minute - minute_used),
+            "hour_remaining": max(0, per_hour - hour_used),
+        }
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware for rate limiting requests."""
 
-    def __init__(self, app, config: RateLimitConfig | None = None) -> None:
+    def __init__(
+        self,
+        app,
+        config: RateLimitConfig | None = None,
+        limiter: RateLimiter | None = None,
+    ) -> None:
         super().__init__(app)
-        self.limiter = RateLimiter(config)
+        self.limiter = limiter or RateLimiter(config)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Check rate limit before processing request."""

@@ -190,11 +190,15 @@ async def get_quota_dashboard(
             )
         )
 
-    # Get app-level rate limits
+    # Get app-level rate limits from the shared rate limiter instance
     config = default_rate_limiter.config
 
-    # Simulate request for remaining count
     general_remaining = default_rate_limiter.get_remaining(request)
+    # Use a strict path to compute API-consuming (TTS) remaining
+    tts_remaining = default_rate_limiter.get_remaining_for_path(
+        request,
+        "/api/v1/tts/synthesize",
+    )
 
     app_rate_limits = AppRateLimitStatus(
         general_rpm=config.requests_per_minute,
@@ -203,8 +207,8 @@ async def get_quota_dashboard(
         tts_rph=config.tts_requests_per_hour,
         general_minute_remaining=general_remaining["minute_remaining"],
         general_hour_remaining=general_remaining["hour_remaining"],
-        tts_minute_remaining=config.tts_requests_per_minute,
-        tts_hour_remaining=config.tts_requests_per_hour,
+        tts_minute_remaining=tts_remaining["minute_remaining"],
+        tts_hour_remaining=tts_remaining["hour_remaining"],
     )
 
     return QuotaDashboardResponse(

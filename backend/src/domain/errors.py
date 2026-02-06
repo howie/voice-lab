@@ -396,6 +396,26 @@ class ProviderQuotaInfo:
                 "暫時切換到其他 TTS 供應商",
             ],
         },
+        "anthropic": {
+            "display_name": "Anthropic Claude",
+            "help_url": "https://console.anthropic.com/settings/usage",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 Anthropic Console 用量統計",
+                "考慮升級方案以提高配額",
+                "暫時切換到其他 LLM 供應商",
+            ],
+        },
+        "speechmatics": {
+            "display_name": "Speechmatics",
+            "help_url": "https://portal.speechmatics.com",
+            "default_retry_after": 60,
+            "suggestions": [
+                "檢查您的 Speechmatics Portal 用量",
+                "考慮升級至更高方案",
+                "暫時切換到其他 STT 供應商",
+            ],
+        },
     }
 
     @classmethod

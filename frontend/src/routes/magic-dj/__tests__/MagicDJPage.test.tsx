@@ -102,6 +102,19 @@ vi.mock('@/hooks/useWebSocket', () => ({
   }),
 }))
 
+vi.mock('@/hooks/useAudioPlayback', () => ({
+  useAudioPlayback: () => ({
+    isPlaying: false,
+    hasQueuedAudio: false,
+    volume: 1,
+    setVolume: vi.fn(),
+    playAudio: vi.fn(),
+    queueAudioChunk: vi.fn(),
+    stop: vi.fn(),
+    clearQueue: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/useMicrophone', () => ({
   useMicrophone: () => ({
     isRecording: false,
@@ -144,11 +157,14 @@ describe('MagicDJPage', () => {
   beforeEach(() => {
     vi.useFakeTimers()
 
-    // Reset the real zustand store and mark storage as ready so initializeStorage
-    // (which accesses IndexedDB) is skipped.
+    // Reset the real zustand store and stub initializeStorage (which accesses
+    // IndexedDB, unavailable in jsdom) to resolve immediately.
     act(() => {
       useMagicDJStore.getState().reset()
-      useMagicDJStore.setState({ isStorageReady: true })
+      useMagicDJStore.setState({
+        isStorageReady: true,
+        initializeStorage: vi.fn().mockResolvedValue(undefined),
+      })
     })
 
     // Reset mocks
@@ -202,10 +218,10 @@ describe('MagicDJPage', () => {
   })
 
   // -------------------------------------------------------------------------
-  // 3. Blob URL cleanup on unmount
+  // 3. Blob URLs are NOT revoked on unmount (handled by initializeStorage)
   // -------------------------------------------------------------------------
 
-  it('cleans up blob URLs on unmount', async () => {
+  it('does not revoke blob URLs on unmount (initializeStorage handles cleanup)', async () => {
     mockGetLoadingProgress.mockReturnValue(1)
 
     // Seed the store with tracks that have blob URLs
@@ -231,12 +247,15 @@ describe('MagicDJPage', () => {
       vi.advanceTimersByTime(200)
     })
 
+    // Clear any revokeObjectURL calls that happened during init
+    vi.mocked(URL.revokeObjectURL).mockClear()
+
     // Unmount the component
     unmount()
 
-    // Only blob: URLs should have been revoked (2 out of 3)
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/aaa')
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/bbb')
-    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2)
+    // Blob URLs should NOT be revoked on unmount — initializeStorage()
+    // handles revoking stale URLs when it creates fresh ones on next mount.
+    // Revoking here would break SPA re-navigation.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
   })
 })

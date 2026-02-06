@@ -18,6 +18,7 @@ import { useMagicDJStore } from '@/stores/magicDJStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useMultiTrackPlayer } from '@/hooks/useMultiTrackPlayer'
+import { useAudioPlayback } from '@/hooks/useAudioPlayback'
 import { useMagicDJModals } from '@/hooks/useMagicDJModals'
 import { useConfirmDialog } from '@/hooks/useConfirmDialog'
 import { useDJHotkeys } from '@/hooks/useDJHotkeys'
@@ -133,6 +134,9 @@ export function MagicDJPage() {
   const userId = user?.id || '00000000-0000-0000-0000-000000000001'
 
 
+  // AI audio playback (Gemini voice responses)
+  const { queueAudioChunk, stop: stopAIAudio } = useAudioPlayback()
+
   // WebSocket for Gemini
   const wsUrl = buildWebSocketUrl('realtime', userId)
 
@@ -140,13 +144,28 @@ export function MagicDJPage() {
     (message: { type: string; data: unknown }) => {
       if (message.type === 'response_started') {
         stopAIWaiting()
+      } else if (message.type === 'audio') {
+        // Decode base64 PCM16 audio from Gemini and queue for playback
+        const data = message.data as Record<string, unknown>
+        if (data.audio) {
+          try {
+            const binaryString = atob(data.audio as string)
+            const bytes = new Uint8Array(binaryString.length)
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i)
+            }
+            queueAudioChunk(bytes.buffer, 'pcm16')
+          } catch (e) {
+            console.error('Failed to decode AI audio:', e)
+          }
+        }
       } else if (message.type === 'response_ended') {
         // Response complete
       } else if (message.type === 'error') {
         console.error('WebSocket error:', message.data)
       }
     },
-    [stopAIWaiting]
+    [stopAIWaiting, queueAudioChunk]
   )
 
   const handleWSStatusChange = useCallback(
@@ -265,12 +284,13 @@ export function MagicDJPage() {
     // Send interrupt to Gemini
     sendMessage('interrupt', {})
 
-    // Stop all tracks
+    // Stop all tracks and AI audio playback
     stopAll()
+    stopAIAudio()
 
     // Stop AI waiting
     stopAIWaiting()
-  }, [logOperation, sendMessage, stopAll, stopAIWaiting])
+  }, [logOperation, sendMessage, stopAll, stopAIAudio, stopAIWaiting])
 
   const handleFillerSound = useCallback(() => {
     playTrack('sound_thinking')
@@ -403,11 +423,13 @@ export function MagicDJPage() {
     const initAndLoad = async () => {
       setIsLoading(true)
 
-      // Ensure storage is initialized (idempotent — may already be done
-      // by onRehydrateStorage, but safe to call again on SPA re-navigation)
-      if (!useMagicDJStore.getState().isStorageReady) {
-        await initializeStorage()
-      }
+      // Always call initializeStorage — it is idempotent and handles:
+      // 1. Opening IndexedDB (safe to call multiple times)
+      // 2. Revoking stale blob URLs before creating fresh ones
+      // 3. Restoring audio URLs from IndexedDB blobs
+      // This is required on SPA re-navigation where blob URLs from a
+      // previous mount may have been invalidated.
+      await initializeStorage()
 
       if (unmounted) return
 
@@ -440,14 +462,10 @@ export function MagicDJPage() {
     return () => {
       unmounted = true
       if (interval) clearInterval(interval)
-
-      // Revoke all blob URLs to prevent memory leaks on unmount
-      const currentTracks = useMagicDJStore.getState().tracks
-      for (const track of currentTracks) {
-        if (track.url?.startsWith('blob:')) {
-          URL.revokeObjectURL(track.url)
-        }
-      }
+      // Note: blob URLs are NOT revoked here — initializeStorage() handles
+      // revoking stale URLs when it creates fresh ones on next mount.
+      // Revoking here would invalidate URLs still stored in Zustand,
+      // causing ERR_FILE_NOT_FOUND on SPA re-navigation.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -104,8 +104,8 @@ A: [excited] 但我們準備了精彩的內容！`}
       各位觀眾朋友大家好。
     </prosody>
   </voice>
-  <break time="300ms"/>
   <voice name="zh-TW-YunJheNeural">
+    <break time="300ms"/>
     <mstts:express-as style="cheerful">
       <prosody rate="+0%" pitch="+0Hz">
         太好了，很高興來到這裡！

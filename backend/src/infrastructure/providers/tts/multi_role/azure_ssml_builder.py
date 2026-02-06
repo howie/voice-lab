@@ -55,6 +55,27 @@ KNOWN_STYLES: frozenset[str] = frozenset(
 _STYLE_TAG_RE = re.compile(r"\[([a-zA-Z][a-zA-Z0-9_-]*)\]")
 
 
+def strip_style_tags(text: str) -> str:
+    """Remove known Azure style tags from text, preserving unknown tags.
+
+    Used by segmented merger fallback to prevent style tags being spoken aloud.
+
+    Args:
+        text: Raw dialogue text possibly containing [style] tags.
+
+    Returns:
+        Text with known style tags removed.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        tag = match.group(1).lower()
+        if tag in KNOWN_STYLES:
+            return ""
+        return match.group(0)
+
+    return _STYLE_TAG_RE.sub(_replace, text).strip()
+
+
 @dataclass
 class AzureSSMLConfig:
     """Configuration for Azure SSML generation."""
@@ -84,8 +105,8 @@ class AzureSSMLBuilder:
             <voice name="zh-TW-HsiaoYuNeural">
                 <prosody rate="0%" pitch="+0Hz">你好，我是 A</prosody>
             </voice>
-            <break time="300ms"/>
             <voice name="zh-TW-YunJheNeural">
+                <break time="300ms"/>
                 <prosody rate="0%" pitch="+0Hz">嗨，我是 B</prosody>
             </voice>
         </speak>
@@ -157,12 +178,11 @@ class AzureSSMLBuilder:
             voice_name = voice_map[turn.speaker]
 
             ssml_parts.append(f'    <voice name="{voice_name}">')
+            # Insert break at the start of non-first turns (must be inside <voice>)
+            if i > 0 and gap > 0:
+                ssml_parts.append(f'        <break time="{gap}ms"/>')
             ssml_parts.extend(self._build_turn_ssml(turn.text))
             ssml_parts.append("    </voice>")
-
-            # Add break between turns (except after last turn)
-            if i < len(sorted_turns) - 1 and gap > 0:
-                ssml_parts.append(f'    <break time="{gap}ms"/>')
 
         ssml_parts.append("</speak>")
 

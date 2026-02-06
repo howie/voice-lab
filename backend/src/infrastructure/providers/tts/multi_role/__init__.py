@@ -3,6 +3,7 @@
 from src.infrastructure.providers.tts.multi_role.azure_ssml_builder import (
     AzureSSMLBuilder,
     AzureSSMLConfig,
+    strip_style_tags,
 )
 from src.infrastructure.providers.tts.multi_role.capability_registry import (
     PROVIDER_CAPABILITIES,
@@ -29,6 +30,7 @@ __all__ = [
     "SegmentedMergerService",
     "AzureSSMLBuilder",
     "AzureSSMLConfig",
+    "strip_style_tags",
     "ElevenLabsDialogueBuilder",
     "ElevenLabsDialogueConfig",
     "ElevenLabsDialogueRequest",

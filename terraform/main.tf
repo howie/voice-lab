@@ -101,6 +101,7 @@ module "secrets" {
   elevenlabs_api_key     = var.elevenlabs_api_key
   gemini_api_key         = var.gemini_api_key
   voai_api_key           = var.voai_api_key
+  mureka_api_key         = var.mureka_api_key
 
   labels = local.common_labels
 
@@ -167,6 +168,7 @@ module "cloud_run" {
   azure_speech_key_secret    = module.secrets.azure_speech_key_secret_id
   azure_speech_region        = var.azure_speech_region
   elevenlabs_api_key_secret  = module.secrets.elevenlabs_api_key_secret_id
+  mureka_api_key_secret      = module.secrets.mureka_api_key_secret_id
 
   # Application config
   allowed_domains         = var.allowed_domains

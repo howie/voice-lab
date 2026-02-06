@@ -162,6 +162,26 @@ resource "google_secret_manager_secret_version" "voai_api_key" {
   secret_data = var.voai_api_key
 }
 
+resource "google_secret_manager_secret" "mureka_api_key" {
+  count = var.mureka_api_key != "" ? 1 : 0
+
+  secret_id = "voice-lab-mureka-api-key"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+
+  labels = var.labels
+}
+
+resource "google_secret_manager_secret_version" "mureka_api_key" {
+  count = var.mureka_api_key != "" ? 1 : 0
+
+  secret      = google_secret_manager_secret.mureka_api_key[0].id
+  secret_data = var.mureka_api_key
+}
+
 # -----------------------------------------------------------------------------
 # IAM - Grant service account access to secrets
 # -----------------------------------------------------------------------------
@@ -222,6 +242,14 @@ resource "google_secret_manager_secret_iam_member" "voai_api_key_access" {
   count = var.voai_api_key != "" ? 1 : 0
 
   secret_id = google_secret_manager_secret.voai_api_key[0].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.service_account_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "mureka_api_key_access" {
+  count = var.mureka_api_key != "" ? 1 : 0
+
+  secret_id = google_secret_manager_secret.mureka_api_key[0].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.service_account_email}"
 }

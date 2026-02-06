@@ -160,6 +160,12 @@ variable "elevenlabs_api_key_secret" {
   default     = null
 }
 
+variable "mureka_api_key_secret" {
+  type        = string
+  description = "Secret ID for Mureka AI API Key"
+  default     = null
+}
+
 variable "voai_api_endpoint" {
   type        = string
   description = "VoAI API endpoint"

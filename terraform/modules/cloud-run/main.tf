@@ -214,6 +214,20 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
 
+      # Mureka AI API key (if provided)
+      dynamic "env" {
+        for_each = var.mureka_api_key_secret != null ? [1] : []
+        content {
+          name = "MUREKA_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.mureka_api_key_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+
       # Startup and liveness probes
       startup_probe {
         http_get {

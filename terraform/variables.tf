@@ -275,6 +275,13 @@ variable "voai_api_key" {
   default     = ""
 }
 
+variable "mureka_api_key" {
+  type        = string
+  description = "Mureka AI Music Generation API Key (optional)"
+  sensitive   = true
+  default     = ""
+}
+
 variable "voai_api_endpoint" {
   type        = string
   description = "VoAI API endpoint (default: connect.voai.ai)"

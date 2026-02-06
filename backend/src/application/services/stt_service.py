@@ -5,7 +5,7 @@ import os
 from uuid import UUID
 
 from src.application.interfaces.storage_service import IStorageService
-from src.domain.entities.audio import AudioData
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult
 from src.domain.repositories.provider_credential_repository import IProviderCredentialRepository
 from src.domain.repositories.transcription_repository import ITranscriptionRepository
@@ -80,7 +80,7 @@ class STTService:
 
         audio_data = AudioData(
             data=audio_bytes,
-            format=audio_file.format,
+            format=AudioFormat(audio_file.format),
             sample_rate=audio_file.sample_rate,
         )
 

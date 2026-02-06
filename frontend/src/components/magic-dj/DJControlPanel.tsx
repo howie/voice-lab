@@ -8,8 +8,6 @@
  * 015-T014~T016, T019~T022: AI prompt template integration with four-column layout.
  */
 
-import { useEffect, useRef, useState } from 'react'
-
 import { ChannelBoard } from './ChannelBoard'
 import { AIControlBar } from './AIControlBar'
 import { PromptTemplatePanel } from './PromptTemplatePanel'
@@ -21,7 +19,7 @@ import { TrackConfigPanel } from './TrackConfigPanel'
 import { PresetSelector } from './PresetSelector'
 import { useMagicDJStore, selectIsAITimeout } from '@/stores/magicDJStore'
 import type { ConnectionStatus } from '@/types/interaction'
-import type { PromptTemplate, Track } from '@/types/magic-dj'
+import type { PromptTemplate, StoryPrompt, Track } from '@/types/magic-dj'
 
 // =============================================================================
 // Types
@@ -58,6 +56,10 @@ export interface DJControlPanelProps {
   onAddPromptTemplate?: () => void
   onEditPromptTemplate?: (template: PromptTemplate) => void
   onDeletePromptTemplate?: (template: PromptTemplate) => void
+  /** Story prompt handlers */
+  onAddStoryPrompt?: () => void
+  onEditStoryPrompt?: (prompt: StoryPrompt) => void
+  onDeleteStoryPrompt?: (prompt: StoryPrompt) => void
 }
 
 // =============================================================================
@@ -92,6 +94,9 @@ export function DJControlPanel({
   onAddPromptTemplate,
   onEditPromptTemplate,
   onDeletePromptTemplate,
+  onAddStoryPrompt,
+  onEditStoryPrompt,
+  onDeleteStoryPrompt,
 }: DJControlPanelProps) {
   const { currentMode, isSessionActive, isWaitingForAI, settings } =
     useMagicDJStore()
@@ -100,33 +105,6 @@ export function DJControlPanel({
   const lastSentPromptId = useMagicDJStore(s => s.lastSentPromptId)
   const isAITimeout = useMagicDJStore(selectIsAITimeout)
   const isAIConnected = wsStatus === 'connected'
-
-  // AI timeout warning flash
-  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
-  const timeoutIntervalRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Flash warning when AI timeout (T029)
-  useEffect(() => {
-    if (isAITimeout && isWaitingForAI) {
-      // Start flashing
-      timeoutIntervalRef.current = setInterval(() => {
-        setShowTimeoutWarning((prev) => !prev)
-      }, 500)
-    } else {
-      // Stop flashing
-      if (timeoutIntervalRef.current) {
-        clearInterval(timeoutIntervalRef.current)
-        timeoutIntervalRef.current = null
-      }
-      setShowTimeoutWarning(false)
-    }
-
-    return () => {
-      if (timeoutIntervalRef.current) {
-        clearInterval(timeoutIntervalRef.current)
-      }
-    }
-  }, [isAITimeout, isWaitingForAI])
 
   return (
     <div className="flex h-full flex-col gap-4 p-4">
@@ -158,14 +136,11 @@ export function DJControlPanel({
         />
       )}
 
-      {/* AI Timeout Warning Banner (T029) */}
+      {/* AI Timeout Warning Banner (T029) — CSS animation with reduced-motion support */}
       {isAITimeout && isWaitingForAI && (
         <div
-          className={`rounded-lg border-2 p-3 text-center font-bold transition-colors ${
-            showTimeoutWarning
-              ? 'border-destructive bg-destructive/20 text-destructive'
-              : 'border-yellow-500 bg-yellow-500/20 text-yellow-700'
-          }`}
+          className="animate-timeout-pulse rounded-lg border-2 border-destructive bg-destructive/20 p-3 text-center font-bold text-destructive"
+          role="alert"
         >
           AI 回應超過 {settings.aiResponseTimeout} 秒！建議使用救場語音
         </div>
@@ -214,6 +189,9 @@ export function DJControlPanel({
                     storyPrompts={storyPrompts}
                     disabled={!isAIConnected}
                     onSendStoryPrompt={onSendStoryPrompt}
+                    onAddStoryPrompt={onAddStoryPrompt}
+                    onEditStoryPrompt={onEditStoryPrompt}
+                    onDeleteStoryPrompt={onDeleteStoryPrompt}
                   />
                 )}
               </>

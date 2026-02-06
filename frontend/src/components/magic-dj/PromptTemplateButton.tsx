@@ -3,10 +3,11 @@
  * Feature: 015-magic-dj-ai-prompts (T011)
  *
  * A single clickable prompt template button with color badge,
- * click animation, and context menu for edit/delete.
+ * click animation, and inline edit/delete buttons on hover.
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import type { PromptTemplate } from '@/types/magic-dj'
@@ -53,7 +54,6 @@ export function PromptTemplateButton({
   onDelete,
 }: PromptTemplateButtonProps) {
   const [isPulsing, setIsPulsing] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
 
   const colors = COLOR_CLASSES[template.color] ?? COLOR_CLASSES.blue
 
@@ -79,61 +79,42 @@ export function PromptTemplateButton({
     }
   }, [isJustSent])
 
-  // Context menu (right-click)
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      if (onEdit || onDelete) {
-        setShowMenu(true)
-      }
-    },
-    [onEdit, onDelete]
-  )
-
-  // Close menu on blur
-  useEffect(() => {
-    if (showMenu) {
-      const handleClick = () => setShowMenu(false)
-      document.addEventListener('click', handleClick)
-      return () => document.removeEventListener('click', handleClick)
-    }
-  }, [showMenu])
-
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'group flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-all',
+        disabled
+          ? 'cursor-not-allowed bg-muted text-muted-foreground'
+          : cn(colors.bg, colors.text, colors.hover),
+        isPulsing && !disabled && colors.active,
+        isPulsing && !disabled && 'scale-[0.95]',
+      )}
+    >
       <button
         onClick={handleClick}
-        onContextMenu={handleContextMenu}
         disabled={disabled}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
-          disabled
-            ? 'cursor-not-allowed bg-muted text-muted-foreground'
-            : cn(colors.bg, colors.text, colors.hover, 'active:scale-[0.97]'),
-          isPulsing && !disabled && colors.active,
-          isPulsing && !disabled && 'scale-[0.95]',
-        )}
+        className="min-w-0 flex-1 truncate text-left active:scale-[0.97]"
       >
-        <span className="truncate">{template.name}</span>
+        {template.name}
       </button>
-
-      {/* Context Menu */}
-      {showMenu && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border bg-popover py-1 shadow-lg">
+      {!disabled && (onEdit || onDelete) && (
+        <div className="flex shrink-0 items-center gap-0.5">
           {onEdit && (
             <button
-              onClick={() => { setShowMenu(false); onEdit(template) }}
-              className="flex w-full items-center px-3 py-1.5 text-sm hover:bg-accent"
+              onClick={() => onEdit(template)}
+              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+              title="編輯"
             >
-              編輯
+              <Pencil className="h-3 w-3" />
             </button>
           )}
           {onDelete && !template.isDefault && (
             <button
-              onClick={() => { setShowMenu(false); onDelete(template) }}
-              className="flex w-full items-center px-3 py-1.5 text-sm text-destructive hover:bg-accent"
+              onClick={() => onDelete(template)}
+              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+              title="刪除"
             >
-              刪除
+              <Trash2 className="h-3 w-3" />
             </button>
           )}
         </div>

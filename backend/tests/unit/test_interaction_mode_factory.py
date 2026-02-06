@@ -116,7 +116,7 @@ class TestInteractionModeFactory:
 
             await InteractionModeFactory.create("cascade", config, user_id=user_id, db=mock_db)
 
-            # No credentials → all providers fall back to create_default
+            # All fall back to defaults (no user credentials)
             mock_stt_default.assert_called_once_with("gcp")
             mock_llm_default.assert_called_once_with("gemini")
             mock_tts_default.assert_called_once_with("gemini")
@@ -148,7 +148,7 @@ class TestInteractionModeFactory:
             # No user_id and no db
             await InteractionModeFactory.create("cascade", config)
 
-            # All should use create_default (no user credential lookup)
+            # All should use defaults (no user credential lookup)
             mock_stt_default.assert_called_once_with("gcp")
             mock_llm_default.assert_called_once_with("gemini")
             mock_tts_default.assert_called_once_with("gemini")

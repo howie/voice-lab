@@ -10,7 +10,7 @@
  * 011-T032: Enforce maximum 5 concurrent tracks limit.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import type { ChannelType, Track } from '@/types/magic-dj'
@@ -437,6 +437,18 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
     }
   }, [masterVolume])
 
+  // Extract only volume/mute-related data to avoid re-syncing on unrelated state changes
+  const volumeKey = useMemo(() => {
+    const channelParts = Object.entries(channelStates)
+      .map(([k, v]) => `${k}:${v.volume}:${v.isMuted}`)
+      .join('|')
+    const trackParts = Object.entries(trackStates)
+      .map(([k, v]) => `${k}:${v.volume}:${v.isMuted}`)
+      .join('|')
+    const trackVolParts = tracks.map(t => `${t.id}:${t.volume}`).join('|')
+    return `${channelParts}||${trackParts}||${trackVolParts}`
+  }, [channelStates, trackStates, tracks])
+
   // Sync channel volume/mute changes to playing tracks in real-time
   useEffect(() => {
     const currentTime = audioContextRef.current?.currentTime ?? 0
@@ -445,7 +457,8 @@ export function useMultiTrackPlayer(): UseMultiTrackPlayerReturn {
       const vol = getEffectiveVolume(trackId)
       node.gainNode.gain.setTargetAtTime(vol, currentTime, 0.02)
     }
-  }, [channelStates, trackStates, getEffectiveVolume])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumeKey, getEffectiveVolume])
 
   // Periodic health check: clean up stale playback states and resume suspended AudioContext
   useEffect(() => {

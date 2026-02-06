@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ConfirmDialog } from '@/components/magic-dj/ConfirmDialog'
 import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
@@ -17,12 +18,14 @@ import { useMagicDJStore } from '@/stores/magicDJStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useMultiTrackPlayer } from '@/hooks/useMultiTrackPlayer'
+import { useMagicDJModals } from '@/hooks/useMagicDJModals'
+import { useConfirmDialog } from '@/hooks/useConfirmDialog'
 import { useDJHotkeys } from '@/hooks/useDJHotkeys'
 import { useCueList } from '@/hooks/useCueList'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useMicrophone } from '@/hooks/useMicrophone'
 import { buildWebSocketUrl } from '@/services/interactionApi'
-import type { PromptTemplate, PromptTemplateColor, Track } from '@/types/magic-dj'
+import type { PromptTemplate } from '@/types/magic-dj'
 
 // =============================================================================
 // Utilities
@@ -47,16 +50,19 @@ export function MagicDJPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
 
-  // Track Editor Modal state
-  const [isEditorOpen, setIsEditorOpen] = useState(false)
-  const [editingTrack, setEditingTrack] = useState<Track | null>(null)
+  // Floating notification state with severity support
+  type NotificationSeverity = 'info' | 'warning' | 'error'
+  const [notification, setNotification] = useState<{ message: string; severity: NotificationSeverity } | null>(null)
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // BGM Generator Modal state
-  const [isBGMGeneratorOpen, setIsBGMGeneratorOpen] = useState(false)
+  const showNotification = useCallback((message: string, durationMs = 3000, severity: NotificationSeverity = 'warning') => {
+    if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current)
+    setNotification({ message, severity })
+    notificationTimerRef.current = setTimeout(() => setNotification(null), durationMs)
+  }, [])
 
-  // Prompt Template Editor Modal state (015)
-  const [isPromptEditorOpen, setIsPromptEditorOpen] = useState(false)
-  const [editingPromptTemplate, setEditingPromptTemplate] = useState<PromptTemplate | null>(null)
+  // Confirm dialog (replaces window.confirm)
+  const { confirm, dialogProps: confirmDialogProps } = useConfirmDialog()
 
   // Stores
   const tracks = useMagicDJStore(s => s.tracks)
@@ -70,17 +76,11 @@ export function MagicDJPage() {
   const startAIWaiting = useMagicDJStore(s => s.startAIWaiting)
   const stopAIWaiting = useMagicDJStore(s => s.stopAIWaiting)
   const setAIConnected = useMagicDJStore(s => s.setAIConnected)
-  const addTrack = useMagicDJStore(s => s.addTrack)
   const removeTrack = useMagicDJStore(s => s.removeTrack)
-  const updateTrack = useMagicDJStore(s => s.updateTrack)
   const initializeStorage = useMagicDJStore(s => s.initializeStorage)
-  const saveAudioToStorage = useMagicDJStore(s => s.saveAudioToStorage)
 
   // Prompt template store actions (015)
   const setLastSentPrompt = useMagicDJStore(s => s.setLastSentPrompt)
-  const addPromptTemplate = useMagicDJStore(s => s.addPromptTemplate)
-  const updatePromptTemplate = useMagicDJStore(s => s.updatePromptTemplate)
-  const removePromptTemplate = useMagicDJStore(s => s.removePromptTemplate)
 
   // Interaction options for Gemini AI config
   const interactionOptions = useInteractionStore(s => s.options)
@@ -94,7 +94,29 @@ export function MagicDJPage() {
     stopAll,
     getLoadingProgress,
     unloadTrack,
+    canPlayMore,
   } = useMultiTrackPlayer()
+
+  // Modal management (Track Editor, BGM Generator, Prompt Template Editor)
+  const {
+    isEditorOpen,
+    editingTrack,
+    handleAddTrack,
+    handleEditTrack,
+    handleSaveTrack,
+    handleCloseEditor,
+    isBGMGeneratorOpen,
+    handleOpenBGMGenerator,
+    handleCloseBGMGenerator,
+    handleSaveBGMTrack,
+    isPromptEditorOpen,
+    editingPromptTemplate,
+    handleAddPromptTemplate,
+    handleEditPromptTemplate,
+    handleDeletePromptTemplate,
+    handleSavePromptTemplate,
+    handleClosePromptEditor,
+  } = useMagicDJModals({ loadTrack, showNotification, confirm })
 
   // Cue List (US3)
   const {
@@ -299,48 +321,6 @@ export function MagicDJPage() {
     [wsStatus, sendMessage, logOperation]
   )
 
-  const handleAddPromptTemplate = useCallback(() => {
-    setEditingPromptTemplate(null)
-    setIsPromptEditorOpen(true)
-  }, [])
-
-  const handleEditPromptTemplate = useCallback((template: PromptTemplate) => {
-    setEditingPromptTemplate(template)
-    setIsPromptEditorOpen(true)
-  }, [])
-
-  const handleDeletePromptTemplate = useCallback(
-    (template: PromptTemplate) => {
-      if (template.isDefault) return
-      if (confirm(`確定要刪除「${template.name}」嗎？`)) {
-        removePromptTemplate(template.id)
-      }
-    },
-    [removePromptTemplate]
-  )
-
-  const handleSavePromptTemplate = useCallback(
-    (data: { name: string; prompt: string; color: PromptTemplateColor }) => {
-      if (editingPromptTemplate) {
-        updatePromptTemplate(editingPromptTemplate.id, data)
-      } else {
-        addPromptTemplate({
-          name: data.name,
-          prompt: data.prompt,
-          color: data.color,
-          order: useMagicDJStore.getState().promptTemplates.length + 1,
-          isDefault: false,
-        })
-      }
-    },
-    [editingPromptTemplate, updatePromptTemplate, addPromptTemplate]
-  )
-
-  const handleClosePromptEditor = useCallback(() => {
-    setIsPromptEditorOpen(false)
-    setEditingPromptTemplate(null)
-  }, [])
-
   const handleToggleMode = useCallback(() => {
     const newMode = currentMode === 'prerecorded' ? 'ai-conversation' : 'prerecorded'
     setMode(newMode)
@@ -353,10 +333,14 @@ export function MagicDJPage() {
 
   const handlePlayTrack = useCallback(
     (trackId: string) => {
+      if (!canPlayMore()) {
+        showNotification('最多只能同時播放 5 個音軌')
+        return
+      }
       playTrack(trackId)
       logOperation('play_track', { trackId })
     },
-    [playTrack, logOperation]
+    [playTrack, logOperation, canPlayMore, showNotification]
   )
 
   // === Cue List Handlers (US3) ===
@@ -414,6 +398,7 @@ export function MagicDJPage() {
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
+    let unmounted = false
 
     const initAndLoad = async () => {
       setIsLoading(true)
@@ -424,13 +409,21 @@ export function MagicDJPage() {
         await initializeStorage()
       }
 
+      if (unmounted) return
+
       // Get tracks with restored URLs (initializeStorage updated the store)
       const restoredTracks = useMagicDJStore.getState().tracks
 
       await loadTracks(restoredTracks)
 
+      if (unmounted) return
+
       // Update progress periodically
       interval = setInterval(() => {
+        if (unmounted) {
+          if (interval) clearInterval(interval)
+          return
+        }
         const progress = getLoadingProgress()
         setLoadProgress(progress)
 
@@ -445,134 +438,33 @@ export function MagicDJPage() {
     initAndLoad()
 
     return () => {
+      unmounted = true
       if (interval) clearInterval(interval)
+
+      // Revoke all blob URLs to prevent memory leaks on unmount
+      const currentTracks = useMagicDJStore.getState().tracks
+      for (const track of currentTracks) {
+        if (track.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(track.url)
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // === Track Editor Handlers ===
-
-  const handleAddTrack = useCallback(() => {
-    setEditingTrack(null)
-    setIsEditorOpen(true)
-  }, [])
-
-  const handleEditTrack = useCallback((track: Track) => {
-    setEditingTrack(track)
-    setIsEditorOpen(true)
-  }, [])
-
   const handleDeleteTrack = useCallback(
-    (trackId: string) => {
-      if (confirm('確定要刪除這個音軌嗎？')) {
+    async (trackId: string) => {
+      const confirmed = await confirm({
+        title: '刪除音軌',
+        message: '確定要刪除這個音軌嗎？',
+        confirmLabel: '刪除',
+      })
+      if (confirmed) {
         unloadTrack(trackId)
         removeTrack(trackId)
       }
     },
-    [unloadTrack, removeTrack]
-  )
-
-  const handleSaveTrack = useCallback(
-    async (track: Track, audioBlob: Blob) => {
-      // Create blob URL for the audio (for immediate playback)
-      const blobUrl = URL.createObjectURL(audioBlob)
-
-      // Convert blob to base64 for localStorage persistence
-      const arrayBuffer = await audioBlob.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      let binary = ''
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i])
-      }
-      const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
-
-      // Persist audio to IndexedDB so it survives page reloads
-      await saveAudioToStorage(track.id, audioBlob)
-
-      if (editingTrack) {
-        // Update existing track
-        updateTrack(track.id, {
-          ...track,
-          url: blobUrl,
-          isCustom: true,
-          audioBase64,
-          hasLocalAudio: true,
-        })
-
-        // Reload the track in the player
-        await loadTrack({
-          ...track,
-          url: blobUrl,
-          isCustom: true,
-          audioBase64,
-          hasLocalAudio: true,
-        })
-      } else {
-        // Add new track — set hasLocalAudio directly so addTrack persists it
-        // in a single atomic state update (no separate updateTrack needed)
-        const newTrack: Track = {
-          ...track,
-          url: blobUrl,
-          isCustom: true,
-          audioBase64,
-          hasLocalAudio: true,
-        }
-        addTrack(newTrack)
-
-        // Load the new track in the player
-        await loadTrack(newTrack)
-      }
-    },
-    [editingTrack, updateTrack, addTrack, loadTrack, saveAudioToStorage]
-  )
-
-  const handleCloseEditor = useCallback(() => {
-    setIsEditorOpen(false)
-    setEditingTrack(null)
-  }, [])
-
-  // === BGM Generator Handlers ===
-
-  const handleOpenBGMGenerator = useCallback(() => {
-    setIsBGMGeneratorOpen(true)
-  }, [])
-
-  const handleCloseBGMGenerator = useCallback(() => {
-    setIsBGMGeneratorOpen(false)
-  }, [])
-
-  const handleSaveBGMTrack = useCallback(
-    async (track: Track, audioBlob: Blob) => {
-      // Create blob URL for the audio (for immediate playback)
-      const blobUrl = URL.createObjectURL(audioBlob)
-
-      // Convert blob to base64 for localStorage persistence
-      const arrayBuffer = await audioBlob.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      let binary = ''
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i])
-      }
-      const audioBase64 = `data:${audioBlob.type || 'audio/mpeg'};base64,${btoa(binary)}`
-
-      // Persist audio to IndexedDB so it survives page reloads
-      await saveAudioToStorage(track.id, audioBlob)
-
-      // Add new BGM track
-      const newTrack: Track = {
-        ...track,
-        url: blobUrl,
-        isCustom: true,
-        audioBase64,
-      }
-      addTrack(newTrack)
-      // Mark hasLocalAudio after addTrack (addTrack only sets it for source=upload)
-      updateTrack(track.id, { hasLocalAudio: true })
-
-      // Load the new track in the player
-      await loadTrack(newTrack)
-    },
-    [addTrack, loadTrack, saveAudioToStorage, updateTrack]
+    [unloadTrack, removeTrack, confirm]
   )
 
   // === Session Management ===
@@ -592,16 +484,38 @@ export function MagicDJPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
-        <div className="text-lg font-medium">載入音軌中...</div>
-        <div className="h-2 w-64 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${loadProgress * 100}%` }}
-          />
+      <div className="flex h-full flex-col gap-4 p-4">
+        {/* Skeleton header */}
+        <div className="flex items-center justify-between rounded-lg border bg-card p-4">
+          <div className="h-8 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-8 w-24 animate-pulse rounded bg-muted" />
         </div>
-        <div className="text-sm text-muted-foreground">
-          {Math.round(loadProgress * 100)}%
+        {/* Skeleton track list */}
+        <div className="flex flex-1 flex-col gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 rounded-lg border p-3"
+            >
+              <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Loading progress */}
+        <div className="flex flex-col items-center gap-2 py-2">
+          <div className="h-2 w-64 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{ width: `${loadProgress * 100}%` }}
+            />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            載入音軌中... {Math.round(loadProgress * 100)}%
+          </div>
         </div>
       </div>
     )
@@ -609,6 +523,24 @@ export function MagicDJPage() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Floating notification with severity */}
+      {notification && (
+        <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div
+            className={`rounded-lg border px-4 py-2 text-sm font-medium shadow-lg backdrop-blur ${
+              notification.severity === 'error'
+                ? 'border-destructive/50 bg-destructive/15 text-destructive'
+                : notification.severity === 'info'
+                  ? 'border-blue-500/50 bg-blue-500/15 text-blue-700 dark:text-blue-400'
+                  : 'border-yellow-500/50 bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
+            }`}
+            role="alert"
+          >
+            {notification.message}
+          </div>
+        </div>
+      )}
+
       <DJControlPanel
         onForceSubmit={handleForceSubmit}
         onInterrupt={handleInterrupt}
@@ -662,6 +594,9 @@ export function MagicDJPage() {
         onSave={handleSavePromptTemplate}
         editingTemplate={editingPromptTemplate}
       />
+
+      {/* Confirm Dialog (replaces window.confirm) */}
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   )
 }

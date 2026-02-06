@@ -7,7 +7,7 @@
  * 011-T017~T019: Audio source selection (TTS / Upload) and preview.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Play, Square, Loader2, Save, Volume2, Mic, Upload } from 'lucide-react'
 
 import { ttsApi, type VoiceProfile } from '@/lib/api'
@@ -136,8 +136,8 @@ export function TrackEditorModal({
   // 011-T018: Upload state
   const [uploadState, setUploadState] = useState<FileUploadState | null>(null)
 
-  // Audio element ref
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+  // Audio element ref — use ref to avoid stale closures
+  const audioElementRef = useRef<HTMLAudioElement | null>(null)
 
   // Initialize form when editing
   useEffect(() => {
@@ -224,11 +224,41 @@ export function TrackEditorModal({
     }
   }, [ttsSettings.provider, isOpen])
 
-  // Cleanup audio URL on unmount
+  // Cleanup audio element helper
+  const cleanupAudioElement = useCallback(() => {
+    const el = audioElementRef.current
+    if (el) {
+      el.pause()
+      el.onplay = null
+      el.onended = null
+      el.onpause = null
+      audioElementRef.current = null
+    }
+    setIsPlaying(false)
+  }, [])
+
+  // Cleanup audio element on modal close
   useEffect(() => {
+    if (!isOpen) {
+      cleanupAudioElement()
+    }
+  }, [isOpen, cleanupAudioElement])
+
+  // Cleanup audio element on unmount
+  useEffect(() => {
+    return () => cleanupAudioElement()
+  }, [cleanupAudioElement])
+
+  // Revoke old blob URL when audioUrl changes (prevents memory leak)
+  const prevAudioUrlRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (prevAudioUrlRef.current && prevAudioUrlRef.current !== audioUrl) {
+      URL.revokeObjectURL(prevAudioUrlRef.current)
+    }
+    prevAudioUrlRef.current = audioUrl
     return () => {
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl)
+      if (prevAudioUrlRef.current) {
+        URL.revokeObjectURL(prevAudioUrlRef.current)
       }
     }
   }, [audioUrl])
@@ -288,27 +318,27 @@ export function TrackEditorModal({
     const previewUrl = audioSourceMode === 'upload' ? uploadState?.audioUrl : audioUrl
     if (!previewUrl) return
 
-    if (audioElement) {
-      audioElement.pause()
-    }
+    // Clean up previous audio element before creating a new one
+    cleanupAudioElement()
 
     const audio = new Audio(previewUrl)
-    setAudioElement(audio)
+    audioElementRef.current = audio
 
     audio.onplay = () => setIsPlaying(true)
     audio.onended = () => setIsPlaying(false)
     audio.onpause = () => setIsPlaying(false)
 
     audio.play()
-  }, [audioSourceMode, uploadState?.audioUrl, audioUrl, audioElement])
+  }, [audioSourceMode, uploadState?.audioUrl, audioUrl, cleanupAudioElement])
 
   const handlePreviewStop = useCallback(() => {
-    if (audioElement) {
-      audioElement.pause()
-      audioElement.currentTime = 0
+    const el = audioElementRef.current
+    if (el) {
+      el.pause()
+      el.currentTime = 0
     }
     setIsPlaying(false)
-  }, [audioElement])
+  }, [])
 
   // Save track
   const handleSave = useCallback(() => {

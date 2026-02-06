@@ -57,3 +57,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Respect prefers-reduced-motion for flashing animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-timeout-pulse {
+    animation: none !important;
+  }
+}

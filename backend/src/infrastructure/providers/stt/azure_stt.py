@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import azure.cognitiveservices.speech as speechsdk
 
+from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
@@ -59,14 +60,18 @@ class AzureSTTProvider(BaseSTTProvider):
 
         # Create audio config from bytes or URL
         if request.audio:
-            # Write to temp file for Azure SDK
             import os
             import tempfile
 
-            with tempfile.NamedTemporaryFile(
-                suffix=f".{request.audio.format.value}", delete=False
-            ) as f:
-                f.write(request.audio.data)
+            audio_bytes = request.audio.data
+
+            # Azure SDK only supports WAV files via AudioConfig(filename=...)
+            # Convert non-WAV formats (e.g. WebM from browser recording) to WAV
+            if request.audio.format != AudioFormat.WAV:
+                audio_bytes = self._convert_to_wav(audio_bytes, request.audio.format, request.audio)
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                f.write(audio_bytes)
                 temp_path = f.name
 
             try:
@@ -265,6 +270,47 @@ class AzureSTTProvider(BaseSTTProvider):
     @property
     def supports_streaming(self) -> bool:
         return True
+
+    @staticmethod
+    def _convert_to_wav(
+        audio_bytes: bytes,
+        audio_format: AudioFormat,
+        audio_data: AudioData,
+    ) -> bytes:
+        """Convert non-WAV audio bytes to WAV format for Azure SDK.
+
+        Args:
+            audio_bytes: Raw audio bytes to convert.
+            audio_format: The source audio format.
+            audio_data: AudioData with metadata (sample_rate, channels).
+
+        Returns:
+            WAV-encoded bytes.
+
+        Raises:
+            RuntimeError: If conversion fails.
+        """
+        import io
+
+        from pydub import AudioSegment
+
+        try:
+            if audio_format == AudioFormat.PCM:
+                segment = AudioSegment(
+                    data=audio_bytes,
+                    sample_width=2,
+                    frame_rate=audio_data.sample_rate,
+                    channels=audio_data.channels,
+                )
+            else:
+                segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=audio_format.value)
+            wav_buffer = io.BytesIO()
+            segment.export(wav_buffer, format="wav")
+            return wav_buffer.getvalue()
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to convert {audio_format.value} to WAV for Azure STT: {e}"
+            ) from e
 
     def _map_language(self, language: str) -> str:
         """Map language code to Azure format."""

@@ -91,7 +91,7 @@ export function ProviderComparison({
               比較 {results.length} 個 Provider
             </h3>
             <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-              最高信心度: {sortedResults[0].provider} ({(sortedResults[0].confidence * 100).toFixed(1)}%)
+              最高信心度: {sortedResults[0].provider} ({sortedResults[0].confidence != null ? `${(sortedResults[0].confidence * 100).toFixed(1)}%` : 'N/A'})
             </p>
           </div>
         </div>
@@ -147,14 +147,14 @@ export function ProviderComparison({
                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      result.confidence >= 0.9
+                      result.confidence != null && result.confidence >= 0.9
                         ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                        : result.confidence >= 0.7
+                        : result.confidence != null && result.confidence >= 0.7
                           ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                           : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
                     }`}
                   >
-                    {(result.confidence * 100).toFixed(1)}%
+                    {result.confidence != null ? `${(result.confidence * 100).toFixed(1)}%` : 'N/A'}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -219,7 +219,7 @@ function ProviderResultCard({ result, rank, isBest }: ProviderResultCardProps) {
         <div>
           <p className="text-xs text-gray-500 dark:text-gray-400">信心度</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {(result.confidence * 100).toFixed(1)}%
+            {result.confidence != null ? `${(result.confidence * 100).toFixed(1)}%` : 'N/A'}
           </p>
         </div>
         <div>

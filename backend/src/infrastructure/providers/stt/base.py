@@ -39,7 +39,7 @@ class BaseSTTProvider(ISTTProvider):
         return STTResult(
             request=request,
             transcript=transcript,
-            confidence=confidence or 0.0,
+            confidence=confidence,
             latency_ms=latency_ms,
             words=word_timings or [],
             metadata=metadata,

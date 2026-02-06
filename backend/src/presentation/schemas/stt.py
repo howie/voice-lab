@@ -87,7 +87,9 @@ class STTTranscribeResponse(BaseSchema):
     provider: str = Field(..., description="Provider used")
     language: str = Field(..., description="Language detected/used")
     latency_ms: int = Field(..., description="Processing latency in milliseconds")
-    confidence: float = Field(default=0.0, description="Transcription confidence 0-1")
+    confidence: float | None = Field(
+        default=None, description="Transcription confidence 0-1, null if unavailable"
+    )
     words: list[WordTimingResponse] | None = Field(
         default=None, description="Word-level timing information"
     )
@@ -114,7 +116,7 @@ class TranscriptionSummary(BaseSchema):
     language: str
     transcript_preview: str
     duration_ms: int | None
-    confidence: float
+    confidence: float | None
     has_ground_truth: bool
     error_rate: float | None
     created_at: str

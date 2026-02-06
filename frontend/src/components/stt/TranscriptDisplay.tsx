@@ -110,8 +110,8 @@ export function TranscriptDisplay({
         />
         <MetricCard
           label="Confidence"
-          value={`${(result.confidence * 100).toFixed(1)}%`}
-          variant={result.confidence >= 0.9 ? 'success' : result.confidence >= 0.7 ? 'warning' : 'error'}
+          value={result.confidence != null ? `${(result.confidence * 100).toFixed(1)}%` : 'N/A'}
+          variant={result.confidence != null ? (result.confidence >= 0.9 ? 'success' : result.confidence >= 0.7 ? 'warning' : 'error') : 'default'}
           icon={
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path

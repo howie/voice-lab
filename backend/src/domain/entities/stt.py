@@ -45,7 +45,7 @@ class STTResult:
 
     request: STTRequest
     transcript: str
-    confidence: float
+    confidence: float | None
     latency_ms: int
     words: list[WordTiming] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

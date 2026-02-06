@@ -29,6 +29,7 @@ class STTProviderFactory:
             "display_name": "Azure Speech Services",
             "supports_streaming": True,
             "supports_child_mode": True,  # Via phrase hints
+            "supports_diarization": True,
             "max_duration_sec": 600,
             "max_file_size_mb": 200,
             "supported_formats": ["mp3", "wav", "ogg", "flac", "webm"],

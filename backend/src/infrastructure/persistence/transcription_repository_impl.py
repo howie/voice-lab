@@ -116,6 +116,7 @@ class TranscriptionRepositoryImpl(ITranscriptionRepository):
                     start_ms=w.start_ms,
                     end_ms=w.end_ms,
                     confidence=w.confidence,
+                    speaker_id=w.speaker_id,
                 )
                 for w in result.words
             ]
@@ -154,6 +155,7 @@ class TranscriptionRepositoryImpl(ITranscriptionRepository):
                 start_ms=w.start_ms,
                 end_ms=w.end_ms,
                 confidence=w.confidence,
+                speaker_id=w.speaker_id,
             )
             for w in request_model.result.words
         ]
@@ -373,6 +375,7 @@ class TranscriptionRepositoryImpl(ITranscriptionRepository):
                     "start_ms": w.start_ms,
                     "end_ms": w.end_ms,
                     "confidence": w.confidence,
+                    "speaker_id": w.speaker_id,
                 }
                 for w in req.result.words
             ],

@@ -44,6 +44,11 @@ class ISTTProvider(ABC):
         """Whether the provider has child speech optimization."""
         pass
 
+    @property
+    def supports_diarization(self) -> bool:
+        """Whether the provider supports speaker diarization."""
+        return False
+
     @abstractmethod
     async def transcribe(self, request: STTRequest) -> STTResult:
         """Transcribe audio to text.

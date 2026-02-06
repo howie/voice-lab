@@ -6,7 +6,7 @@
  * Displays transcription results with confidence score and word timings.
  */
 
-import type { TranscriptionResponse, WordTiming } from '@/types/stt'
+import type { TranscriptionResponse, WordTiming, SpeakerSegment } from '@/types/stt'
 
 interface TranscriptDisplayProps {
   result: TranscriptionResponse | null
@@ -82,15 +82,19 @@ export function TranscriptDisplay({
 
   return (
     <div className="space-y-4">
-      {/* Main Transcript */}
-      <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-          Transcript
-        </h3>
-        <p className="text-lg text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-          {result.transcript || '(No speech detected)'}
-        </p>
-      </div>
+      {/* Main Transcript or Speaker Segments */}
+      {result.speaker_segments && result.speaker_segments.length > 0 ? (
+        <SpeakerSegmentsSection segments={result.speaker_segments} />
+      ) : (
+        <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4">
+          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            Transcript
+          </h3>
+          <p className="text-lg text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+            {result.transcript || '(No speech detected)'}
+          </p>
+        </div>
+      )}
 
       {/* Metadata */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -190,6 +194,50 @@ function MetricCard({ label, value, icon, variant = 'default' }: MetricCardProps
         <span className="text-xs font-medium">{label}</span>
       </div>
       <p className={`mt-1 text-lg font-semibold ${valueStyles[variant]}`}>{value}</p>
+    </div>
+  )
+}
+
+const SPEAKER_COLORS = [
+  'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-700',
+  'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700',
+  'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-700',
+  'bg-orange-100 dark:bg-orange-900 border-orange-300 dark:border-orange-700',
+]
+
+interface SpeakerSegmentsSectionProps {
+  segments: SpeakerSegment[]
+}
+
+function SpeakerSegmentsSection({ segments }: SpeakerSegmentsSectionProps) {
+  const speakerIds = [...new Set(segments.map((s) => s.speaker_id))]
+  const speakerColorMap = new Map(
+    speakerIds.map((id, i) => [id, SPEAKER_COLORS[i % SPEAKER_COLORS.length]])
+  )
+
+  return (
+    <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4">
+      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+        Speaker Diarization
+      </h3>
+      <div className="space-y-2">
+        {segments.map((seg, index) => (
+          <div
+            key={index}
+            className={`rounded-lg border p-3 ${speakerColorMap.get(seg.speaker_id) || ''}`}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                {seg.speaker_id}
+              </span>
+              <span className="text-xs text-gray-400">
+                {(seg.start_ms / 1000).toFixed(1)}s - {(seg.end_ms / 1000).toFixed(1)}s
+              </span>
+            </div>
+            <p className="text-gray-900 dark:text-gray-100">{seg.text}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

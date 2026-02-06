@@ -38,6 +38,7 @@ from src.presentation.api.dependencies import (
 from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.schemas.stt import (
     ComparisonResponse,
+    SpeakerSegmentResponse,
     STTProviderResponse,
     STTProvidersListResponse,
     STTTranscribeResponse,
@@ -136,6 +137,7 @@ async def list_providers(
                 display_name=provider_data["display_name"],
                 supports_streaming=provider_data["supports_streaming"],
                 supports_child_mode=provider_data["supports_child_mode"],
+                supports_diarization=provider_data.get("supports_diarization", False),
                 max_duration_sec=provider_data["max_duration_sec"],
                 max_file_size_mb=provider_data["max_file_size_mb"],
                 supported_formats=provider_data["supported_formats"],
@@ -155,6 +157,7 @@ async def transcribe_audio(
     provider: str = Form(..., description="STT provider name"),
     language: str = Form(default="zh-TW", description="Language code"),
     child_mode: bool = Form(default=False, description="Enable child speech mode"),
+    enable_diarization: bool = Form(default=False, description="Enable speaker diarization"),
     ground_truth: str | None = Form(default=None, description="Ground truth text"),
     save_to_history: bool = Form(  # noqa: ARG001
         default=True, description="Save to history"
@@ -168,7 +171,8 @@ async def transcribe_audio(
         user_id = uuid.UUID(current_user.id)
         logger.info(
             f"Starting transcription: user_id={user_id}, provider={provider}, "
-            f"language={language}, child_mode={child_mode}"
+            f"language={language}, child_mode={child_mode}, "
+            f"enable_diarization={enable_diarization}"
         )
 
         # 1. Validate Provider
@@ -230,6 +234,7 @@ async def transcribe_audio(
             provider_name=provider,
             language=language,
             child_mode=child_mode,
+            enable_diarization=enable_diarization,
         )
 
         # 6. Convert response
@@ -241,8 +246,21 @@ async def transcribe_audio(
                     start_ms=wt.start_ms,
                     end_ms=wt.end_ms,
                     confidence=wt.confidence,
+                    speaker_id=wt.speaker_id,
                 )
                 for wt in result.words
+            ]
+
+        speaker_segments = None
+        if result.speaker_segments:
+            speaker_segments = [
+                SpeakerSegmentResponse(
+                    speaker_id=seg.speaker_id,
+                    text=seg.text,
+                    start_ms=seg.start_ms,
+                    end_ms=seg.end_ms,
+                )
+                for seg in result.speaker_segments
             ]
 
         # 7. WER Analysis Calculation (if ground truth provided)
@@ -314,6 +332,7 @@ async def transcribe_audio(
             latency_ms=result.latency_ms,
             confidence=result.confidence,
             words=words,
+            speaker_segments=speaker_segments,
             audio_duration_ms=result.audio_duration_ms,
             wer_analysis=wer_analysis,
             created_at=datetime.utcnow().isoformat() + "Z",
@@ -556,6 +575,7 @@ async def compare_providers(
                             start_ms=w.start_ms,
                             end_ms=w.end_ms,
                             confidence=w.confidence,
+                            speaker_id=w.speaker_id,
                         )
                         for w in result.words
                     ]

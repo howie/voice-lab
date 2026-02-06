@@ -34,6 +34,7 @@ class STTService:
         provider_name: str,
         language: str = "zh-TW",
         child_mode: bool = False,
+        enable_diarization: bool = False,
     ) -> tuple[STTResult, UUID, UUID]:
         """Transcribe an audio file using the specified provider.
 
@@ -43,6 +44,7 @@ class STTService:
             provider_name: Name of the STT provider (e.g., 'azure', 'deepgram')
             language: Language code (default: zh-TW)
             child_mode: Whether to enable child voice optimization
+            enable_diarization: Whether to enable speaker diarization
 
         Returns:
             Tuple of (STTResult object, transcription_record_id, result_id)
@@ -53,7 +55,8 @@ class STTService:
         """
         logger.info(
             f"Starting STT transcription: user_id={user_id}, audio_file_id={audio_file_id}, "
-            f"provider={provider_name}, language={language}, child_mode={child_mode}"
+            f"provider={provider_name}, language={language}, child_mode={child_mode}, "
+            f"enable_diarization={enable_diarization}"
         )
 
         # 1. Get Audio File Info
@@ -141,6 +144,7 @@ class STTService:
             language=language,
             audio=audio_data,
             child_mode=child_mode,
+            enable_diarization=enable_diarization,
         )
 
         logger.debug(f"Calling provider.transcribe for: {provider_name}")

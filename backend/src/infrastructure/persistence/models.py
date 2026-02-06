@@ -348,6 +348,7 @@ class WordTimingModel(Base):
     start_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     end_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=True)
+    speaker_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     result: Mapped["TranscriptionResultModel"] = relationship(
@@ -544,7 +545,7 @@ class JobModel(Base):
     )
     # Use PostgreSQL ENUM to match migration schema
     job_type: Mapped[str] = mapped_column(
-        PgEnum("multi_role_tts", name="job_type", create_type=False),
+        PgEnum("multi_role_tts", "single_tts", name="job_type", create_type=False),
         nullable=False,
     )
     status: Mapped[str] = mapped_column(

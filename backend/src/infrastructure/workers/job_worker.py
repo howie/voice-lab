@@ -30,6 +30,7 @@ from src.application.use_cases.synthesize_multi_role import (
 )
 from src.domain.entities.job import Job, JobStatus
 from src.domain.entities.multi_role_tts import DialogueTurn, VoiceAssignment
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.persistence.job_repository_impl import JobRepositoryImpl
 from src.infrastructure.persistence.models import AudioFileModel
 from src.infrastructure.storage.local_storage import LocalStorage
@@ -148,6 +149,9 @@ class JobWorker:
             try:
                 # Process the job
                 await self._execute_job(job, session, job_repo)
+            except QuotaExceededError as e:
+                # Quota exhausted — no point retrying
+                await self._handle_job_failure(job, session, job_repo, str(e), no_retry=True)
             except Exception as e:
                 # Handle job failure
                 await self._handle_job_failure(job, session, job_repo, str(e))
@@ -307,6 +311,8 @@ class JobWorker:
         session: AsyncSession,
         job_repo: JobRepositoryImpl,
         error_message: str,
+        *,
+        no_retry: bool = False,
     ) -> None:
         """Handle job failure with retry logic.
 
@@ -315,12 +321,13 @@ class JobWorker:
             session: Database session
             job_repo: Job repository
             error_message: Error description
+            no_retry: If True, skip retry and fail immediately (e.g. quota exhausted)
         """
         logger.warning(
             f"Job failed: id={job.id}, retry_count={job.retry_count}, error={error_message}"
         )
 
-        if job.can_retry():
+        if not no_retry and job.can_retry():
             # Schedule retry with exponential backoff
             job.increment_retry()
             retry_delay = RETRY_DELAYS[min(job.retry_count - 1, len(RETRY_DELAYS) - 1)]

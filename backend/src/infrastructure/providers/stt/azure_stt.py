@@ -145,12 +145,13 @@ class AzureSTTProvider(BaseSTTProvider):
                     )
 
                     for word in details.get("NBest", [{}])[0].get("Words", []):
+                        offset_ticks = word.get("Offset", 0)
+                        duration_ticks = word.get("Duration", 0)
                         word_timings.append(
                             WordTiming(
                                 word=word.get("Word", ""),
-                                start_time=word.get("Offset", 0) / 10000000,
-                                end_time=(word.get("Offset", 0) + word.get("Duration", 0))
-                                / 10000000,
+                                start_ms=int(offset_ticks / 10000),
+                                end_ms=int((offset_ticks + duration_ticks) / 10000),
                                 confidence=word.get("Confidence", 0.0),
                             )
                         )
@@ -190,7 +191,10 @@ class AzureSTTProvider(BaseSTTProvider):
             raise error
 
         transcript = " ".join(transcript_parts)
-        return transcript, word_timings if word_timings else None, None
+        avg_confidence = (
+            sum(w.confidence for w in word_timings) / len(word_timings) if word_timings else None
+        )
+        return transcript, word_timings if word_timings else None, avg_confidence
 
     async def transcribe_stream(
         self, audio_stream: AsyncIterator[bytes], language: str = "zh-TW"

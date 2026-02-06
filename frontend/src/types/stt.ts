@@ -71,7 +71,7 @@ export interface TranscriptionResponse {
   id: string
   provider: STTProviderName
   transcript: string
-  confidence: number
+  confidence: number | null
   latency_ms: number
   language: string
   words?: WordTiming[]
@@ -87,7 +87,7 @@ export interface TranscriptionSummary {
   language: string
   transcript_preview: string
   duration_ms?: number
-  confidence: number
+  confidence: number | null
   has_ground_truth: boolean
   error_rate?: number
   created_at: string
@@ -117,7 +117,7 @@ export interface TranscriptionDetail extends TranscriptionResponse {
 export interface ComparisonResult {
   provider: STTProviderName
   transcript: string
-  confidence: number
+  confidence: number | null
   latency_ms: number
   error_rate?: number
   error_type?: 'WER' | 'CER'

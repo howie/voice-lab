@@ -15,7 +15,7 @@ interface HistoryItem {
   provider: string
   language: string
   transcript: string
-  confidence: number
+  confidence: number | null
   created_at: string
   audio_filename?: string
 }

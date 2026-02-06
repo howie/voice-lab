@@ -13,7 +13,7 @@ interface TranscriptionHistoryItem {
   provider: string
   language: string
   transcript: string
-  confidence: number
+  confidence: number | null
   created_at: string
   audio_filename?: string
 }
@@ -164,7 +164,7 @@ export function TranscriptionHistory({
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    {(item.confidence * 100).toFixed(1)}% 信心度
+                    {item.confidence != null ? `${(item.confidence * 100).toFixed(1)}%` : 'N/A'} 信心度
                   </span>
                 </div>
               </div>

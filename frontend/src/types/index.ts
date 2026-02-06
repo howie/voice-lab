@@ -59,7 +59,7 @@ export interface TTSResponse {
 // STT types
 export interface STTResponse {
   transcript: string
-  confidence: number
+  confidence: number | null
   latency_ms: number
   words: Array<{
     word: string

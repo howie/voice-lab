@@ -72,6 +72,9 @@ voai_api_key = ""
 # VoAI API endpoint (default: connect.voai.ai)
 voai_api_endpoint = "connect.voai.ai"
 
+# Mureka AI Music Generation API Key (optional)
+mureka_api_key = ""
+
 # -----------------------------------------------------------------------------
 # Optional: Cloud SQL Configuration
 # -----------------------------------------------------------------------------

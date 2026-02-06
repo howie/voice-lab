@@ -41,3 +41,8 @@ output "voai_api_key_secret_id" {
   description = "Secret ID for VoAI API Key"
   value       = var.voai_api_key != "" ? google_secret_manager_secret.voai_api_key[0].secret_id : null
 }
+
+output "mureka_api_key_secret_id" {
+  description = "Secret ID for Mureka AI API Key"
+  value       = var.mureka_api_key != "" ? google_secret_manager_secret.mureka_api_key[0].secret_id : null
+}

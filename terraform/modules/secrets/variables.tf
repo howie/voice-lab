@@ -68,6 +68,13 @@ variable "voai_api_key" {
   default     = ""
 }
 
+variable "mureka_api_key" {
+  type        = string
+  description = "Mureka AI Music Generation API Key"
+  sensitive   = true
+  default     = ""
+}
+
 variable "labels" {
   type        = map(string)
   description = "Labels to apply to resources"

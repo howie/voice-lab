@@ -11,6 +11,7 @@ import base64
 import contextlib
 import io
 import logging
+import os
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -23,6 +24,11 @@ from src.domain.errors import QuotaExceededError, RateLimitError
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 logger = logging.getLogger(__name__)
+
+# Module-level request semaphore shared across all GeminiTTSProvider instances.
+# Controls max concurrent requests to Gemini TTS API to avoid 429 rate limits.
+_GEMINI_MAX_CONCURRENT = int(os.getenv("GEMINI_TTS_MAX_CONCURRENT", "2"))
+_gemini_request_semaphore = asyncio.Semaphore(_GEMINI_MAX_CONCURRENT)
 
 
 class GeminiTTSProvider(BaseTTSProvider):
@@ -173,7 +179,8 @@ class GeminiTTSProvider(BaseTTSProvider):
         for attempt in range(self._MAX_RETRIES + 1):
             # Inner retry loop for 429 rate limiting (independent counter)
             for retry_429 in range(self._MAX_429_RETRIES + 1):
-                response = await self._client.post(url, json=payload, headers=headers)
+                async with _gemini_request_semaphore:
+                    response = await self._client.post(url, json=payload, headers=headers)
 
                 if response.status_code != 429:
                     break  # Not a 429, proceed to normal handling
@@ -185,6 +192,17 @@ class GeminiTTSProvider(BaseTTSProvider):
                 except Exception:
                     error_message_429 = response.text
 
+                # Detect daily quota exhaustion — retrying won't help
+                if "per_day" in error_message_429.lower():
+                    logger.warning(
+                        "Gemini TTS daily quota exhausted: %s",
+                        error_message_429,
+                    )
+                    raise QuotaExceededError(
+                        provider="gemini",
+                        original_error=error_message_429,
+                    )
+
                 if retry_429 < self._MAX_429_RETRIES:
                     # Determine wait: prefer Retry-After header (capped), else backoff
                     wait = self._429_RETRY_BACKOFFS[retry_429]
@@ -194,7 +212,7 @@ class GeminiTTSProvider(BaseTTSProvider):
                             wait = min(float(ra), float(self._429_MAX_RETRY_AFTER))
 
                     logger.warning(
-                        "Gemini TTS 429 on attempt %d/%d, retrying after %.1fs: %s",
+                        "Gemini TTS RPM rate limited on attempt %d/%d, retrying after %.1fs: %s",
                         retry_429 + 1,
                         self._MAX_429_RETRIES + 1,
                         wait,
@@ -203,7 +221,7 @@ class GeminiTTSProvider(BaseTTSProvider):
                     await asyncio.sleep(wait)
                     continue
 
-                # All 429 retries exhausted → always RateLimitError
+                # All 429 retries exhausted → RateLimitError (RPM)
                 retry_after_val = None
                 if "retry-after" in response.headers:
                     with contextlib.suppress(ValueError, TypeError):

@@ -5,6 +5,7 @@ to WAV before passing to Azure SDK.
 """
 
 import io
+import shutil
 import struct
 
 import pytest
@@ -13,21 +14,8 @@ from pydub import AudioSegment
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.infrastructure.providers.stt.azure_stt import AzureSTTProvider
 
-
-def _make_wav_bytes(sample_rate: int = 16000, channels: int = 1, duration_ms: int = 100) -> bytes:
-    """Generate minimal valid WAV bytes for testing."""
-    num_samples = int(sample_rate * duration_ms / 1000)
-    # Generate silent 16-bit PCM samples
-    raw_data = struct.pack(f"<{num_samples * channels}h", *([0] * num_samples * channels))
-    segment = AudioSegment(
-        data=raw_data,
-        sample_width=2,
-        frame_rate=sample_rate,
-        channels=channels,
-    )
-    buf = io.BytesIO()
-    segment.export(buf, format="wav")
-    return buf.getvalue()
+_has_ffmpeg = shutil.which("ffmpeg") is not None
+requires_ffmpeg = pytest.mark.skipif(not _has_ffmpeg, reason="ffmpeg not installed")
 
 
 def _make_pcm_bytes(sample_rate: int = 16000, channels: int = 1, duration_ms: int = 100) -> bytes:
@@ -37,7 +25,7 @@ def _make_pcm_bytes(sample_rate: int = 16000, channels: int = 1, duration_ms: in
 
 
 def _make_mp3_bytes(sample_rate: int = 16000, channels: int = 1, duration_ms: int = 100) -> bytes:
-    """Generate valid MP3 bytes for testing via pydub."""
+    """Generate valid MP3 bytes for testing via pydub (requires ffmpeg)."""
     pcm = _make_pcm_bytes(sample_rate, channels, duration_ms)
     segment = AudioSegment(
         data=pcm,
@@ -53,6 +41,7 @@ def _make_mp3_bytes(sample_rate: int = 16000, channels: int = 1, duration_ms: in
 class TestConvertToWav:
     """Tests for AzureSTTProvider._convert_to_wav static method."""
 
+    @requires_ffmpeg
     def test_mp3_to_wav(self):
         """MP3 audio should be converted to valid WAV."""
         mp3_bytes = _make_mp3_bytes()
@@ -93,6 +82,7 @@ class TestConvertToWav:
         assert segment.channels == 2
         assert segment.frame_rate == 44100
 
+    @requires_ffmpeg
     def test_flac_to_wav(self):
         """FLAC audio should be converted to valid WAV."""
         # Generate FLAC from PCM
@@ -134,6 +124,7 @@ class TestConvertToWav:
 
         assert exc_info.value.__cause__ is not None
 
+    @requires_ffmpeg
     def test_wav_output_is_playable(self):
         """Converted WAV output should be loadable by pydub (valid format)."""
         mp3_bytes = _make_mp3_bytes(sample_rate=16000)

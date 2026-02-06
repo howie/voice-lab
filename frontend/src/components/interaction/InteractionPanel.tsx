@@ -149,6 +149,8 @@ function float32ToPCM16(input: Float32Array): ArrayBuffer {
 export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionPanelProps) {
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [textInput, setTextInput] = useState('')
+  const [cascadeConfigReady, setCascadeConfigReady] = useState(true)
+  const [missingProviders, setMissingProviders] = useState<string[]>([])
 
   // T087: Track when an interruption just occurred for the indicator
   const [wasInterrupted, setWasInterrupted] = useState(false)
@@ -727,7 +729,14 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
     [setUserRole, setAiRole, setScenarioContext]
   )
 
+  // Cascade config readiness callback from ModeSelector
+  const handleConfigReadyChange = useCallback((ready: boolean, missing: string[]) => {
+    setCascadeConfigReady(ready)
+    setMissingProviders(missing)
+  }, [])
+
   const isConnected = connectionStatus === 'connected'
+  const canConnect = options.mode === 'realtime' || cascadeConfigReady
   const displayError = error || wsError || micError || permissionError
 
   return (
@@ -738,6 +747,7 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
         providerConfig={options.providerConfig}
         onModeChange={setMode}
         onProviderChange={setProviderConfig}
+        onConfigReadyChange={handleConfigReadyChange}
         disabled={isConnected}
       />
 
@@ -779,7 +789,8 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           {!isConnected ? (
             <button
               onClick={handleConnect}
-              disabled={connectionStatus === 'connecting'}
+              disabled={connectionStatus === 'connecting' || !canConnect}
+              title={!canConnect ? `缺少 API Key: ${missingProviders.join('、')}` : undefined}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {connectionStatus === 'connecting' ? '連接中...' : '開始對話'}
@@ -794,6 +805,13 @@ export function InteractionPanel({ userId, wsUrl, className = '' }: InteractionP
           )}
         </div>
       </div>
+
+      {/* Missing credentials warning for cascade mode */}
+      {!isConnected && !canConnect && missingProviders.length > 0 && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+          以下提供者尚未設定 API Key：{missingProviders.join('、')}。請先在提供者設定中展開面板並確認選擇的提供者有可用的憑證。
+        </div>
+      )}
 
       {/* Error Display */}
       {displayError && (

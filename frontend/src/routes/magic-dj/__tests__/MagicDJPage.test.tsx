@@ -26,6 +26,9 @@ vi.mock('@/components/magic-dj/BGMGeneratorModal', () => ({
 vi.mock('@/components/magic-dj/PromptTemplateEditor', () => ({
   PromptTemplateEditor: () => <div data-testid="prompt-template-editor" />,
 }))
+vi.mock('@/components/magic-dj/StoryPromptEditor', () => ({
+  StoryPromptEditor: () => <div data-testid="story-prompt-editor" />,
+}))
 vi.mock('@/components/magic-dj/ConfirmDialog', () => ({
   ConfirmDialog: () => null,
 }))
@@ -69,6 +72,13 @@ vi.mock('@/hooks/useMagicDJModals', () => ({
     handleDeletePromptTemplate: vi.fn(),
     handleSavePromptTemplate: vi.fn(),
     handleClosePromptEditor: vi.fn(),
+    isStoryEditorOpen: false,
+    editingStoryPrompt: null,
+    handleAddStoryPrompt: vi.fn(),
+    handleEditStoryPrompt: vi.fn(),
+    handleDeleteStoryPrompt: vi.fn(),
+    handleSaveStoryPrompt: vi.fn(),
+    handleCloseStoryEditor: vi.fn(),
   }),
 }))
 

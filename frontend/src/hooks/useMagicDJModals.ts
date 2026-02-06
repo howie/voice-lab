@@ -12,7 +12,7 @@ import { useCallback, useState } from 'react'
 
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { blobToBase64DataUrl } from '@/lib/audioUtils'
-import type { PromptTemplate, PromptTemplateColor, Track } from '@/types/magic-dj'
+import type { PromptTemplate, PromptTemplateColor, StoryPrompt, Track } from '@/types/magic-dj'
 
 interface ConfirmOptions {
   title: string
@@ -38,6 +38,10 @@ export function useMagicDJModals({ loadTrack, showNotification, confirm }: UseMa
   const [isPromptEditorOpen, setIsPromptEditorOpen] = useState(false)
   const [editingPromptTemplate, setEditingPromptTemplate] = useState<PromptTemplate | null>(null)
 
+  // Story Prompt Editor Modal state
+  const [isStoryEditorOpen, setIsStoryEditorOpen] = useState(false)
+  const [editingStoryPrompt, setEditingStoryPrompt] = useState<StoryPrompt | null>(null)
+
   // Store actions
   const addTrack = useMagicDJStore(s => s.addTrack)
   const updateTrack = useMagicDJStore(s => s.updateTrack)
@@ -45,6 +49,9 @@ export function useMagicDJModals({ loadTrack, showNotification, confirm }: UseMa
   const addPromptTemplate = useMagicDJStore(s => s.addPromptTemplate)
   const updatePromptTemplate = useMagicDJStore(s => s.updatePromptTemplate)
   const removePromptTemplate = useMagicDJStore(s => s.removePromptTemplate)
+  const addStoryPrompt = useMagicDJStore(s => s.addStoryPrompt)
+  const updateStoryPrompt = useMagicDJStore(s => s.updateStoryPrompt)
+  const removeStoryPrompt = useMagicDJStore(s => s.removeStoryPrompt)
 
   // === Track Editor Handlers ===
 
@@ -197,6 +204,55 @@ export function useMagicDJModals({ loadTrack, showNotification, confirm }: UseMa
     setEditingPromptTemplate(null)
   }, [])
 
+  // === Story Prompt Handlers ===
+
+  const handleAddStoryPrompt = useCallback(() => {
+    setEditingStoryPrompt(null)
+    setIsStoryEditorOpen(true)
+  }, [])
+
+  const handleEditStoryPrompt = useCallback((prompt: StoryPrompt) => {
+    setEditingStoryPrompt(prompt)
+    setIsStoryEditorOpen(true)
+  }, [])
+
+  const handleDeleteStoryPrompt = useCallback(
+    async (prompt: StoryPrompt) => {
+      if (prompt.isDefault) return
+      const confirmed = await confirm({
+        title: '刪除故事指令',
+        message: `確定要刪除「${prompt.name}」嗎？`,
+        confirmLabel: '刪除',
+      })
+      if (confirmed) {
+        removeStoryPrompt(prompt.id)
+      }
+    },
+    [removeStoryPrompt, confirm]
+  )
+
+  const handleSaveStoryPrompt = useCallback(
+    (data: { name: string; prompt: string; category: string }) => {
+      if (editingStoryPrompt) {
+        updateStoryPrompt(editingStoryPrompt.id, data)
+      } else {
+        addStoryPrompt({
+          name: data.name,
+          prompt: data.prompt,
+          category: data.category,
+          order: useMagicDJStore.getState().storyPrompts.length + 1,
+          isDefault: false,
+        })
+      }
+    },
+    [editingStoryPrompt, updateStoryPrompt, addStoryPrompt]
+  )
+
+  const handleCloseStoryEditor = useCallback(() => {
+    setIsStoryEditorOpen(false)
+    setEditingStoryPrompt(null)
+  }, [])
+
   return {
     // Track Editor
     isEditorOpen,
@@ -220,5 +276,14 @@ export function useMagicDJModals({ loadTrack, showNotification, confirm }: UseMa
     handleDeletePromptTemplate,
     handleSavePromptTemplate,
     handleClosePromptEditor,
+
+    // Story Prompt Editor
+    isStoryEditorOpen,
+    editingStoryPrompt,
+    handleAddStoryPrompt,
+    handleEditStoryPrompt,
+    handleDeleteStoryPrompt,
+    handleSaveStoryPrompt,
+    handleCloseStoryEditor,
   }
 }

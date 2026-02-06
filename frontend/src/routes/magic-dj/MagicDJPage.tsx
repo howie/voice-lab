@@ -14,6 +14,7 @@ import { DJControlPanel } from '@/components/magic-dj/DJControlPanel'
 import { TrackEditorModal } from '@/components/magic-dj/TrackEditorModal'
 import { BGMGeneratorModal } from '@/components/magic-dj/BGMGeneratorModal'
 import { PromptTemplateEditor } from '@/components/magic-dj/PromptTemplateEditor'
+import { StoryPromptEditor } from '@/components/magic-dj/StoryPromptEditor'
 import { useMagicDJStore } from '@/stores/magicDJStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useInteractionStore } from '@/stores/interactionStore'
@@ -117,6 +118,13 @@ export function MagicDJPage() {
     handleDeletePromptTemplate,
     handleSavePromptTemplate,
     handleClosePromptEditor,
+    isStoryEditorOpen,
+    editingStoryPrompt,
+    handleAddStoryPrompt,
+    handleEditStoryPrompt,
+    handleDeleteStoryPrompt,
+    handleSaveStoryPrompt,
+    handleCloseStoryEditor,
   } = useMagicDJModals({ loadTrack, showNotification, confirm })
 
   // Cue List (US3)
@@ -587,6 +595,9 @@ export function MagicDJPage() {
         onAddPromptTemplate={handleAddPromptTemplate}
         onEditPromptTemplate={handleEditPromptTemplate}
         onDeletePromptTemplate={handleDeletePromptTemplate}
+        onAddStoryPrompt={handleAddStoryPrompt}
+        onEditStoryPrompt={handleEditStoryPrompt}
+        onDeleteStoryPrompt={handleDeleteStoryPrompt}
       />
 
       {/* Track Editor Modal */}
@@ -611,6 +622,14 @@ export function MagicDJPage() {
         onClose={handleClosePromptEditor}
         onSave={handleSavePromptTemplate}
         editingTemplate={editingPromptTemplate}
+      />
+
+      {/* Story Prompt Editor Modal */}
+      <StoryPromptEditor
+        isOpen={isStoryEditorOpen}
+        onClose={handleCloseStoryEditor}
+        onSave={handleSaveStoryPrompt}
+        editingPrompt={editingStoryPrompt}
       />
 
       {/* Confirm Dialog (replaces window.confirm) */}

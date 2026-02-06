@@ -19,7 +19,7 @@ import { TrackConfigPanel } from './TrackConfigPanel'
 import { PresetSelector } from './PresetSelector'
 import { useMagicDJStore, selectIsAITimeout } from '@/stores/magicDJStore'
 import type { ConnectionStatus } from '@/types/interaction'
-import type { PromptTemplate, Track } from '@/types/magic-dj'
+import type { PromptTemplate, StoryPrompt, Track } from '@/types/magic-dj'
 
 // =============================================================================
 // Types
@@ -56,6 +56,10 @@ export interface DJControlPanelProps {
   onAddPromptTemplate?: () => void
   onEditPromptTemplate?: (template: PromptTemplate) => void
   onDeletePromptTemplate?: (template: PromptTemplate) => void
+  /** Story prompt handlers */
+  onAddStoryPrompt?: () => void
+  onEditStoryPrompt?: (prompt: StoryPrompt) => void
+  onDeleteStoryPrompt?: (prompt: StoryPrompt) => void
 }
 
 // =============================================================================
@@ -90,6 +94,9 @@ export function DJControlPanel({
   onAddPromptTemplate,
   onEditPromptTemplate,
   onDeletePromptTemplate,
+  onAddStoryPrompt,
+  onEditStoryPrompt,
+  onDeleteStoryPrompt,
 }: DJControlPanelProps) {
   const { currentMode, isSessionActive, isWaitingForAI, settings } =
     useMagicDJStore()
@@ -182,6 +189,9 @@ export function DJControlPanel({
                     storyPrompts={storyPrompts}
                     disabled={!isAIConnected}
                     onSendStoryPrompt={onSendStoryPrompt}
+                    onAddStoryPrompt={onAddStoryPrompt}
+                    onEditStoryPrompt={onEditStoryPrompt}
+                    onDeleteStoryPrompt={onDeleteStoryPrompt}
                   />
                 )}
               </>

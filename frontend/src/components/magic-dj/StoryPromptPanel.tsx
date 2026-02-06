@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, type KeyboardEvent } from 'react'
-import { Send } from 'lucide-react'
+import { Send, Plus, Pencil, Trash2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import type { StoryPrompt } from '@/types/magic-dj'
@@ -33,6 +33,68 @@ export interface StoryPromptPanelProps {
   storyPrompts: StoryPrompt[]
   disabled?: boolean
   onSendStoryPrompt: (text: string) => void
+  onAddStoryPrompt?: () => void
+  onEditStoryPrompt?: (prompt: StoryPrompt) => void
+  onDeleteStoryPrompt?: (prompt: StoryPrompt) => void
+}
+
+// =============================================================================
+// Story Prompt Button (with inline edit/delete)
+// =============================================================================
+
+function StoryPromptButton({
+  prompt,
+  disabled,
+  onSend,
+  onEdit,
+  onDelete,
+}: {
+  prompt: StoryPrompt
+  disabled: boolean
+  onSend: (text: string) => void
+  onEdit?: (prompt: StoryPrompt) => void
+  onDelete?: (prompt: StoryPrompt) => void
+}) {
+  return (
+    <div
+      className={cn(
+        'group flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-all',
+        disabled
+          ? 'cursor-not-allowed bg-muted text-muted-foreground'
+          : CATEGORY_COLORS[prompt.category] ?? DEFAULT_CATEGORY_COLOR,
+      )}
+    >
+      <button
+        onClick={() => !disabled && onSend(prompt.prompt)}
+        disabled={disabled}
+        className="min-w-0 flex-1 truncate text-left active:scale-[0.97]"
+      >
+        {prompt.name}
+      </button>
+      {!disabled && (onEdit || onDelete) && (
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(prompt)}
+              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+              title="編輯"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+          {onDelete && !prompt.isDefault && (
+            <button
+              onClick={() => onDelete(prompt)}
+              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+              title="刪除"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // =============================================================================
@@ -43,6 +105,9 @@ export function StoryPromptPanel({
   storyPrompts,
   disabled = false,
   onSendStoryPrompt,
+  onAddStoryPrompt,
+  onEditStoryPrompt,
+  onDeleteStoryPrompt,
 }: StoryPromptPanelProps) {
   const [customText, setCustomText] = useState('')
   const sorted = [...storyPrompts].sort((a, b) => a.order - b.order)
@@ -67,27 +132,33 @@ export function StoryPromptPanel({
   return (
     <div className="flex h-full w-48 shrink-0 flex-col rounded-lg border bg-card">
       {/* Header */}
-      <div className="border-b p-3">
-        <h3 className="text-sm font-semibold">Story Prompts</h3>
-        <p className="text-xs text-muted-foreground">故事指令</p>
+      <div className="flex items-center justify-between border-b p-3">
+        <div>
+          <h3 className="text-sm font-semibold">Story Prompts</h3>
+          <p className="text-xs text-muted-foreground">故事指令</p>
+        </div>
+        {onAddStoryPrompt && (
+          <button
+            onClick={onAddStoryPrompt}
+            className="rounded-md p-1 hover:bg-accent"
+            title="新增故事指令"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Story Template Cards */}
       <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2">
         {sorted.map((sp) => (
-          <button
+          <StoryPromptButton
             key={sp.id}
-            onClick={() => !disabled && onSendStoryPrompt(sp.prompt)}
+            prompt={sp}
             disabled={disabled}
-            className={cn(
-              'flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium transition-all active:scale-[0.97]',
-              disabled
-                ? 'cursor-not-allowed bg-muted text-muted-foreground'
-                : CATEGORY_COLORS[sp.category] ?? DEFAULT_CATEGORY_COLOR,
-            )}
-          >
-            <span className="truncate">{sp.name}</span>
-          </button>
+            onSend={onSendStoryPrompt}
+            onEdit={onEditStoryPrompt}
+            onDelete={onDeleteStoryPrompt}
+          />
         ))}
       </div>
 

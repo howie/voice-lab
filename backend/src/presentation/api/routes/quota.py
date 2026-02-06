@@ -166,6 +166,20 @@ async def get_quota_dashboard(
         # Get tracked usage for this provider
         usage = all_usage.get(provider_id)
 
+        # Get rate limit header data (from provider HTTP response headers)
+        provider_rpm_limit: int | None = None
+        provider_rpm_remaining: int | None = None
+        provider_rate_limit_reset_at: datetime | None = None
+        rate_limit_data_age_seconds: float | None = None
+        if usage:
+            provider_rpm_limit = usage.provider_rpm_limit
+            provider_rpm_remaining = usage.provider_rpm_remaining
+            if usage.provider_rpm_reset_at is not None:
+                provider_rate_limit_reset_at = datetime.fromtimestamp(
+                    usage.provider_rpm_reset_at, tz=UTC
+                )
+            rate_limit_data_age_seconds = usage.rate_limit_data_age_seconds
+
         provider_statuses.append(
             ProviderQuotaStatus(
                 provider=provider_id,
@@ -183,6 +197,10 @@ async def get_quota_dashboard(
                 quota_hits_today=usage.quota_hits_today if usage else 0,
                 estimated_rpm_limit=usage.estimated_rpm_limit if usage else None,
                 usage_warning=usage.usage_warning if usage else None,
+                provider_rpm_limit=provider_rpm_limit,
+                provider_rpm_remaining=provider_rpm_remaining,
+                provider_rate_limit_reset_at=provider_rate_limit_reset_at,
+                rate_limit_data_age_seconds=rate_limit_data_age_seconds,
                 rate_limits=PROVIDER_RATE_LIMITS.get(provider_id),
                 help_url=quota_info.get("help_url"),
                 suggestions=quota_info.get("suggestions", []),

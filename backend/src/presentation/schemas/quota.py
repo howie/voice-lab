@@ -46,6 +46,20 @@ class ProviderQuotaStatus(BaseModel):
         default=None, description="Warning message if approaching limits"
     )
 
+    # Real-time rate limit data (from provider response headers)
+    provider_rpm_limit: int | None = Field(
+        default=None, description="Provider RPM limit (from response headers)"
+    )
+    provider_rpm_remaining: int | None = Field(
+        default=None, description="Provider RPM remaining (from response headers)"
+    )
+    provider_rate_limit_reset_at: datetime | None = Field(
+        default=None, description="Rate limit window reset time"
+    )
+    rate_limit_data_age_seconds: float | None = Field(
+        default=None, description="Age of rate limit data in seconds"
+    )
+
     # Rate limit reference info
     rate_limits: ProviderRateLimitInfo | None = Field(
         default=None, description="Known rate limit info"

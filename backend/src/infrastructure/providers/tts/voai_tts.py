@@ -9,6 +9,7 @@ from src.domain.entities.audio import AudioData
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import AgeGroup, Gender, VoiceProfile
 from src.domain.errors import QuotaExceededError
+from src.domain.services.usage_tracker import parse_rate_limit_headers
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 # VoAI voice mappings (using actual VoAI speaker names)
@@ -626,6 +627,9 @@ class VoAITTSProvider(BaseTTSProvider):
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(url, headers=headers, json=body)
+
+            # Capture rate limit headers from every response
+            self._last_rate_limit_headers = parse_rate_limit_headers(response.headers, "voai")
 
             if response.status_code != 200:
                 error_detail = response.text

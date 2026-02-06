@@ -177,6 +177,9 @@ async def synthesize(
         # Track successful request
         _track_success(user_id, request_data.provider)
 
+        # Capture rate limit headers from the provider
+        _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
+
         # Return base64 encoded audio
         audio_b64 = base64.b64encode(result.audio.data).decode("utf-8")
 
@@ -275,6 +278,9 @@ async def stream(
         )
 
         _track_success(user_id, request_data.provider)
+
+        # Capture rate limit headers from the provider
+        _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
 
         async def audio_stream():
             """Generate audio chunks for streaming response."""
@@ -385,6 +391,9 @@ async def synthesize_binary(
         # Track successful request
         _track_success(user_id, request_data.provider)
 
+        # Capture rate limit headers from the provider
+        _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
+
         return Response(
             content=result.audio.data,
             media_type=result.audio.format.mime_type,
@@ -416,6 +425,18 @@ def _track_success(user_id: uuid.UUID | None, provider: str) -> None:
     """Record a successful provider request in the usage tracker."""
     uid = str(user_id) if user_id else "anonymous"
     provider_usage_tracker.record_request(uid, provider)
+
+
+def _capture_rate_limit_headers(
+    user_id: uuid.UUID | None,
+    provider: str,
+    provider_instance: object,
+) -> None:
+    """Capture rate limit headers from the provider and record in tracker."""
+    rl_headers = getattr(provider_instance, "_last_rate_limit_headers", None)
+    if rl_headers is not None:
+        uid = str(user_id) if user_id else "anonymous"
+        provider_usage_tracker.record_rate_limit_headers(uid, provider, rl_headers)
 
 
 def _track_quota_error(

@@ -5,10 +5,89 @@ visibility into their usage patterns even when providers don't
 expose quota query APIs (e.g., Gemini).
 """
 
+import contextlib
+import logging
 import time
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from threading import Lock
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RateLimitHeaders:
+    """Rate limit info captured from provider HTTP response headers."""
+
+    limit: int | None = None
+    remaining: int | None = None
+    reset_at: float | None = None
+    captured_at: float = field(default_factory=time.time)
+
+
+def parse_rate_limit_headers(
+    headers: Mapping[str, str],
+    provider: str = "",
+) -> RateLimitHeaders | None:
+    """Parse rate limit headers from HTTP response.
+
+    Handles standard patterns:
+    - x-ratelimit-limit / ratelimit-limit
+    - x-ratelimit-remaining / ratelimit-remaining
+    - x-ratelimit-reset / ratelimit-reset
+
+    Also handles ElevenLabs-specific headers (xi-ratelimit-*).
+
+    Returns None if no rate limit headers are found.
+    """
+    # Normalize header keys to lowercase for case-insensitive matching
+    try:
+        lower_headers = {k.lower(): v for k, v in headers.items()}
+    except (TypeError, AttributeError):
+        return None
+
+    limit: int | None = None
+    remaining: int | None = None
+    reset_at: float | None = None
+
+    # Try standard patterns (most common first)
+    for prefix in ("x-ratelimit-", "ratelimit-", "xi-ratelimit-"):
+        if limit is None:
+            raw = lower_headers.get(f"{prefix}limit")
+            if raw is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    limit = int(raw)
+
+        if remaining is None:
+            raw = lower_headers.get(f"{prefix}remaining")
+            if raw is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    remaining = int(raw)
+
+        if reset_at is None:
+            raw = lower_headers.get(f"{prefix}reset")
+            if raw is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    reset_at = float(raw)
+
+    # Nothing found
+    if limit is None and remaining is None and reset_at is None:
+        return None
+
+    result = RateLimitHeaders(
+        limit=limit,
+        remaining=remaining,
+        reset_at=reset_at,
+    )
+    logger.debug(
+        "Parsed rate limit headers for %s: limit=%s, remaining=%s, reset_at=%s",
+        provider or "unknown",
+        limit,
+        remaining,
+        reset_at,
+    )
+    return result
 
 
 @dataclass
@@ -41,6 +120,11 @@ class ProviderUsageSnapshot:
     last_retry_after: int | None
     estimated_rpm_limit: int | None
     usage_warning: str | None
+    # Rate limit data from provider response headers
+    provider_rpm_limit: int | None = None
+    provider_rpm_remaining: int | None = None
+    provider_rpm_reset_at: float | None = None
+    rate_limit_data_age_seconds: float | None = None
 
 
 class ProviderUsageTracker:
@@ -56,6 +140,8 @@ class ProviderUsageTracker:
         self._usage: dict[str, dict[str, dict[str, UsageWindow]]] = defaultdict(
             lambda: defaultdict(dict)
         )
+        # {user_id: {provider: RateLimitHeaders}}
+        self._rate_limits: dict[str, dict[str, RateLimitHeaders]] = defaultdict(dict)
 
     def _get_or_reset_window(
         self,
@@ -80,6 +166,25 @@ class ProviderUsageTracker:
                 w = self._get_or_reset_window(windows, key, duration)
                 w.request_count += 1
                 w.last_request_at = now
+
+    def record_rate_limit_headers(
+        self,
+        user_id: str,
+        provider: str,
+        headers: RateLimitHeaders,
+    ) -> None:
+        """Store the latest rate limit headers from a provider response."""
+        with self._lock:
+            self._rate_limits[user_id][provider] = headers
+
+    def get_rate_limit_headers(
+        self,
+        user_id: str,
+        provider: str,
+    ) -> RateLimitHeaders | None:
+        """Get the most recent rate limit headers for a provider."""
+        with self._lock:
+            return self._rate_limits.get(user_id, {}).get(provider)
 
     def record_error(
         self,
@@ -124,6 +229,18 @@ class ProviderUsageTracker:
             # Generate warning
             warning = _generate_warning(provider, minute, hour, day, estimated_rpm)
 
+            # Merge rate limit header data if available
+            rl = self._rate_limits.get(user_id, {}).get(provider)
+            rl_limit: int | None = None
+            rl_remaining: int | None = None
+            rl_reset_at: float | None = None
+            rl_age: float | None = None
+            if rl is not None:
+                rl_limit = rl.limit
+                rl_remaining = rl.remaining
+                rl_reset_at = rl.reset_at
+                rl_age = round(now - rl.captured_at, 1)
+
             return ProviderUsageSnapshot(
                 provider=provider,
                 minute_requests=minute.request_count,
@@ -138,6 +255,10 @@ class ProviderUsageTracker:
                 last_retry_after=day.last_retry_after,
                 estimated_rpm_limit=estimated_rpm,
                 usage_warning=warning,
+                provider_rpm_limit=rl_limit,
+                provider_rpm_remaining=rl_remaining,
+                provider_rpm_reset_at=rl_reset_at,
+                rate_limit_data_age_seconds=rl_age,
             )
 
     def get_all_usage(self, user_id: str) -> dict[str, ProviderUsageSnapshot]:

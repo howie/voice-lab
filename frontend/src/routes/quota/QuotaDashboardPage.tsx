@@ -90,6 +90,31 @@ function ProviderQuotaCard({ status }: { status: ProviderQuotaStatus }) {
         )}
       </div>
 
+      {/* Real-time Rate Limit (from provider response headers) */}
+      {status.provider_rpm_remaining !== null && status.provider_rpm_limit !== null && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">即時速率限制</p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">RPM</span>
+            <span className="font-medium">
+              {status.provider_rpm_remaining} / {status.provider_rpm_limit}
+            </span>
+          </div>
+          <UsageBar
+            percent={
+              ((status.provider_rpm_limit - status.provider_rpm_remaining) /
+                status.provider_rpm_limit) *
+              100
+            }
+          />
+          {status.rate_limit_data_age_seconds !== null && (
+            <p className="text-xs text-muted-foreground">
+              資料更新：{Math.round(status.rate_limit_data_age_seconds)} 秒前
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Tracked Usage (from in-memory tracker) */}
       {status.day_requests > 0 && (
         <div className="mt-4 rounded-md bg-muted/50 p-3">

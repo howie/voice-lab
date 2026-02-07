@@ -13,7 +13,7 @@ import { api } from '../lib/api'
 
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
 
-export type JobType = 'multi_role_tts'
+export type JobType = 'multi_role_tts' | 'single_tts'
 
 export interface DialogueTurn {
   speaker: string
@@ -35,6 +35,17 @@ export interface CreateJobRequest {
   output_format?: 'mp3' | 'wav'
   gap_ms?: number
   crossfade_ms?: number
+}
+
+export interface CreateSingleTTSJobRequest {
+  text: string
+  provider: string
+  voice_id: string
+  language?: string
+  speed?: number
+  pitch?: number
+  volume?: number
+  output_format?: 'mp3' | 'wav'
 }
 
 export interface JobResponse {
@@ -79,10 +90,18 @@ export interface JobListParams {
 // =============================================================================
 
 /**
- * Create a new TTS synthesis job
+ * Create a new multi-role TTS synthesis job
  */
 export async function createJob(request: CreateJobRequest): Promise<JobResponse> {
   const response = await api.post<JobResponse>('/jobs', request)
+  return response.data
+}
+
+/**
+ * Create a new single TTS synthesis background job
+ */
+export async function createSingleTTSJob(request: CreateSingleTTSJobRequest): Promise<JobResponse> {
+  const response = await api.post<JobResponse>('/jobs/tts', request)
   return response.data
 }
 
@@ -152,6 +171,20 @@ export async function downloadJobAudio(jobId: string, filename?: string): Promis
 // =============================================================================
 // Utility Functions
 // =============================================================================
+
+/**
+ * Get job type display label
+ */
+export function getJobTypeDisplay(jobType: JobType): string {
+  switch (jobType) {
+    case 'multi_role_tts':
+      return '多角色 TTS'
+    case 'single_tts':
+      return '單一 TTS'
+    default:
+      return jobType
+  }
+}
 
 /**
  * Get status display info

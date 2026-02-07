@@ -303,6 +303,72 @@ resource "google_cloud_run_domain_mapping" "backend" {
 }
 
 # -----------------------------------------------------------------------------
+# Database Migration Job
+# -----------------------------------------------------------------------------
+
+resource "google_cloud_run_v2_job" "migration" {
+  name     = "voice-lab-migration"
+  project  = var.project_id
+  location = var.region
+
+  template {
+    task_count = 1
+
+    template {
+      service_account = var.service_account_email
+      max_retries     = 0
+      timeout         = "120s"
+
+      vpc_access {
+        connector = var.vpc_connector_id
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
+
+      containers {
+        image   = var.backend_image
+        command = ["alembic"]
+        args    = ["upgrade", "head"]
+
+        env {
+          name  = "DATABASE_HOST"
+          value = var.database_host
+        }
+
+        env {
+          name  = "DATABASE_NAME"
+          value = var.database_name
+        }
+
+        env {
+          name  = "DATABASE_USER"
+          value = var.database_user
+        }
+
+        env {
+          name = "DATABASE_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = var.database_password_secret
+              version = "latest"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  labels = var.labels
+
+  lifecycle {
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].template[0].containers[0].image,
+    ]
+  }
+}
+
+# -----------------------------------------------------------------------------
 # Frontend Service
 # -----------------------------------------------------------------------------
 

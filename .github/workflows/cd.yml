@@ -131,12 +131,49 @@ jobs:
           docker push "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/frontend:latest"
 
   # ==============================================================================
+  # Run Database Migration
+  # ==============================================================================
+  run-migration:
+    name: Run Migration
+    runs-on: ubuntu-latest
+    needs: build-backend
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Alembic Migration
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend:${IMAGE_TAG}"
+
+          # Update the migration job with the new backend image
+          gcloud run jobs update voice-lab-migration \
+            --region="${{ env.REGION }}" \
+            --image="${IMAGE}"
+
+          # Execute migration and wait for completion
+          gcloud run jobs execute voice-lab-migration \
+            --region="${{ env.REGION }}" \
+            --wait
+
+  # ==============================================================================
   # Deploy Backend to Cloud Run
   # ==============================================================================
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
-    needs: build-backend
+    needs: run-migration
     permissions:
       contents: read
       id-token: write

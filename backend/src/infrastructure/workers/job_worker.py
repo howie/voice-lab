@@ -28,11 +28,18 @@ from src.application.use_cases.synthesize_multi_role import (
     SynthesizeMultiRoleInput,
     SynthesizeMultiRoleUseCase,
 )
-from src.domain.entities.job import Job, JobStatus
+from src.application.use_cases.synthesize_speech import SynthesizeSpeech
+from src.domain.entities.audio import AudioFormat
+from src.domain.entities.job import Job, JobStatus, JobType
 from src.domain.entities.multi_role_tts import DialogueTurn, VoiceAssignment
+from src.domain.entities.tts import TTSRequest
 from src.domain.errors import QuotaExceededError
+from src.infrastructure.persistence.credential_repository import (
+    SQLAlchemyProviderCredentialRepository,
+)
 from src.infrastructure.persistence.job_repository_impl import JobRepositoryImpl
 from src.infrastructure.persistence.models import AudioFileModel
+from src.infrastructure.providers.tts.factory import TTSProviderFactory
 from src.infrastructure.storage.local_storage import LocalStorage
 
 logger = logging.getLogger(__name__)
@@ -162,24 +169,24 @@ class JobWorker:
         session: AsyncSession,
         job_repo: JobRepositoryImpl,
     ) -> None:
-        """Execute TTS synthesis for a job.
+        """Dispatch job execution based on job type."""
+        if job.job_type == JobType.SINGLE_TTS:
+            await self._execute_single_tts_job(job, session, job_repo)
+        else:
+            await self._execute_multi_role_tts_job(job, session, job_repo)
 
-        Args:
-            job: The job to execute
-            session: Database session
-            job_repo: Job repository
-        """
-        logger.info(f"Executing job: id={job.id}")
-
+    async def _execute_multi_role_tts_job(
+        self,
+        job: Job,
+        session: AsyncSession,
+        job_repo: JobRepositoryImpl,
+    ) -> None:
+        """Execute multi-role TTS synthesis for a job."""
         try:
-            # Build synthesis input from job parameters
             input_data = self._build_synthesis_input(job.input_params)
-
-            # Execute synthesis
             use_case = SynthesizeMultiRoleUseCase()
             result = await use_case.execute(input_data)
 
-            # Save audio file to storage
             audio_file_id = await self._save_audio_file(
                 job=job,
                 audio_content=result.audio_content,
@@ -188,7 +195,6 @@ class JobWorker:
                 session=session,
             )
 
-            # Build result metadata
             result_metadata = {
                 "duration_ms": result.duration_ms,
                 "latency_ms": result.latency_ms,
@@ -196,11 +202,66 @@ class JobWorker:
                 "content_type": result.content_type,
             }
 
-            # Complete the job
             job.complete(audio_file_id=audio_file_id, result_metadata=result_metadata)
             await job_repo.update(job)
             await session.commit()
+            logger.info(f"Job completed: id={job.id}, audio_file_id={audio_file_id}")
 
+        except Exception as e:
+            logger.error(f"Job execution failed: id={job.id}, error={e}", exc_info=True)
+            raise
+
+    async def _execute_single_tts_job(
+        self,
+        job: Job,
+        session: AsyncSession,
+        job_repo: JobRepositoryImpl,
+    ) -> None:
+        """Execute single TTS synthesis for a job."""
+        try:
+            params = job.input_params
+
+            credential_repo = SQLAlchemyProviderCredentialRepository(session)
+            provider = await TTSProviderFactory.create(
+                provider_name=params["provider"],
+                user_id=job.user_id,
+                credential_repo=credential_repo,
+            )
+
+            output_format = AudioFormat(params.get("output_format", "mp3"))
+            tts_request = TTSRequest(
+                text=params["text"],
+                voice_id=params["voice_id"],
+                provider=params["provider"],
+                language=params.get("language", "zh-TW"),
+                speed=params.get("speed", 1.0),
+                pitch=params.get("pitch", 0.0),
+                volume=params.get("volume", 1.0),
+                output_format=output_format,
+            )
+
+            use_case = SynthesizeSpeech(provider=provider)
+            result = await use_case.execute(tts_request, user_id=str(job.user_id))
+
+            content_type = output_format.mime_type
+            audio_file_id = await self._save_audio_file(
+                job=job,
+                audio_content=result.audio.data,
+                content_type=content_type,
+                duration_ms=result.duration_ms,
+                session=session,
+            )
+
+            result_metadata = {
+                "duration_ms": result.duration_ms,
+                "latency_ms": result.latency_ms,
+                "content_type": content_type,
+                "characters": len(params["text"]),
+            }
+
+            job.complete(audio_file_id=audio_file_id, result_metadata=result_metadata)
+            await job_repo.update(job)
+            await session.commit()
             logger.info(f"Job completed: id={job.id}, audio_file_id={audio_file_id}")
 
         except Exception as e:

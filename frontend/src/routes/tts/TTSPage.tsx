@@ -4,6 +4,7 @@
  * T063: Update TTSPage to include all parameter controls
  */
 
+import { Link } from 'react-router-dom'
 import { useTTSStore } from '@/stores/ttsStore'
 import { TextInput } from '@/components/tts/TextInput'
 import { ProviderSelector } from '@/components/tts/ProviderSelector'
@@ -37,10 +38,21 @@ export function TTSPage() {
   const error = useTTSStore(s => s.error)
   const quotaError = useTTSStore(s => s.quotaError)
   const synthesize = useTTSStore(s => s.synthesize)
+  const isSubmittingJob = useTTSStore(s => s.isSubmittingJob)
+  const lastJobId = useTTSStore(s => s.lastJobId)
+  const submitAsJob = useTTSStore(s => s.submitAsJob)
+  const clearLastJobId = useTTSStore(s => s.clearLastJobId)
 
   const handleSynthesize = async () => {
     await synthesize()
   }
+
+  const handleSubmitJob = async () => {
+    await submitAsJob()
+  }
+
+  const isBusy = isLoading || isSubmittingJob
+  const canSubmit = !!text.trim() && !!voiceId
 
   // Get provider-specific text length limits
   const providerConfig = getProviderConfig(provider)
@@ -125,10 +137,24 @@ export function TTSPage() {
               </div>
             ) : null}
 
+            {/* Job submission success banner */}
+            {lastJobId && (
+              <div className="flex items-center justify-between rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                <span>背景工作已提交成功</span>
+                <Link
+                  to="/jobs"
+                  onClick={clearLastJobId}
+                  className="font-medium underline hover:no-underline"
+                >
+                  查看背景工作
+                </Link>
+              </div>
+            )}
+
             {/* Synthesize button */}
             <button
               onClick={handleSynthesize}
-              disabled={isLoading || !text.trim() || !voiceId}
+              disabled={isBusy || !canSubmit}
               className="w-full rounded-lg bg-primary py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? (
@@ -138,6 +164,22 @@ export function TTSPage() {
                 </span>
               ) : (
                 '產生語音'
+              )}
+            </button>
+
+            {/* Submit as background job button */}
+            <button
+              onClick={handleSubmitJob}
+              disabled={isBusy || !canSubmit}
+              className="w-full rounded-lg border border-primary py-2 text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmittingJob ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner className="h-4 w-4" />
+                  提交中...
+                </span>
+              ) : (
+                '提交背景工作'
               )}
             </button>
           </div>

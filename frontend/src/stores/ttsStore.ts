@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ttsApi, SynthesizeResponse, VoiceProfile } from '@/lib/api'
+import { createSingleTTSJob } from '@/services/jobApi'
 import type { QuotaErrorDetails } from '@/lib/error-types'
 
 interface TTSState {
@@ -27,6 +28,10 @@ interface TTSState {
   error: string | null
   quotaError: QuotaErrorDetails | null
 
+  // Background job
+  isSubmittingJob: boolean
+  lastJobId: string | null
+
   // Voices cache
   voices: VoiceProfile[]
   voicesLoading: boolean
@@ -43,6 +48,8 @@ interface TTSState {
 
   // Async actions
   synthesize: () => Promise<void>
+  submitAsJob: () => Promise<void>
+  clearLastJobId: () => void
   loadVoices: (provider: string, language?: string) => Promise<void>
   reset: () => void
 }
@@ -70,6 +77,8 @@ export const useTTSStore = create<TTSState>()(
       isLoading: false,
       error: null,
       quotaError: null,
+      isSubmittingJob: false,
+      lastJobId: null,
       voices: [],
       voicesLoading: false,
 
@@ -154,6 +163,51 @@ export const useTTSStore = create<TTSState>()(
         }
       },
 
+      submitAsJob: async () => {
+        const state = get()
+
+        if (!state.text.trim()) {
+          set({ error: '請輸入文字' })
+          return
+        }
+
+        if (!state.voiceId) {
+          set({ error: '請選擇語音' })
+          return
+        }
+
+        set({ isSubmittingJob: true, error: null, quotaError: null, lastJobId: null })
+
+        try {
+          const response = await createSingleTTSJob({
+            text: state.text,
+            provider: state.provider,
+            voice_id: state.voiceId,
+            language: state.language,
+            speed: state.speed,
+            pitch: state.pitch,
+            volume: state.volume,
+            output_format: state.outputFormat as 'mp3' | 'wav',
+          })
+
+          set({ lastJobId: response.id, isSubmittingJob: false })
+        } catch (error: unknown) {
+          const apiError = (
+            error as {
+              response?: { data?: { detail?: { message?: string } | string } }
+            }
+          )?.response?.data?.detail
+
+          const message =
+            typeof apiError === 'string'
+              ? apiError
+              : apiError?.message || (error instanceof Error ? error.message : '提交背景工作失敗')
+          set({ error: message, isSubmittingJob: false })
+        }
+      },
+
+      clearLastJobId: () => set({ lastJobId: null }),
+
       loadVoices: async (provider, language) => {
         set({ voicesLoading: true })
 
@@ -181,6 +235,8 @@ export const useTTSStore = create<TTSState>()(
           error: null,
           quotaError: null,
           isLoading: false,
+          isSubmittingJob: false,
+          lastJobId: null,
         }),
     }),
     {

@@ -28,14 +28,10 @@ class JobStatus(StrEnum):
 
 
 class JobType(StrEnum):
-    """Job type enum for different synthesis operations.
-
-    Currently supports multi-role TTS. Future extensions may include:
-    - SINGLE_TTS: Single voice synthesis
-    - STT_TRANSCRIPTION: Speech-to-text transcription
-    """
+    """Job type enum for different synthesis operations."""
 
     MULTI_ROLE_TTS = "multi_role_tts"
+    SINGLE_TTS = "single_tts"
 
 
 @dataclass

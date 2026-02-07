@@ -114,6 +114,69 @@ class CreateJobRequest(BaseModel):
         }
 
 
+class CreateSingleTTSJobRequest(BaseModel):
+    """Request schema for creating a single TTS background job."""
+
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Text to synthesize",
+        examples=["你好，歡迎使用語音合成服務！"],
+    )
+    provider: str = Field(
+        ...,
+        description="TTS provider name",
+        examples=["azure"],
+    )
+    voice_id: str = Field(
+        ...,
+        description="Provider-specific voice ID",
+        examples=["zh-TW-HsiaoChenNeural"],
+    )
+    language: str = Field(
+        default="zh-TW",
+        description="Language code",
+    )
+    speed: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=2.0,
+        description="Speech speed",
+    )
+    pitch: float = Field(
+        default=0.0,
+        ge=-20.0,
+        le=20.0,
+        description="Speech pitch in semitones",
+    )
+    volume: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=2.0,
+        description="Speech volume",
+    )
+    output_format: str = Field(
+        default="mp3",
+        pattern="^(mp3|wav)$",
+        description="Output audio format",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "text": "你好，歡迎使用語音合成服務！",
+                "provider": "azure",
+                "voice_id": "zh-TW-HsiaoChenNeural",
+                "language": "zh-TW",
+                "speed": 1.0,
+                "pitch": 0.0,
+                "volume": 1.0,
+                "output_format": "mp3",
+            }
+        }
+
+
 class JobResponse(BaseModel):
     """Response schema for job summary."""
 

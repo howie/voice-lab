@@ -20,7 +20,7 @@ export function JobsPage() {
         <div>
           <h1 className="text-2xl font-bold">背景工作</h1>
           <p className="text-muted-foreground">
-            管理和追蹤您的多角色 TTS 合成工作
+            管理和追蹤您的 TTS 合成背景工作
           </p>
         </div>
       </div>

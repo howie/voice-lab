@@ -14,6 +14,7 @@ import {
   formatDuration,
   downloadJobAudio,
   getDownloadUrl,
+  getJobTypeDisplay,
 } from '@/services/jobApi'
 
 /**
@@ -150,13 +151,23 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
   // Input params parsing
   const inputParams = currentJob.input_params as {
     provider?: string
+    // Multi-role TTS fields
     turns?: Array<{ speaker: string; text: string }>
     voice_assignments?: Array<{ speaker: string; voice_id: string; voice_name?: string }>
-    language?: string
-    output_format?: string
     gap_ms?: number
     crossfade_ms?: number
+    // Single TTS fields
+    text?: string
+    voice_id?: string
+    speed?: number
+    pitch?: number
+    volume?: number
+    // Shared
+    language?: string
+    output_format?: string
   }
+
+  const isSingleTTS = currentJob.job_type === 'single_tts'
 
   return (
     <div className="space-y-4">
@@ -182,6 +193,10 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">工作 ID</span>
           <code className="rounded bg-muted px-2 py-0.5 text-sm">{currentJob.id}</code>
+        </div>
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-muted-foreground">類型</span>
+          <span>{getJobTypeDisplay(currentJob.job_type)}</span>
         </div>
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">Provider</span>
@@ -311,25 +326,37 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
       )}
 
       {/* Input parameters */}
-      {inputParams.turns && inputParams.turns.length > 0 && (
+      {(inputParams.turns || inputParams.text) && (
         <div className="rounded-lg border p-4">
           <h3 className="mb-3 font-medium">輸入參數</h3>
 
-          {/* Dialogue turns */}
-          <div className="mb-4">
-            <h4 className="mb-2 text-sm font-medium text-muted-foreground">對話內容</h4>
-            <div className="max-h-48 space-y-2 overflow-y-auto rounded-md bg-muted/50 p-3">
-              {inputParams.turns.map((turn, index) => (
-                <div key={index} className="text-sm">
-                  <span className="font-medium">{turn.speaker}:</span>{' '}
-                  <span className="text-muted-foreground">{turn.text}</span>
-                </div>
-              ))}
+          {/* Single TTS: text content */}
+          {isSingleTTS && inputParams.text && (
+            <div className="mb-4">
+              <h4 className="mb-2 text-sm font-medium text-muted-foreground">合成文字</h4>
+              <div className="max-h-48 overflow-y-auto rounded-md bg-muted/50 p-3 text-sm">
+                {inputParams.text}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Voice assignments */}
-          {inputParams.voice_assignments && (
+          {/* Multi-role TTS: dialogue turns */}
+          {!isSingleTTS && inputParams.turns && inputParams.turns.length > 0 && (
+            <div className="mb-4">
+              <h4 className="mb-2 text-sm font-medium text-muted-foreground">對話內容</h4>
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-md bg-muted/50 p-3">
+                {inputParams.turns.map((turn, index) => (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium">{turn.speaker}:</span>{' '}
+                    <span className="text-muted-foreground">{turn.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Multi-role TTS: voice assignments */}
+          {!isSingleTTS && inputParams.voice_assignments && (
             <div className="mb-4">
               <h4 className="mb-2 text-sm font-medium text-muted-foreground">語音指派</h4>
               <div className="space-y-1">
@@ -345,8 +372,15 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
             </div>
           )}
 
-          {/* Other settings */}
+          {/* Settings grid */}
           <div className="grid grid-cols-2 gap-2 text-sm">
+            {/* Single TTS: voice_id */}
+            {isSingleTTS && inputParams.voice_id && (
+              <div className="col-span-2">
+                <span className="text-muted-foreground">語音:</span>{' '}
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{inputParams.voice_id}</code>
+              </div>
+            )}
             {inputParams.language && (
               <div>
                 <span className="text-muted-foreground">語言:</span> {inputParams.language}
@@ -358,12 +392,29 @@ export function JobDetail({ jobId, onClose }: JobDetailProps) {
                 {inputParams.output_format.toUpperCase()}
               </div>
             )}
-            {inputParams.gap_ms !== undefined && (
+            {/* Single TTS specific params */}
+            {isSingleTTS && inputParams.speed !== undefined && inputParams.speed !== 1.0 && (
+              <div>
+                <span className="text-muted-foreground">速度:</span> {inputParams.speed}x
+              </div>
+            )}
+            {isSingleTTS && inputParams.pitch !== undefined && inputParams.pitch !== 0 && (
+              <div>
+                <span className="text-muted-foreground">音高:</span> {inputParams.pitch}
+              </div>
+            )}
+            {isSingleTTS && inputParams.volume !== undefined && inputParams.volume !== 1.0 && (
+              <div>
+                <span className="text-muted-foreground">音量:</span> {inputParams.volume}
+              </div>
+            )}
+            {/* Multi-role TTS specific params */}
+            {!isSingleTTS && inputParams.gap_ms !== undefined && (
               <div>
                 <span className="text-muted-foreground">間隔:</span> {inputParams.gap_ms}ms
               </div>
             )}
-            {inputParams.crossfade_ms !== undefined && (
+            {!isSingleTTS && inputParams.crossfade_ms !== undefined && (
               <div>
                 <span className="text-muted-foreground">淡入淡出:</span>{' '}
                 {inputParams.crossfade_ms}ms

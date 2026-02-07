@@ -27,6 +27,7 @@ from src.infrastructure.storage.local_storage import LocalStorage
 from src.presentation.api.middleware.auth import CurrentUserDep
 from src.presentation.api.schemas.job_schemas import (
     CreateJobRequest,
+    CreateSingleTTSJobRequest,
     JobDetailResponse,
     JobListResponse,
     JobResponse,
@@ -87,6 +88,75 @@ async def create_job(
             provider=request.provider,
             input_params=input_params,
             job_type=JobType.MULTI_ROLE_TTS,
+        )
+        await session.commit()
+
+        return JobResponse(
+            id=job.id,
+            status=job.status,
+            job_type=job.job_type,
+            provider=job.provider,
+            created_at=job.created_at,
+            started_at=job.started_at,
+            completed_at=job.completed_at,
+        )
+
+    except JobLimitExceededError as e:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "JOB_LIMIT_EXCEEDED",
+                "message": f"已達並發上限，請等待現有工作完成 ({e.current_count}/{e.max_count})",
+            },
+        ) from e
+
+
+@router.post(
+    "/tts",
+    response_model=JobResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="提交單一 TTS 合成背景工作",
+    description="建立一個單一語音合成的背景工作。",
+)
+async def create_single_tts_job(
+    request: CreateSingleTTSJobRequest,
+    current_user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> JobResponse:
+    """Create a new single TTS synthesis background job.
+
+    Args:
+        request: Single TTS job creation request
+        current_user: Current authenticated user
+        session: Database session
+
+    Returns:
+        Created job response
+
+    Raises:
+        HTTPException: 429 if concurrent job limit exceeded
+    """
+    job_service = _get_job_service(session)
+
+    input_params = {
+        "text": request.text,
+        "provider": request.provider,
+        "voice_id": request.voice_id,
+        "language": request.language,
+        "speed": request.speed,
+        "pitch": request.pitch,
+        "volume": request.volume,
+        "output_format": request.output_format,
+    }
+
+    user_id = uuid.UUID(current_user.id)
+
+    try:
+        job = await job_service.create_job(
+            user_id=user_id,
+            provider=request.provider,
+            input_params=input_params,
+            job_type=JobType.SINGLE_TTS,
         )
         await session.commit()
 

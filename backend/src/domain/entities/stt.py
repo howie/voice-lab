@@ -15,11 +15,22 @@ class WordTiming:
     start_ms: int
     end_ms: int
     confidence: float = 1.0
+    speaker_id: str | None = None
 
     @property
     def duration_ms(self) -> int:
         """Get word duration in milliseconds."""
         return self.end_ms - self.start_ms
+
+
+@dataclass(frozen=True)
+class SpeakerSegment:
+    """A contiguous speech segment from a single speaker."""
+
+    speaker_id: str
+    text: str
+    start_ms: int
+    end_ms: int
 
 
 @dataclass(frozen=True)
@@ -32,6 +43,7 @@ class STTRequest:
     audio_url: str | None = None
     enable_word_timing: bool = True
     child_mode: bool = False  # Optimize for children's speech
+    enable_diarization: bool = False
 
     def __post_init__(self) -> None:
         """Validate request parameters."""
@@ -48,6 +60,7 @@ class STTResult:
     confidence: float | None
     latency_ms: int
     words: list[WordTiming] = field(default_factory=list)
+    speaker_segments: list[SpeakerSegment] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
 

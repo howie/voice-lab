@@ -43,6 +43,7 @@ export interface TranscribeOptions {
   provider: STTProviderName
   language?: string
   childMode?: boolean
+  enableDiarization?: boolean
   groundTruth?: string
   saveToHistory?: boolean
 }
@@ -67,6 +68,7 @@ export async function transcribeAudio(
   formData.append('provider', options.provider)
   formData.append('language', options.language || 'zh-TW')
   formData.append('child_mode', String(options.childMode || false))
+  formData.append('enable_diarization', String(options.enableDiarization || false))
   formData.append('save_to_history', String(options.saveToHistory ?? true))
 
   if (options.groundTruth) {

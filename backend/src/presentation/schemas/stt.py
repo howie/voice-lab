@@ -20,6 +20,9 @@ class STTProviderResponse(BaseSchema):
     display_name: str = Field(..., description="Human-readable name")
     supports_streaming: bool = Field(..., description="Whether provider supports streaming")
     supports_child_mode: bool = Field(..., description="Whether provider supports child mode")
+    supports_diarization: bool = Field(
+        default=False, description="Whether provider supports speaker diarization"
+    )
     max_duration_sec: int = Field(..., description="Maximum audio duration in seconds")
     max_file_size_mb: int = Field(..., description="Maximum file size in MB")
     supported_formats: list[str] = Field(..., description="Supported audio formats")
@@ -46,6 +49,16 @@ class WordTimingResponse(BaseSchema):
     start_ms: int = Field(..., description="Start time in milliseconds")
     end_ms: int = Field(..., description="End time in milliseconds")
     confidence: float | None = Field(default=None, description="Confidence score 0-1")
+    speaker_id: str | None = Field(default=None, description="Speaker identifier from diarization")
+
+
+class SpeakerSegmentResponse(BaseSchema):
+    """A contiguous speech segment from a single speaker."""
+
+    speaker_id: str = Field(..., description="Speaker identifier")
+    text: str = Field(..., description="Transcribed text for this segment")
+    start_ms: int = Field(..., description="Start time in milliseconds")
+    end_ms: int = Field(..., description="End time in milliseconds")
 
 
 # --- Transcription Schemas ---
@@ -57,6 +70,7 @@ class STTTranscribeRequest(BaseSchema):
     provider: str = Field(..., description="STT provider name (gcp, azure, whisper)")
     language: str = Field(default="zh-TW", description="Language code")
     child_mode: bool = Field(default=False, description="Enable child speech mode")
+    enable_diarization: bool = Field(default=False, description="Enable speaker diarization")
     ground_truth: str | None = Field(default=None, description="Ground truth for WER calculation")
     save_to_history: bool = Field(default=True, description="Save to test history")
 
@@ -92,6 +106,9 @@ class STTTranscribeResponse(BaseSchema):
     )
     words: list[WordTimingResponse] | None = Field(
         default=None, description="Word-level timing information"
+    )
+    speaker_segments: list[SpeakerSegmentResponse] | None = Field(
+        default=None, description="Speaker segments from diarization"
     )
     audio_duration_ms: int | None = Field(default=None, description="Audio duration in ms")
     wer_analysis: WERAnalysisResponse | None = Field(

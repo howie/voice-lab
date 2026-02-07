@@ -11,6 +11,7 @@ export interface STTProvider {
   display_name: string
   supports_streaming: boolean
   supports_child_mode: boolean
+  supports_diarization?: boolean
   max_duration_sec: number
   max_file_size_mb: number
   supported_formats: AudioFormat[]
@@ -49,6 +50,14 @@ export interface WordTiming {
   start_ms: number
   end_ms: number
   confidence?: number
+  speaker_id?: string
+}
+
+export interface SpeakerSegment {
+  speaker_id: string
+  text: string
+  start_ms: number
+  end_ms: number
 }
 
 export interface WERAnalysis {
@@ -75,6 +84,7 @@ export interface TranscriptionResponse {
   latency_ms: number
   language: string
   words?: WordTiming[]
+  speaker_segments?: SpeakerSegment[]
   wer_analysis?: WERAnalysis
   audio_duration_ms?: number
   created_at: string

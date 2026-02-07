@@ -1,6 +1,7 @@
 """Azure Cognitive Services Speech-to-Text Provider."""
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 
 import azure.cognitiveservices.speech as speechsdk
@@ -9,6 +10,8 @@ from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.stt import STTRequest, STTResult, WordTiming
 from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.stt.base import BaseSTTProvider
+
+logger = logging.getLogger(__name__)
 
 
 class AzureSTTProvider(BaseSTTProvider):
@@ -76,7 +79,15 @@ class AzureSTTProvider(BaseSTTProvider):
 
             try:
                 audio_config = speechsdk.AudioConfig(filename=temp_path)
-                result = await self._recognize(config, audio_config, request.child_mode)
+                if request.enable_diarization:
+                    if request.child_mode:
+                        logger.warning(
+                            "child_mode phrase hints are not supported with "
+                            "ConversationTranscriber (diarization mode)"
+                        )
+                    result = await self._recognize_with_diarization(config, audio_config)
+                else:
+                    result = await self._recognize(config, audio_config, request.child_mode)
             finally:
                 os.unlink(temp_path)
         else:
@@ -195,6 +206,94 @@ class AzureSTTProvider(BaseSTTProvider):
             sum(w.confidence for w in word_timings) / len(word_timings) if word_timings else None
         )
         return transcript, word_timings if word_timings else None, avg_confidence
+
+    async def _recognize_with_diarization(
+        self,
+        speech_config: speechsdk.SpeechConfig,
+        audio_config: speechsdk.AudioConfig,
+    ) -> tuple[str, list[WordTiming] | None, float | None]:
+        """Perform recognition with speaker diarization using ConversationTranscriber."""
+        transcriber = speechsdk.transcription.ConversationTranscriber(
+            speech_config=speech_config,
+            audio_config=audio_config,
+        )
+
+        # Collect results
+        transcript_parts: list[str] = []
+        word_timings: list[WordTiming] = []
+        done = asyncio.Event()
+        error = None
+
+        def on_transcribed(evt: speechsdk.SpeechRecognitionEventArgs) -> None:
+            if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                transcript_parts.append(evt.result.text)
+                speaker_id = getattr(evt.result, "speaker_id", None)
+
+                # Extract word timings from JSON
+                try:
+                    import json
+
+                    details = json.loads(
+                        evt.result.properties.get(
+                            speechsdk.PropertyId.SpeechServiceResponse_JsonResult, "{}"
+                        )
+                    )
+
+                    for word in details.get("NBest", [{}])[0].get("Words", []):
+                        offset_ticks = word.get("Offset", 0)
+                        duration_ticks = word.get("Duration", 0)
+                        word_timings.append(
+                            WordTiming(
+                                word=word.get("Word", ""),
+                                start_ms=int(offset_ticks / 10000),
+                                end_ms=int((offset_ticks + duration_ticks) / 10000),
+                                confidence=word.get("Confidence", 0.0),
+                                speaker_id=str(speaker_id) if speaker_id else None,
+                            )
+                        )
+                except Exception:
+                    pass
+
+        def on_canceled(evt: speechsdk.SessionEventArgs) -> None:
+            nonlocal error
+            if evt.reason == speechsdk.CancellationReason.Error:
+                error_details = evt.error_details or ""
+                if "429" in error_details or "quota" in error_details.lower():
+                    error = QuotaExceededError(
+                        provider="azure",
+                        original_error=error_details,
+                    )
+                else:
+                    error = RuntimeError(f"Azure STT error: {error_details}")
+            done.set()
+
+        def on_session_stopped(_evt: speechsdk.SessionEventArgs) -> None:
+            done.set()
+
+        transcriber.transcribed.connect(on_transcribed)
+        transcriber.canceled.connect(on_canceled)
+        transcriber.session_stopped.connect(on_session_stopped)
+
+        # Start transcription
+        await asyncio.to_thread(transcriber.start_transcribing_async().get)
+
+        # Wait for completion
+        await done.wait()
+
+        await asyncio.to_thread(transcriber.stop_transcribing_async().get)
+
+        if error:
+            raise error
+
+        transcript = " ".join(transcript_parts)
+        avg_confidence = (
+            sum(w.confidence for w in word_timings) / len(word_timings) if word_timings else None
+        )
+        return transcript, word_timings if word_timings else None, avg_confidence
+
+    @property
+    def supports_diarization(self) -> bool:
+        return True
 
     async def transcribe_stream(
         self, audio_stream: AsyncIterator[bytes], language: str = "zh-TW"

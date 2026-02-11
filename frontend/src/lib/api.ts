@@ -17,6 +17,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120_000, // 120s — shorter than backend's 180s httpx timeout for better UX
 })
 
 // Request interceptor

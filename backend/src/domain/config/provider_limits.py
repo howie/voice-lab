@@ -32,7 +32,9 @@ PROVIDER_LIMITS: dict[str, ProviderLimits] = {
     ),
     "gemini": ProviderLimits(
         provider_id="gemini",
-        max_text_length=4000,  # Gemini limit is 4000 bytes; use bytes for CJK safety
+        max_text_length=1300,  # ~4000 bytes / 3 bytes per CJK char (conservative)
+        recommended_max_length=800,  # Reduce timeout risk for long CJK text
+        warning_message="較長的中文文本可能導致 Gemini TTS 處理時間增加",
     ),
     "voai": ProviderLimits(
         provider_id="voai",

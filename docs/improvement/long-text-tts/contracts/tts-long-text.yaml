@@ -1,0 +1,218 @@
+openapi: "3.1.0"
+info:
+  title: Long Text TTS API Extension
+  version: "1.0.0"
+  description: |
+    Extension to existing TTS API to support long text input.
+    The existing POST /api/v1/tts/synthesize endpoint is enhanced
+    to transparently handle text exceeding provider limits via
+    automatic segmentation and audio merging.
+
+paths:
+  /api/v1/tts/synthesize:
+    post:
+      summary: Synthesize speech (enhanced with long text support)
+      description: |
+        Enhanced endpoint that transparently handles long text.
+        - If text fits within provider limits: existing fast path (no change)
+        - If text exceeds provider limits: auto-segments, synthesizes per segment, merges audio
+
+        The response format is identical regardless of whether segmentation occurred.
+        Segmentation metadata is included in the `metadata` field when applicable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SynthesizeRequest"
+      responses:
+        "200":
+          description: Successful synthesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SynthesizeResponse"
+        "400":
+          description: Invalid request (empty text, invalid provider, etc.)
+        "413":
+          description: Text exceeds absolute maximum (50,000 characters)
+        "429":
+          description: Rate limit or quota exceeded
+        "503":
+          description: Provider temporarily unavailable
+
+  /api/v1/tts/synthesize/preview:
+    post:
+      summary: Preview segmentation plan without synthesizing
+      description: |
+        Returns how the text would be segmented for a given provider,
+        without actually calling the TTS API. Useful for frontend UI
+        to show segment count and estimated time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SegmentPreviewRequest"
+      responses:
+        "200":
+          description: Segmentation preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SegmentPreviewResponse"
+
+components:
+  schemas:
+    SynthesizeRequest:
+      type: object
+      required: [text, provider, voice_id]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: |
+            Text to synthesize. Now supports up to 50,000 characters.
+            Text exceeding provider limits will be automatically segmented.
+        provider:
+          type: string
+          enum: [azure, gemini, elevenlabs, gcp, openai, voai]
+        voice_id:
+          type: string
+        language:
+          type: string
+          default: "zh-TW"
+        speed:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+          default: 1.0
+        pitch:
+          type: number
+          minimum: -20.0
+          maximum: 20.0
+          default: 0.0
+        volume:
+          type: number
+          minimum: 0.0
+          maximum: 2.0
+          default: 1.0
+        output_format:
+          type: string
+          default: "mp3"
+          enum: [mp3, wav, ogg, opus, flac]
+        style_prompt:
+          type: string
+          nullable: true
+          description: Style prompt (applied to all segments for consistency)
+        segment_gap_ms:
+          type: integer
+          minimum: 0
+          maximum: 2000
+          default: 100
+          description: Gap between segments in milliseconds (only used when segmentation occurs)
+        segment_crossfade_ms:
+          type: integer
+          minimum: 0
+          maximum: 500
+          default: 30
+          description: Crossfade between segments in milliseconds
+
+    SynthesizeResponse:
+      type: object
+      properties:
+        audio_content:
+          type: string
+          description: Base64-encoded audio data
+        content_type:
+          type: string
+          description: MIME type (e.g., "audio/mpeg")
+        duration_ms:
+          type: integer
+        latency_ms:
+          type: integer
+          nullable: true
+        storage_path:
+          type: string
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/SynthesisMetadata"
+          nullable: true
+
+    SynthesisMetadata:
+      type: object
+      description: Additional metadata when segmentation was used
+      properties:
+        segmented:
+          type: boolean
+          description: Whether text was segmented
+        segment_count:
+          type: integer
+          description: Number of segments synthesized
+        total_text_chars:
+          type: integer
+        total_text_bytes:
+          type: integer
+        segment_timings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SegmentTiming"
+
+    SegmentTiming:
+      type: object
+      properties:
+        index:
+          type: integer
+        start_ms:
+          type: integer
+        end_ms:
+          type: integer
+
+    SegmentPreviewRequest:
+      type: object
+      required: [text, provider]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        provider:
+          type: string
+          enum: [azure, gemini, elevenlabs, gcp, openai, voai]
+
+    SegmentPreviewResponse:
+      type: object
+      properties:
+        needs_segmentation:
+          type: boolean
+        segment_count:
+          type: integer
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              text_preview:
+                type: string
+                description: First 50 characters of the segment
+              char_length:
+                type: integer
+              byte_length:
+                type: integer
+              boundary_type:
+                type: string
+                enum: [paragraph, sentence, clause, hard]
+        provider_limit:
+          type: object
+          properties:
+            max_value:
+              type: integer
+            limit_type:
+              type: string
+              enum: [chars, bytes]
+        estimated_duration_seconds:
+          type: number
+          description: Rough estimate of total synthesis time

@@ -15,9 +15,14 @@ from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.audit_service import AuditService
+from src.application.use_cases.synthesize_long_text import SynthesizeLongText
 from src.application.use_cases.synthesize_speech import SynthesizeSpeech
 from src.config import get_settings
-from src.domain.config.provider_limits import validate_text_length
+from src.domain.config.provider_limits import (
+    get_provider_limits,
+    get_split_config,
+    validate_text_length,
+)
 from src.domain.entities.audio import AudioFormat, OutputMode
 from src.domain.entities.tts import TTSRequest
 from src.domain.errors import (
@@ -26,6 +31,7 @@ from src.domain.errors import (
     QuotaExceededError,
     SynthesisError,
 )
+from src.domain.services.text_splitter import TextSplitter
 from src.domain.services.usage_tracker import provider_usage_tracker
 from src.infrastructure.persistence.audit_log_repository import (
     SQLAlchemyAuditLogRepository,
@@ -38,7 +44,13 @@ from src.infrastructure.providers.tts.factory import TTSProviderFactory
 from src.infrastructure.storage.local_storage import LocalStorage
 from src.presentation.api.dependencies import get_container
 from src.presentation.api.schemas.tts import (
+    ProviderLimitInfo,
+    SegmentPreviewItem,
+    SegmentPreviewRequest,
+    SegmentPreviewResponse,
+    SegmentTiming,
     StreamRequest,
+    SynthesisMetadata,
     SynthesizeRequest,
     SynthesizeResponse,
 )
@@ -110,20 +122,10 @@ async def synthesize(
     If authenticated, uses user's stored API key (BYOL mode).
     Falls back to system credentials if no user credential is available.
     """
-    # Validate text length for provider (outside try-except to ensure proper HTTP status)
-    is_valid, error_msg, exceeds_recommended = validate_text_length(
-        request_data.provider, request_data.text
-    )
-    if not is_valid:
-        raise HTTPException(status_code=400, detail={"error": error_msg})
-
-    # Log warning if exceeds recommended length
-    if exceeds_recommended:
-        logger.warning(
-            "Text length (%d) exceeds recommended limit for %s",
-            len(request_data.text),
-            request_data.provider,
-        )
+    # Check if text needs segmentation for this provider
+    split_config = get_split_config(request_data.provider)
+    splitter = TextSplitter(split_config)
+    needs_segmentation = splitter.needs_splitting(request_data.text)
 
     try:
         # Get optional user ID for BYOL mode
@@ -152,7 +154,6 @@ async def synthesize(
             await session.commit()
 
         storage = get_storage()
-        use_case = SynthesizeSpeech(provider_result.provider, storage=storage)
 
         # Map output format
         try:
@@ -160,36 +161,80 @@ async def synthesize(
         except ValueError:
             output_format = AudioFormat.MP3
 
-        domain_request = TTSRequest(
-            text=request_data.text,
-            voice_id=request_data.voice_id,
-            provider=request_data.provider,
-            language=request_data.language,
-            speed=request_data.speed,
-            pitch=request_data.pitch,
-            volume=request_data.volume,
-            output_format=output_format,
-            output_mode=OutputMode.BATCH,
-        )
+        if needs_segmentation:
+            # Long text path: auto-segment and merge
+            long_text_use_case = SynthesizeLongText(
+                provider=provider_result.provider, storage=storage
+            )
+            long_result = await long_text_use_case.execute(
+                text=request_data.text,
+                voice_id=request_data.voice_id,
+                provider_name=request_data.provider,
+                language=request_data.language,
+                output_format=output_format,
+                gap_ms=request_data.segment_gap_ms,
+                crossfade_ms=request_data.segment_crossfade_ms,
+            )
 
-        result = await use_case.execute(domain_request)
+            # Track successful request
+            _track_success(user_id, request_data.provider)
+            _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
 
-        # Track successful request
-        _track_success(user_id, request_data.provider)
+            audio_b64 = base64.b64encode(long_result.audio_content).decode("utf-8")
 
-        # Capture rate limit headers from the provider
-        _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
+            # Build segment timing metadata
+            timings = []
+            if long_result.segment_timings:
+                timings = [
+                    SegmentTiming(index=t.turn_index, start_ms=t.start_ms, end_ms=t.end_ms)
+                    for t in long_result.segment_timings
+                ]
 
-        # Return base64 encoded audio
-        audio_b64 = base64.b64encode(result.audio.data).decode("utf-8")
+            return SynthesizeResponse(
+                audio_content=audio_b64,
+                content_type=long_result.content_type,
+                duration_ms=long_result.duration_ms,
+                latency_ms=long_result.latency_ms,
+                storage_path=long_result.storage_path,
+                metadata=SynthesisMetadata(
+                    segmented=True,
+                    segment_count=long_result.segment_count,
+                    total_text_chars=long_result.total_text_length,
+                    total_text_bytes=long_result.total_byte_length,
+                    segment_timings=timings,
+                ),
+            )
+        else:
+            # Short text path: existing single-request synthesis
+            use_case = SynthesizeSpeech(provider_result.provider, storage=storage)
 
-        return SynthesizeResponse(
-            audio_content=audio_b64,
-            content_type=result.audio.format.mime_type,
-            duration_ms=result.duration_ms,
-            latency_ms=result.latency_ms,
-            storage_path=result.storage_path,
-        )
+            domain_request = TTSRequest(
+                text=request_data.text,
+                voice_id=request_data.voice_id,
+                provider=request_data.provider,
+                language=request_data.language,
+                speed=request_data.speed,
+                pitch=request_data.pitch,
+                volume=request_data.volume,
+                output_format=output_format,
+                output_mode=OutputMode.BATCH,
+            )
+
+            result = await use_case.execute(domain_request)
+
+            # Track successful request
+            _track_success(user_id, request_data.provider)
+            _capture_rate_limit_headers(user_id, request_data.provider, provider_result.provider)
+
+            audio_b64 = base64.b64encode(result.audio.data).decode("utf-8")
+
+            return SynthesizeResponse(
+                audio_content=audio_b64,
+                content_type=result.audio.format.mime_type,
+                duration_ms=result.duration_ms,
+                latency_ms=result.latency_ms,
+                storage_path=result.storage_path,
+            )
 
     except QuotaExceededError as e:
         _track_quota_error(user_id, request_data.provider, e)
@@ -416,6 +461,61 @@ async def synthesize_binary(
         raise HTTPException(status_code=400, detail={"error": str(e)}) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.post("/synthesize/preview", response_model=SegmentPreviewResponse)
+async def synthesize_preview(
+    request_data: SegmentPreviewRequest,
+):
+    """Preview how text will be segmented for a given provider.
+
+    Returns segmentation plan without calling the TTS API.
+    No credentials or authentication required.
+    """
+    split_config = get_split_config(request_data.provider)
+    splitter = TextSplitter(split_config)
+    limits = get_provider_limits(request_data.provider)
+
+    needs_seg = splitter.needs_splitting(request_data.text)
+
+    segments_info: list[SegmentPreviewItem] = []
+    if needs_seg:
+        segments = splitter.split(request_data.text)
+        for seg in segments:
+            segments_info.append(
+                SegmentPreviewItem(
+                    index=seg.index,
+                    text_preview=seg.text[:50],
+                    char_length=seg.char_length,
+                    byte_length=seg.byte_length,
+                    boundary_type=seg.boundary_type,
+                )
+            )
+    else:
+        text = request_data.text
+        segments_info.append(
+            SegmentPreviewItem(
+                index=0,
+                text_preview=text[:50],
+                char_length=len(text),
+                byte_length=len(text.encode("utf-8")),
+                boundary_type="none",
+            )
+        )
+
+    # Rough estimate: ~5 seconds per segment for synthesis + merge overhead
+    estimated_seconds = len(segments_info) * 5.0
+
+    return SegmentPreviewResponse(
+        needs_segmentation=needs_seg,
+        segment_count=len(segments_info),
+        segments=segments_info,
+        provider_limit=ProviderLimitInfo(
+            max_value=limits.max_text_length,
+            limit_type=limits.limit_type,
+        ),
+        estimated_duration_seconds=estimated_seconds,
+    )
 
 
 # ============== Usage Tracking Helpers ==============

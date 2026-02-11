@@ -6,8 +6,8 @@ from typing import Any
 
 from src.domain.entities.audio import AudioData, AudioFormat, OutputMode
 
-# Maximum text length in characters
-MAX_TEXT_LENGTH = 5000
+# Maximum text length in characters (per-provider limits enforced by TextSplitter)
+MAX_TEXT_LENGTH = 50000
 
 
 @dataclass(frozen=True)

@@ -129,6 +129,8 @@ class JobWorker:
         while self._running:
             try:
                 await self._process_next_job()
+            except (ConnectionRefusedError, OSError) as e:
+                logger.warning(f"Polling loop: DB unavailable ({e})")
             except Exception as e:
                 logger.error(f"Error in polling loop: {e}", exc_info=True)
 
@@ -432,6 +434,8 @@ class JobWorker:
         while self._running:
             try:
                 await self._check_timed_out_jobs()
+            except (ConnectionRefusedError, OSError) as e:
+                logger.warning(f"Timeout monitoring: DB unavailable ({e})")
             except Exception as e:
                 logger.error(f"Error in timeout monitoring: {e}", exc_info=True)
 
@@ -490,6 +494,8 @@ class JobWorker:
         while self._running:
             try:
                 await self._cleanup_old_jobs()
+            except (ConnectionRefusedError, OSError) as e:
+                logger.warning(f"Cleanup task: DB unavailable ({e})")
             except Exception as e:
                 logger.error(f"Error in cleanup task: {e}", exc_info=True)
 

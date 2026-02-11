@@ -62,6 +62,22 @@ export interface SynthesizeRequest {
   pitch?: number
   volume?: number
   output_format?: string
+  segment_gap_ms?: number
+  segment_crossfade_ms?: number
+}
+
+export interface SegmentTiming {
+  index: number
+  start_ms: number
+  end_ms: number
+}
+
+export interface SynthesisMetadata {
+  segmented: boolean
+  segment_count: number
+  total_text_chars: number
+  total_text_bytes: number
+  segment_timings: SegmentTiming[]
 }
 
 export interface SynthesizeResponse {
@@ -70,6 +86,7 @@ export interface SynthesizeResponse {
   duration_ms: number
   latency_ms?: number
   storage_path?: string
+  metadata?: SynthesisMetadata
 }
 
 export interface VoiceProfile {

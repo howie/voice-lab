@@ -38,6 +38,7 @@ export function TTSPage() {
   const error = useTTSStore(s => s.error)
   const quotaError = useTTSStore(s => s.quotaError)
   const synthesize = useTTSStore(s => s.synthesize)
+  const elapsedSeconds = useTTSStore(s => s.elapsedSeconds)
   const isSubmittingJob = useTTSStore(s => s.isSubmittingJob)
   const lastJobId = useTTSStore(s => s.lastJobId)
   const submitAsJob = useTTSStore(s => s.submitAsJob)
@@ -193,7 +194,11 @@ export function TTSPage() {
           {isLoading && (
             <LoadingIndicator
               isLoading={true}
-              message="正在合成語音..."
+              message={
+                elapsedSeconds >= 5
+                  ? `正在合成語音... (${elapsedSeconds} 秒)`
+                  : '正在合成語音...'
+              }
             />
           )}
 
@@ -228,6 +233,12 @@ export function TTSPage() {
                   <span className="text-muted-foreground">使用提供者</span>
                   <span className="capitalize">{provider}</span>
                 </div>
+                {result.metadata?.segmented && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">自動分段</span>
+                    <span>{result.metadata.segment_count} 段</span>
+                  </div>
+                )}
                 {result.storage_path && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">儲存路徑</span>

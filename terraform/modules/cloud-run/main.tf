@@ -470,6 +470,58 @@ resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   member   = "allUsers"
 }
 
+# -----------------------------------------------------------------------------
+# Cloud Scheduler Keep-Warm Jobs (optional)
+# Ping health endpoints every 5 minutes to prevent cold starts.
+# Cloud Run services already allow allUsers as invoker, so no extra SA needed.
+# -----------------------------------------------------------------------------
+
+resource "google_cloud_scheduler_job" "keep_warm_backend" {
+  count = var.enable_keep_warm ? 1 : 0
+
+  name        = "keep-warm-voice-lab-backend"
+  project     = var.project_id
+  region      = var.region
+  description = "Ping backend health endpoint every 5 min to prevent cold starts"
+
+  schedule  = "*/5 * * * *"
+  time_zone = "Asia/Taipei"
+
+  attempt_deadline = "30s"
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.backend.uri}/api/v1/health"
+  }
+
+  retry_config {
+    retry_count = 1
+  }
+}
+
+resource "google_cloud_scheduler_job" "keep_warm_frontend" {
+  count = var.enable_keep_warm ? 1 : 0
+
+  name        = "keep-warm-voice-lab-frontend"
+  project     = var.project_id
+  region      = var.region
+  description = "Ping frontend health endpoint every 5 min to prevent cold starts"
+
+  schedule  = "*/5 * * * *"
+  time_zone = "Asia/Taipei"
+
+  attempt_deadline = "30s"
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.frontend.uri}/health"
+  }
+
+  retry_config {
+    retry_count = 1
+  }
+}
+
 # Frontend domain mapping (if custom domain provided)
 resource "google_cloud_run_domain_mapping" "frontend" {
   count = var.custom_domain != "" ? 1 : 0

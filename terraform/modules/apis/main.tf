@@ -16,6 +16,7 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",                    # IAM
     "iamcredentials.googleapis.com",         # IAM Credentials
     "texttospeech.googleapis.com",           # Cloud Text-to-Speech
+    "cloudscheduler.googleapis.com",         # Cloud Scheduler (keep-warm)
   ])
 
   project = var.project_id

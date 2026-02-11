@@ -846,3 +846,136 @@ class MusicGenerationJobModel(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User")
+
+
+# =============================================================================
+# StoryPal Models (Feature 014)
+# =============================================================================
+
+
+class StoryTemplateModel(Base):
+    """Pre-built story template for StoryPal.
+
+    Contains scene structure, character definitions, and prompts for
+    interactive storytelling sessions targeted at children.
+    """
+
+    __tablename__ = "story_templates"
+    __table_args__ = (
+        Index("idx_story_template_category", "category"),
+        Index("idx_story_template_language", "language"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # fairy_tale, adventure, science, fable, daily_life
+    target_age_min: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    target_age_max: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    language: Mapped[str] = mapped_column(String(10), nullable=False, default="zh-TW")
+    characters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    scenes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    opening_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    sessions: Mapped[list["StorySessionModel"]] = relationship(
+        "StorySessionModel", back_populates="template"
+    )
+
+
+class StorySessionModel(Base):
+    """Active or completed interactive story session.
+
+    Tracks a child's progress through a story, including choices made,
+    current state, and character-to-voice mappings.
+    """
+
+    __tablename__ = "story_sessions"
+    __table_args__ = (
+        Index("idx_story_session_user", "user_id"),
+        Index("idx_story_session_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("story_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    language: Mapped[str] = mapped_column(String(10), nullable=False, default="zh-TW")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active, paused, completed
+    story_state: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    characters_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=list)
+    interaction_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interaction_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    template: Mapped["StoryTemplateModel | None"] = relationship(
+        "StoryTemplateModel", back_populates="sessions"
+    )
+    interaction_session: Mapped["InteractionSessionModel | None"] = relationship(
+        "InteractionSessionModel"
+    )
+    turns: Mapped[list["StoryTurnModel"]] = relationship(
+        "StoryTurnModel", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class StoryTurnModel(Base):
+    """Individual story segment or turn within a session.
+
+    Represents narration, dialogue, choice prompts, child responses,
+    questions, and answers that make up the interactive story flow.
+    """
+
+    __tablename__ = "story_turns"
+    __table_args__ = (
+        Index("idx_story_turn_session", "session_id"),
+        Index("idx_story_turn_number", "session_id", "turn_number"),
+        UniqueConstraint("session_id", "turn_number", name="uq_story_turn_number"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("story_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    turn_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    turn_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # narration, dialogue, choice_prompt, child_response, question, answer
+    character_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    audio_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    choice_options: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    child_choice: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bgm_scene: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    session: Mapped["StorySessionModel"] = relationship("StorySessionModel", back_populates="turns")

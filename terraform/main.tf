@@ -176,6 +176,7 @@ module "cloud_run" {
   custom_domain           = var.custom_domain
   api_subdomain           = var.api_subdomain
   additional_cors_origins = var.additional_cors_origins
+  enable_keep_warm        = var.enable_keep_warm
 
   labels = local.common_labels
 

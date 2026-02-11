@@ -206,3 +206,10 @@ variable "additional_cors_origins" {
   description = "Additional CORS origins to allow (e.g., Cloud Run direct URLs)"
   default     = []
 }
+
+# Keep-warm configuration
+variable "enable_keep_warm" {
+  type        = bool
+  description = "Enable Cloud Scheduler keep-warm pings to prevent cold starts"
+  default     = false
+}

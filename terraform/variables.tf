@@ -347,3 +347,13 @@ variable "additional_cors_origins" {
   description = "Additional CORS origins to allow (e.g., Cloud Run direct URLs for testing before custom domain SSL is ready)"
   default     = []
 }
+
+# -----------------------------------------------------------------------------
+# Keep-Warm Configuration
+# -----------------------------------------------------------------------------
+
+variable "enable_keep_warm" {
+  type        = bool
+  description = "Enable Cloud Scheduler keep-warm pings (every 5 min) to prevent cold starts. Cost: ~$0.01/month. For production, consider min_instance_count=1 instead."
+  default     = false
+}

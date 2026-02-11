@@ -15,11 +15,13 @@ import {
   UserCog,
   Gauge,
   Zap,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'StoryPal', href: '/storypal', icon: BookOpen, label: '新功能' },
   { name: 'TTS 測試', href: '/tts', icon: MessageSquare },
   { name: '多角色 TTS', href: '/multi-role-tts', icon: Users },
   { name: '背景工作', href: '/jobs', icon: Briefcase },

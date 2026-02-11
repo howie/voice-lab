@@ -12,8 +12,8 @@ class SynthesizeRequest(BaseModel):
     text: str = Field(
         ...,
         min_length=1,
-        max_length=5000,
-        description="Text to synthesize (1-5000 characters)",
+        max_length=50000,
+        description="Text to synthesize (1-50000 characters). Text exceeding provider limits will be automatically segmented.",
     )
     provider: str = Field(
         ...,
@@ -51,6 +51,18 @@ class SynthesizeRequest(BaseModel):
         default="mp3",
         description="Output audio format (mp3, wav, ogg, opus, pcm)",
     )
+    segment_gap_ms: int = Field(
+        default=100,
+        ge=0,
+        le=2000,
+        description="Gap between segments in ms (only used when text is auto-segmented)",
+    )
+    segment_crossfade_ms: int = Field(
+        default=30,
+        ge=0,
+        le=500,
+        description="Crossfade between segments in ms (only used when text is auto-segmented)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -73,8 +85,8 @@ class StreamRequest(BaseModel):
     text: str = Field(
         ...,
         min_length=1,
-        max_length=5000,
-        description="Text to synthesize (1-5000 characters)",
+        max_length=50000,
+        description="Text to synthesize (1-50000 characters). Text exceeding provider limits will be automatically segmented.",
     )
     provider: str = Field(
         ...,
@@ -125,6 +137,24 @@ class StreamRequest(BaseModel):
         }
 
 
+class SegmentTiming(BaseModel):
+    """Timing info for a single segment."""
+
+    index: int
+    start_ms: int
+    end_ms: int
+
+
+class SynthesisMetadata(BaseModel):
+    """Metadata returned when text was auto-segmented."""
+
+    segmented: bool = Field(description="Whether text was segmented")
+    segment_count: int = Field(description="Number of segments synthesized")
+    total_text_chars: int = Field(default=0)
+    total_text_bytes: int = Field(default=0)
+    segment_timings: list[SegmentTiming] = Field(default_factory=list)
+
+
 class SynthesizeResponse(BaseModel):
     """Response schema for batch TTS synthesis."""
 
@@ -150,6 +180,10 @@ class SynthesizeResponse(BaseModel):
         default=None,
         description="Path where audio is stored (if saved)",
     )
+    metadata: SynthesisMetadata | None = Field(
+        default=None,
+        description="Segmentation metadata (present when text was auto-segmented)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -161,6 +195,46 @@ class SynthesizeResponse(BaseModel):
                 "storage_path": "storage/azure/abc123.mp3",
             }
         }
+
+
+class SegmentPreviewRequest(BaseModel):
+    """Request schema for segmentation preview."""
+
+    text: str = Field(..., min_length=1, max_length=50000)
+    provider: str = Field(
+        ...,
+        pattern="^(azure|gemini|elevenlabs|voai)$",
+    )
+
+
+class SegmentPreviewItem(BaseModel):
+    """Preview info for a single segment."""
+
+    index: int
+    text_preview: str = Field(description="First 50 characters of the segment")
+    char_length: int
+    byte_length: int
+    boundary_type: str
+
+
+class ProviderLimitInfo(BaseModel):
+    """Provider limit info for preview response."""
+
+    max_value: int
+    limit_type: str
+
+
+class SegmentPreviewResponse(BaseModel):
+    """Response schema for segmentation preview."""
+
+    needs_segmentation: bool
+    segment_count: int
+    segments: list[SegmentPreviewItem] = Field(default_factory=list)
+    provider_limit: ProviderLimitInfo
+    estimated_duration_seconds: float = Field(
+        default=0.0,
+        description="Rough estimate of total synthesis time",
+    )
 
 
 class ErrorDetail(BaseModel):

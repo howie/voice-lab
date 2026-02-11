@@ -28,6 +28,10 @@ interface TTSState {
   error: string | null
   quotaError: QuotaErrorDetails | null
 
+  // Long text synthesis progress
+  synthesisStartTime: number | null
+  elapsedSeconds: number
+
   // Background job
   isSubmittingJob: boolean
   lastJobId: string | null
@@ -77,6 +81,8 @@ export const useTTSStore = create<TTSState>()(
       isLoading: false,
       error: null,
       quotaError: null,
+      synthesisStartTime: null,
+      elapsedSeconds: 0,
       isSubmittingJob: false,
       lastJobId: null,
       voices: [],
@@ -127,7 +133,15 @@ export const useTTSStore = create<TTSState>()(
           return
         }
 
-        set({ isLoading: true, error: null, quotaError: null, result: null })
+        set({ isLoading: true, error: null, quotaError: null, result: null, synthesisStartTime: Date.now(), elapsedSeconds: 0 })
+
+        // Track elapsed time during synthesis
+        const timer = setInterval(() => {
+          const startTime = get().synthesisStartTime
+          if (startTime) {
+            set({ elapsedSeconds: Math.floor((Date.now() - startTime) / 1000) })
+          }
+        }, 1000)
 
         try {
           const response = await ttsApi.synthesize({
@@ -141,7 +155,7 @@ export const useTTSStore = create<TTSState>()(
             output_format: state.outputFormat,
           })
 
-          set({ result: response.data, isLoading: false })
+          set({ result: response.data, isLoading: false, synthesisStartTime: null, elapsedSeconds: 0 })
         } catch (error: unknown) {
           const apiError = (
             error as {
@@ -154,12 +168,16 @@ export const useTTSStore = create<TTSState>()(
               error: apiError.message || '配額已用盡',
               quotaError: apiError.details as QuotaErrorDetails,
               isLoading: false,
+              synthesisStartTime: null,
+              elapsedSeconds: 0,
             })
           } else {
             const message = apiError?.message ||
               (error instanceof Error ? error.message : '語音合成失敗')
-            set({ error: message, isLoading: false })
+            set({ error: message, isLoading: false, synthesisStartTime: null, elapsedSeconds: 0 })
           }
+        } finally {
+          clearInterval(timer)
         }
       },
 
@@ -235,6 +253,8 @@ export const useTTSStore = create<TTSState>()(
           error: null,
           quotaError: null,
           isLoading: false,
+          synthesisStartTime: null,
+          elapsedSeconds: 0,
           isSubmittingJob: false,
           lastJobId: null,
         }),

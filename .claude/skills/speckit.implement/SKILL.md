@@ -1,5 +1,7 @@
 ---
+name: speckit.implement
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
+disable-model-invocation: true
 ---
 
 ## Cloud Environment Support

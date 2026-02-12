@@ -5,6 +5,12 @@
 **Status**: Draft
 **Input**: User description: "MVP 測試流程 - 父母的故事體驗介面：父母提供指令/需求 → AI 產出內容 → 現場播放和孩子互動"
 
+## Clarifications
+
+### Session 2026-02-12
+
+- Q: 故事體驗介面是否需要認證？ → A: 使用現有 Google OAuth 認證，由現場工作人員以自己的帳號登入後操作介面
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 父母輸入參數並生成故事內容 (Priority: P1)
@@ -174,7 +180,7 @@
 - 測試環境具備穩定的網路連線，可存取 LLM API 和 TTS 服務
 - 內容語言固定為繁體中文（台灣用語）
 - 父母具備基本的網頁操作能力（點擊、選擇、輸入文字）
-- MVP 階段不需要用戶帳號和登入，或使用現有的認證機制
+- MVP 使用現有 Google OAuth 認證機制，由現場工作人員以自己的帳號登入後操作介面供父母體驗
 - TTS 語音選項使用系統已整合的 TTS 服務提供者
 - 預設選項列表（價值觀、情緒認知）為固定清單，MVP 階段不提供自訂擴充
 

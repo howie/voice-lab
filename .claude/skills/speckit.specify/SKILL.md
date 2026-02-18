@@ -1,5 +1,8 @@
 ---
+name: speckit.specify
 description: Create or update the feature specification from a natural language feature description.
+disable-model-invocation: true
+argument-hint: <feature description>
 handoffs:
   - label: Build Technical Plan
     agent: speckit.plan

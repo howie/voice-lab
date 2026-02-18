@@ -18,6 +18,7 @@ from src.presentation.api.routes import (
     music,
     providers,
     quota,
+    story_experience,
     stt,
     tts,
     voice_customizations,
@@ -50,5 +51,6 @@ api_router.include_router(dj.router)  # DJ routes (Magic DJ Controller)
 api_router.include_router(voice_customizations.router)  # Voice customization routes (Feature 013)
 api_router.include_router(quota.router)  # Quota and rate limit status
 api_router.include_router(gemini_live_test.router)  # Gemini Live API direct test
+api_router.include_router(story_experience.router)  # Story Experience MVP (Feature 016)
 
 __all__ = ["api_router"]

@@ -317,8 +317,8 @@ class TestMaxTextLength:
     """Tests for MAX_TEXT_LENGTH constant."""
 
     def test_max_text_length_value(self):
-        """Test that MAX_TEXT_LENGTH is 5000."""
-        assert MAX_TEXT_LENGTH == 5000
+        """Test that MAX_TEXT_LENGTH is 50000."""
+        assert MAX_TEXT_LENGTH == 50000
 
     def test_text_length_boundary(self):
         """Test text at exactly MAX_TEXT_LENGTH."""

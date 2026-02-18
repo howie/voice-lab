@@ -196,11 +196,11 @@ class TestSynthesizeEndpoint:
 
     @pytest.mark.asyncio
     async def test_synthesize_text_too_long_validation_error(self):
-        """T020: Test validation error for text exceeding 5000 characters."""
+        """T020: Test validation error for text exceeding 50000 characters."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             payload = {
-                "text": "A" * 5001,  # Exceeds 5000 char limit
+                "text": "A" * 50001,  # Exceeds 50000 char limit
                 "provider": "azure",
                 "voice_id": "en-US-JennyNeural",
             }

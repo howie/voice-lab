@@ -177,11 +177,23 @@ class GeminiTTSProvider(BaseTTSProvider):
 
         # Retry loop for transient finishReason=OTHER errors
         last_error: ValueError | None = None
+        byte_length = len(text_content.encode("utf-8"))
+        char_length = len(text_content)
         for attempt in range(self._MAX_RETRIES + 1):
             # Inner retry loop for 429 rate limiting (independent counter)
             for retry_429 in range(self._MAX_429_RETRIES + 1):
-                async with _gemini_request_semaphore:
-                    response = await self._client.post(url, json=payload, headers=headers)
+                try:
+                    async with _gemini_request_semaphore:
+                        response = await self._client.post(url, json=payload, headers=headers)
+                except httpx.TimeoutException:
+                    logger.warning(
+                        "Gemini TTS timeout: model=%s, text_bytes=%d, text_chars=%d, timeout=%.0fs",
+                        self._model,
+                        byte_length,
+                        char_length,
+                        self._client.timeout.read or 180,
+                    )
+                    raise
 
                 # Capture rate limit headers from every response
                 self._last_rate_limit_headers = parse_rate_limit_headers(response.headers, "gemini")

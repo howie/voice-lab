@@ -6,6 +6,8 @@ T028: Update SynthesizeSpeechUseCase to support batch and streaming modes
 from collections.abc import AsyncGenerator
 from typing import Protocol
 
+import httpx
+
 from src.application.interfaces.storage_service import IStorageService
 from src.application.interfaces.tts_provider import ITTSProvider
 from src.domain.entities.tts import TTSRequest, TTSResult
@@ -82,6 +84,18 @@ class SynthesizeSpeech:
         except QuotaExceededError:
             # Let quota errors propagate with full detail
             raise
+        except httpx.TimeoutException as e:
+            # Explicitly catch httpx timeout exceptions (ReadTimeout, WriteTimeout, etc.)
+            # str(e) may be empty for httpx.ReadTimeout(""), so we build a descriptive message
+            error_msg = f"Request timed out after waiting for response ({type(e).__name__})"
+            if self.logger:
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=None,
+                    error=error_msg,
+                    user_id=user_id,
+                )
+            raise ProviderError(request.provider, error_msg) from e
         except Exception as e:
             # Log error if logger is configured
             if self.logger:
@@ -132,6 +146,16 @@ class SynthesizeSpeech:
 
         except QuotaExceededError:
             raise
+        except httpx.TimeoutException as e:
+            error_msg = f"Request timed out after waiting for response ({type(e).__name__})"
+            if self.logger:
+                await self.logger.log_synthesis(
+                    request=request,
+                    result=None,
+                    error=error_msg,
+                    user_id=user_id,
+                )
+            raise ProviderError(request.provider, error_msg) from e
         except Exception as e:
             # Log error if logger is configured
             if self.logger:

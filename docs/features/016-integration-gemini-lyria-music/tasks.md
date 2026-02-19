@@ -23,8 +23,8 @@
 
 **Purpose**: Dependencies, configuration, and adapter skeleton
 
-- [ ] T001 Add `google-auth` and `google-auth-httplib2` to dependencies in `backend/pyproject.toml`
-- [ ] T002 Add `pydub` to dependencies in `backend/pyproject.toml` for WAV→MP3 conversion (verify ffmpeg available in Dockerfile)
+- [ ] T001 Verify `google-auth>=2.27.0` already in `backend/pyproject.toml` (confirmed present); no `google-auth-httplib2` needed — we use httpx with manual `credentials.token` instead
+- [ ] T002 Verify `pydub>=0.25.0` already in `backend/pyproject.toml` (confirmed present) and `ffmpeg` already in `backend/Dockerfile` (confirmed line 40)
 - [ ] T003 [P] Add Lyria configuration settings (`lyria_gcp_project_id`, `lyria_gcp_location`, `lyria_model`, `lyria_timeout`) to `backend/src/config.py`
 - [ ] T004 [P] Create adapter directory structure: `backend/src/infrastructure/adapters/lyria/__init__.py`
 - [ ] T005 Run `cd backend && uv sync` to verify dependency installation
@@ -38,14 +38,17 @@
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [ ] T006 Add `LYRIA = "lyria"` to `MusicProvider` enum in `backend/src/domain/entities/music.py`
-- [ ] T007 Add `LYRIA = "lyria"` to `MusicProviderEnum` Pydantic schema in `backend/src/presentation/api/routes/music.py`
+- [ ] T007 Add `LYRIA = "lyria"` to `MusicProviderEnum` Pydantic schema in `backend/src/presentation/api/schemas/music_schemas.py`
 - [ ] T008 [P] Add `"lyria"` to `MusicProvider` union type in `frontend/src/types/music.ts`
 - [ ] T009 Create `LyriaVertexAIClient` skeleton (init + health_check only) in `backend/src/infrastructure/adapters/lyria/client.py` with Google Cloud ADC authentication via `google.auth.default()` and httpx AsyncClient
 - [ ] T010 Create `LyriaMusicProvider` skeleton implementing `IMusicProvider` (name/display_name properties + NotSupportedError stubs for generate_song/generate_lyrics) in `backend/src/infrastructure/providers/music/lyria_music.py`
 - [ ] T011 Register `"lyria"` provider in `MusicProviderFactory.create()` with lazy import in `backend/src/infrastructure/providers/music/factory.py`
 - [ ] T012 Add `"lyria"` to `SUPPORTED_PROVIDERS` list in `backend/src/infrastructure/providers/music/factory.py`
+- [ ] T012a [P] Add optional `capabilities() -> list[str]` property to `IMusicProvider` interface in `backend/src/application/interfaces/music_provider.py` with default return `["song", "instrumental", "lyrics"]` so existing providers (Mureka, Suno) are unaffected
+- [ ] T012b [P] Create Alembic migration to add `provider_metadata` JSONB column (nullable, default `{}`) to `music_generation_jobs` table in `backend/alembic/versions/` — this column stores provider-specific params (negative_prompt, seed, sample_count, batch_id) following the pattern of `JobModel.input_params`
+- [ ] T012c [P] Add `provider_metadata: dict[str, Any] | None = None` field to `MusicGenerationJob` dataclass in `backend/src/domain/entities/music.py` and to `MusicGenerationJobModel` in `backend/src/infrastructure/persistence/models.py`
 
-**Checkpoint**: Factory can instantiate LyriaMusicProvider; health_check passes with valid GCP credentials
+**Checkpoint**: Factory can instantiate LyriaMusicProvider; health_check passes with valid GCP credentials; `provider_metadata` column available for all user stories
 
 ---
 
@@ -69,10 +72,12 @@
 - [ ] T017 [US1] Implement `LyriaVertexAIClient.generate_instrumental(prompt, negative_prompt, seed, sample_count)` in `backend/src/infrastructure/adapters/lyria/client.py` — build Vertex AI predict request, send via httpx, parse base64 WAV response into `LyriaGenerationResult` dataclass
 - [ ] T018 [US1] Implement WAV→MP3 conversion helper using pydub in `backend/src/infrastructure/adapters/lyria/client.py` (or shared audio util) — decode base64 → WAV bytes → pydub AudioSegment → export MP3
 - [ ] T019 [US1] Implement `LyriaMusicProvider.generate_instrumental()` in `backend/src/infrastructure/providers/music/lyria_music.py` — call client, convert WAV→MP3, save to storage, return `MusicSubmitResult` with COMPLETED status
-- [ ] T020 [US1] Handle Lyria synchronous API pattern in worker: when provider is "lyria", `generate_instrumental` directly returns completed result (skip polling loop) in `backend/src/infrastructure/workers/job_worker.py`
+- [ ] T020 [US1] Create `MusicJobWorker` in `backend/src/infrastructure/workers/music_job_worker.py` following `JobWorker` pattern — polling loop calls `repository.acquire_pending_job()`, dispatches to provider via factory, handles submit → poll → download → store flow. **For Lyria**: skip polling (synchronous API, result returned immediately). **For Mureka**: submit → poll `query_task()` every 5s → download MP3. Register worker in `backend/src/main.py` lifespan alongside existing `JobWorker`
 - [ ] T021 [US1] Implement `LyriaMusicProvider.query_task()` returning always-COMPLETED result (Lyria 2 is synchronous — result is available immediately after generate) in `backend/src/infrastructure/providers/music/lyria_music.py`
 - [ ] T022 [US1] Add Vertex AI error handling: 401 (auth failure), 400 (safety filter), 429 (rate limit), 5xx (server error) with mapped error messages in `backend/src/infrastructure/adapters/lyria/client.py`
-- [ ] T023 [US1] Add English-only prompt validation (reject non-ASCII or detect CJK characters) for Lyria provider in `backend/src/presentation/api/routes/music.py` or request schema validation
+- [ ] T022a [US1] Add retry logic (max 3 attempts, exponential backoff 2s/4s/8s) for transient errors (429 rate limit, 5xx server errors) in `LyriaVertexAIClient` via httpx `AsyncHTTPTransport(retries=...)` or manual retry loop in `backend/src/infrastructure/adapters/lyria/client.py` — per FR-016
+- [ ] T022b [US1] Add WAV→MP3 fallback: if pydub/ffmpeg conversion fails, store raw WAV and set `result_url` to WAV file as degraded fallback in `backend/src/infrastructure/providers/music/lyria_music.py` — per EC-004
+- [ ] T023 [US1] Add English-only prompt validation (reject non-ASCII or detect CJK characters) for Lyria provider in `backend/src/presentation/api/schemas/music_schemas.py` or route-level validation in `backend/src/presentation/api/routes/music.py`
 - [ ] T024 [US1] Verify end-to-end: `make check` passes, then manual test with real GCP credentials
 
 **Checkpoint**: Lyria instrumental generation works end-to-end. POST with `provider: "lyria"` → MP3 result downloadable.
@@ -92,11 +97,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T027 [P] [US2] Add `negative_prompt` optional field to `InstrumentalRequest` Pydantic schema in `backend/src/presentation/api/routes/music.py` (maxLength: 200, nullable, only used when provider=lyria)
+- [ ] T027 [P] [US2] Add `negative_prompt` optional field to `InstrumentalRequest` Pydantic schema in `backend/src/presentation/api/schemas/music_schemas.py` (maxLength: 200, nullable, only used when provider=lyria)
 - [ ] T028 [US2] Pass `negative_prompt` through service layer to `LyriaMusicProvider.generate_instrumental()` in `backend/src/domain/services/music/service.py` (add parameter to `submit_instrumental` method)
 - [ ] T029 [US2] Ensure `negative_prompt` is included in `instances` payload sent to Vertex AI in `backend/src/infrastructure/adapters/lyria/client.py` (already scaffolded in T017, verify)
-- [ ] T030 [US2] Store `negative_prompt` in `MusicGenerationJob` — add nullable `negative_prompt` column or reuse existing `prompt` metadata field. If new column needed, create Alembic migration in `backend/alembic/versions/`
-- [ ] T031 [US2] Return `negative_prompt` in `MusicJobResponse` schema in `backend/src/presentation/api/routes/music.py`
+- [ ] T030 [US2] Store `negative_prompt` in `provider_metadata` JSONB column (created in T012b) as `{"negative_prompt": "..."}` — no additional migration needed. Update `MusicGenerationService.submit_instrumental()` to persist `provider_metadata` in `backend/src/domain/services/music/service.py`
+- [ ] T031 [US2] Return `negative_prompt` from `provider_metadata` in `MusicJobResponse` schema in `backend/src/presentation/api/schemas/music_schemas.py`
 
 **Checkpoint**: Negative prompt passed to Vertex AI and visible in job response. Mureka requests ignore this field gracefully.
 
@@ -116,9 +121,9 @@
 
 - [ ] T033 [US3] Add `GET /api/v1/music/providers` endpoint returning list of available providers with capabilities per `contracts/lyria-api.yaml` ProviderInfo schema in `backend/src/presentation/api/routes/music.py`
 - [ ] T034 [US3] Implement `LyriaMusicProvider.capabilities()` property returning `["instrumental"]` in `backend/src/infrastructure/providers/music/lyria_music.py`
-- [ ] T035 [P] [US3] Add provider dropdown component to music generation form showing "Mureka AI" and "Google Lyria" in `frontend/src/components/music/MusicGenerationForm.tsx`
-- [ ] T036 [US3] Conditionally show/hide form sections based on selected provider capabilities (hide song/lyrics for Lyria) in `frontend/src/components/music/MusicGenerationForm.tsx`
-- [ ] T037 [P] [US3] Add Lyria provider option to musicService API client in `frontend/src/services/musicService.ts`
+- [ ] T035 [P] [US3] Add provider dropdown component to music generation form showing "Mureka AI" and "Google Lyria" in `frontend/src/components/music/MusicForm.tsx`
+- [ ] T036 [US3] Conditionally show/hide form sections based on selected provider capabilities (hide song/lyrics for Lyria) in `frontend/src/components/music/MusicForm.tsx`
+- [ ] T037 [P] [US3] Add Lyria provider option to musicService API client in `frontend/src/services/musicApi.ts`
 - [ ] T038 [US3] Display provider name in job history list and job detail views in `frontend/src/components/music/MusicJobStatus.tsx`
 
 **Checkpoint**: UI provider switching works. Lyria shows only instrumental form. History shows provider per job.
@@ -138,11 +143,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T041 [P] [US4] Add `seed` optional integer field (0–2,147,483,647) to `InstrumentalRequest` schema in `backend/src/presentation/api/routes/music.py`
-- [ ] T042 [US4] Add validation: reject request if both `seed` and `sample_count` are provided in `backend/src/presentation/api/routes/music.py`
+- [ ] T041 [P] [US4] Add `seed` optional integer field (0–2,147,483,647) to `InstrumentalRequest` schema in `backend/src/presentation/api/schemas/music_schemas.py`
+- [ ] T042 [US4] Add `@model_validator` to reject request if both `seed` and `sample_count` are provided in `backend/src/presentation/api/schemas/music_schemas.py`
 - [ ] T043 [US4] Pass `seed` through service layer to `LyriaVertexAIClient.generate_instrumental()` in `backend/src/domain/services/music/service.py`
-- [ ] T044 [P] [US4] Add seed input field (optional) to Lyria instrumental form in `frontend/src/components/music/MusicGenerationForm.tsx`
-- [ ] T045 [US4] Frontend validation: disable sample_count when seed is filled and vice versa in `frontend/src/components/music/MusicGenerationForm.tsx`
+- [ ] T044 [P] [US4] Add seed input field (optional) to Lyria instrumental form in `frontend/src/components/music/MusicForm.tsx`
+- [ ] T045 [US4] Frontend validation: disable sample_count when seed is filled and vice versa in `frontend/src/components/music/MusicForm.tsx`
 
 **Checkpoint**: Seed parameter works. Same prompt+seed produces same output. Conflict validation prevents seed+sample_count.
 
@@ -161,10 +166,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T048 [P] [US5] Add `sample_count` optional integer field (1–4) to `InstrumentalRequest` schema in `backend/src/presentation/api/routes/music.py`
+- [ ] T048 [P] [US5] Add `sample_count` optional integer field (1–4) to `InstrumentalRequest` schema in `backend/src/presentation/api/schemas/music_schemas.py`
 - [ ] T049 [US5] Handle multi-result response from Vertex AI: when `sample_count > 1`, API returns multiple `predictions` — create one MusicGenerationJob per result in `backend/src/infrastructure/providers/music/lyria_music.py`
-- [ ] T050 [US5] Link batch jobs together (e.g., shared `batch_id` or `parent_job_id` field) so UI can group variants in `backend/src/domain/services/music/service.py`
-- [ ] T051 [P] [US5] Add sample_count selector (1–4) to Lyria instrumental form in `frontend/src/components/music/MusicGenerationForm.tsx`
+- [ ] T050 [US5] Link batch jobs together via `provider_metadata.batch_id` (UUID, stored in JSONB column created in T012b) so UI can group variants — update `MusicGenerationService` in `backend/src/domain/services/music/service.py` and add `GET /api/v1/music/jobs?batch_id={id}` filter in `backend/src/presentation/api/routes/music.py`
+- [ ] T051 [P] [US5] Add sample_count selector (1–4) to Lyria instrumental form in `frontend/src/components/music/MusicForm.tsx`
 - [ ] T052 [US5] Display batch variants as grouped results in job detail view in `frontend/src/components/music/MusicJobStatus.tsx`
 
 **Checkpoint**: Batch generation works. sample_count=3 produces 3 downloadable variants grouped in UI.
@@ -176,6 +181,7 @@
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] T053 [P] Add `LyriaMusicProvider.health_check()` implementation (test Vertex AI connectivity) in `backend/src/infrastructure/providers/music/lyria_music.py`
+- [ ] T053a [P] Log SynthID watermark presence from Vertex AI response metadata in `backend/src/infrastructure/adapters/lyria/client.py` — per FR-012 (verify `predictions[].synthId` field exists in response)
 - [ ] T054 [P] Add Lyria-specific logging (request/response timing, model version, audio duration) in `backend/src/infrastructure/adapters/lyria/client.py`
 - [ ] T055 [P] Update Terraform config to add Vertex AI IAM role (`roles/aiplatform.user`) to Cloud Run service account in `terraform/` (relevant .tf file)
 - [ ] T056 [P] Add `LYRIA_GCP_PROJECT_ID`, `LYRIA_GCP_LOCATION`, `LYRIA_MODEL` environment variables to Cloud Run Terraform config
@@ -227,14 +233,15 @@ Phase 1 (Setup) ──▶ Phase 2 (Foundational)
 
 ### Parallel Opportunities
 
-- T001 + T002 can run in parallel (different dependency additions)
+- T001 + T002 can run in parallel (verification only — deps already present)
 - T003 + T004 can run in parallel (different files)
 - T006 + T007 + T008 can run in parallel (different files: entity, schema, frontend type)
+- T012a + T012b + T012c can run in parallel (interface, migration, entity — different files)
 - T013 + T014 + T015 + T016 can run in parallel (all test files, write before implementation)
 - T027 + T035 + T037 can run in parallel (different files: backend schema, frontend form, frontend service)
 - T039 + T040 can run in parallel (test files)
 - T046 + T047 can run in parallel (test files)
-- T053 + T054 + T055 + T056 + T057 can run in parallel (independent polish tasks)
+- T053 + T053a + T054 + T055 + T056 + T057 can run in parallel (independent polish tasks)
 
 ---
 
@@ -247,13 +254,15 @@ Task: "T014 Unit test for LyriaMusicProvider.generate_instrumental() in backend/
 Task: "T015 Unit test for WAV→MP3 conversion in backend/tests/unit/music/test_lyria_provider.py"
 Task: "T016 Unit test for LyriaVertexAIClient request payload in backend/tests/contract/music/test_lyria_contract.py"
 
-# Then implement (sequentially — client before provider):
+# Then implement (sequentially — client before provider before worker):
 Task: "T017 Implement LyriaVertexAIClient.generate_instrumental()"
 Task: "T018 Implement WAV→MP3 conversion helper"
 Task: "T019 Implement LyriaMusicProvider.generate_instrumental()"
-Task: "T020 Handle synchronous API pattern in worker"
+Task: "T020 Create MusicJobWorker (new file: music_job_worker.py)"
 Task: "T021 Implement LyriaMusicProvider.query_task()"
 Task: "T022 Add Vertex AI error handling"
+Task: "T022a Add retry logic (FR-016)"
+Task: "T022b Add WAV fallback (EC-004)"
 Task: "T023 Add English-only prompt validation"
 Task: "T024 End-to-end verification"
 ```
@@ -269,8 +278,8 @@ Task: "T033 Add GET /api/v1/music/providers endpoint"
 Task: "T034 Implement LyriaMusicProvider.capabilities()"
 
 # Frontend tasks (parallel with each other):
-Task: "T035 Add provider dropdown to MusicGenerationForm"
-Task: "T037 Add Lyria provider to musicService"
+Task: "T035 Add provider dropdown to MusicForm.tsx"
+Task: "T037 Add Lyria provider to musicApi.ts"
 
 # Then sequential:
 Task: "T036 Conditional form sections based on provider"
@@ -284,8 +293,8 @@ Task: "T038 Display provider in history views"
 ### MVP First (User Story 1 Only)
 
 1. Complete Phase 1: Setup (T001–T005)
-2. Complete Phase 2: Foundational (T006–T012)
-3. Complete Phase 3: User Story 1 (T013–T024)
+2. Complete Phase 2: Foundational (T006–T012c)
+3. Complete Phase 3: User Story 1 (T013–T024, incl. T022a/T022b)
 4. **STOP and VALIDATE**: Test Lyria instrumental generation end-to-end
 5. Deploy/demo if ready
 
@@ -316,17 +325,17 @@ With multiple developers:
 
 | Metric | Count |
 |--------|-------|
-| **Total tasks** | 60 |
+| **Total tasks** | 67 |
 | **Setup tasks** | 5 (T001–T005) |
-| **Foundational tasks** | 7 (T006–T012) |
-| **US1 tasks** | 12 (T013–T024) |
+| **Foundational tasks** | 10 (T006–T012c) |
+| **US1 tasks** | 14 (T013–T024, incl. T022a/T022b) |
 | **US2 tasks** | 7 (T025–T031) |
 | **US3 tasks** | 7 (T032–T038) |
 | **US4 tasks** | 7 (T039–T045) |
 | **US5 tasks** | 7 (T046–T052) |
-| **Polish tasks** | 8 (T053–T060) |
-| **Parallelizable** | 28 tasks marked [P] |
-| **MVP scope** | 24 tasks (Setup + Foundational + US1) |
+| **Polish tasks** | 10 (T053–T060, incl. T053a) |
+| **Parallelizable** | 31 tasks marked [P] |
+| **MVP scope** | 29 tasks (Setup + Foundational + US1) |
 
 ---
 
@@ -338,5 +347,25 @@ With multiple developers:
 - Verify tests fail before implementing
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
-- Lyria 2 is synchronous API — worker skips polling loop (handle in T020)
-- WAV→MP3 conversion requires ffmpeg in Docker image (verify in T002)
+- Lyria 2 is synchronous API — MusicJobWorker skips polling loop for Lyria (handle in T020)
+- WAV→MP3 conversion requires ffmpeg in Docker image (confirmed present in Dockerfile)
+- `google-auth` and `pydub` already in `pyproject.toml` — T001/T002 are verification-only
+- **Music job worker does NOT exist yet** — T020 creates `MusicJobWorker` (also enables Mureka background processing)
+- `provider_metadata` JSONB column (T012b) stores: negative_prompt, seed, sample_count, batch_id — avoids per-field migrations
+- File paths verified against codebase: schemas in `schemas/music_schemas.py`, form in `MusicForm.tsx`, API client in `musicApi.ts`
+
+## Analysis Changelog (2026-02-19)
+
+Post-generation gap analysis identified and fixed 7 issues:
+
+| # | Issue | Fix Applied |
+|---|---|---|
+| G1 | EC-004 WAV→MP3 fallback missing | Added T022b |
+| G2 | FR-012 SynthID verification missing | Added T053a |
+| G3 | FR-016 Retry logic (max 3) missing | Added T022a |
+| G4 | IMusicProvider.capabilities() not in interface | Added T012a |
+| G5 | T030 conflicted with data-model.md "no migration" | Resolved via `provider_metadata` JSONB (T012b/T012c) |
+| P1 | T007 wrong file path (routes → schemas) | Fixed to `schemas/music_schemas.py` |
+| P2 | T035/T036 wrong component name | Fixed to `MusicForm.tsx` |
+| R1 | T020 assumed existing music worker | Rewritten: creates `MusicJobWorker` from scratch |
+| R7 | T001 listed unnecessary `google-auth-httplib2` | Removed; only `google-auth` needed |

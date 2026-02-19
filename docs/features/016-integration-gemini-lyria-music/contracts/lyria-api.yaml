@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: Voice Lab — Lyria Music Generation API
+  description: |
+    Lyria 音樂生成 API，擴展現有 012-music-generation API。
+    新增 Lyria 作為 provider 選項，支援器樂 BGM 生成。
+
+    **注意**: 本 API 複用現有 `/api/v1/music/*` 端點，
+    僅在請求中新增 `provider: "lyria"` 欄位。
+  version: 1.0.0
+
+paths:
+  /api/v1/music/instrumental:
+    post:
+      summary: 提交器樂生成任務（支援 Lyria）
+      description: |
+        提交一個器樂/BGM 生成任務。
+        當 provider 為 "lyria" 時，支援 negative_prompt、seed、sample_count 等 Lyria 特有參數。
+      operationId: submitInstrumental
+      tags: [Music Generation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentalRequest'
+            examples:
+              lyria_basic:
+                summary: Lyria 基本生成
+                value:
+                  prompt: "A calm acoustic folk song with gentle guitar melody and soft strings"
+                  provider: "lyria"
+              lyria_with_negative:
+                summary: Lyria 含 negative prompt
+                value:
+                  prompt: "Upbeat electronic dance music with synthesizer and crisp drums"
+                  negative_prompt: "vocals, distortion, acoustic guitar"
+                  provider: "lyria"
+              lyria_with_seed:
+                summary: Lyria 含 seed（可重現）
+                value:
+                  prompt: "Relaxing ambient piano with gentle reverb"
+                  seed: 42
+                  provider: "lyria"
+              lyria_batch:
+                summary: Lyria 批量生成
+                value:
+                  prompt: "Epic cinematic orchestral with soaring strings and triumphant brass"
+                  sample_count: 3
+                  provider: "lyria"
+              mureka_default:
+                summary: Mureka 預設
+                value:
+                  prompt: "magical fantasy forest, whimsical, children friendly"
+                  provider: "mureka"
+      responses:
+        '201':
+          description: 任務已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicJobResponse'
+        '400':
+          description: 請求無效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                non_english:
+                  summary: 非英文 prompt (Lyria)
+                  value:
+                    error: "validation_error"
+                    message: "Lyria 目前僅支援英文描述"
+                seed_with_count:
+                  summary: seed 與 sample_count 衝突
+                  value:
+                    error: "validation_error"
+                    message: "seed 和 sample_count 不可同時使用"
+        '429':
+          description: 配額已滿
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Provider 不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                auth_failure:
+                  summary: GCP 認證失敗
+                  value:
+                    error: "provider_unavailable"
+                    message: "Google Cloud 認證失敗，請檢查 Service Account 設定"
+
+  /api/v1/music/jobs/{job_id}:
+    get:
+      summary: 查詢任務狀態
+      description: |
+        查詢音樂生成任務狀態。回應中的 provider 欄位標示使用的 provider（"lyria" 或 "mureka"）。
+      operationId: getJob
+      tags: [Music Generation]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 任務詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicJobResponse'
+        '404':
+          description: 任務不存在
+
+  /api/v1/music/providers:
+    get:
+      summary: 列出可用的音樂生成 Providers
+      description: 回傳所有已啟用的音樂生成 provider 及其支援的功能。
+      operationId: listProviders
+      tags: [Music Generation]
+      responses:
+        '200':
+          description: Provider 列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderInfo'
+              example:
+                providers:
+                  - name: "mureka"
+                    display_name: "Mureka AI"
+                    available: true
+                    capabilities: ["song", "instrumental", "lyrics"]
+                    supported_models: ["auto", "mureka-01", "v7.5", "v6"]
+                  - name: "lyria"
+                    display_name: "Google Lyria"
+                    available: true
+                    capabilities: ["instrumental"]
+                    supported_models: ["lyria-002"]
+                    limitations:
+                      - "僅支援英文 prompt"
+                      - "固定 ~30 秒長度"
+                      - "僅器樂（無人聲/歌詞）"
+
+components:
+  schemas:
+    InstrumentalRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: 音樂風格/場景描述（Lyria 限英文，10-500 字元）
+          minLength: 10
+          maxLength: 500
+          example: "A calm acoustic folk song with gentle guitar melody"
+        negative_prompt:
+          type: string
+          description: |
+            排除不想要的元素（僅 Lyria 支援）。
+            Mureka 會忽略此欄位。
+          maxLength: 200
+          example: "drums, electric guitar, distortion"
+        seed:
+          type: integer
+          description: |
+            隨機種子，用於重現生成結果（僅 Lyria 支援）。
+            不可與 sample_count 同時使用。
+          minimum: 0
+          maximum: 2147483647
+        sample_count:
+          type: integer
+          description: |
+            生成數量（僅 Lyria 支援，預設 1）。
+            不可與 seed 同時使用。
+          minimum: 1
+          maximum: 4
+        model:
+          type: string
+          description: 模型選擇
+          default: "auto"
+          enum: ["auto", "lyria-002", "mureka-01", "v7.5", "v6"]
+        provider:
+          type: string
+          description: 音樂生成 provider
+          default: "mureka"
+          enum: ["mureka", "lyria"]
+
+    MusicJobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: ["song", "instrumental", "lyrics"]
+        status:
+          type: string
+          enum: ["pending", "processing", "completed", "failed"]
+        provider:
+          type: string
+          enum: ["mureka", "lyria"]
+          description: 使用的音樂生成 provider
+        model:
+          type: string
+        prompt:
+          type: string
+        negative_prompt:
+          type: string
+          nullable: true
+          description: Lyria negative prompt（僅 Lyria 任務有值）
+        result_url:
+          type: string
+          nullable: true
+          description: 生成結果 MP3 下載 URL
+        cover_url:
+          type: string
+          nullable: true
+        generated_lyrics:
+          type: string
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+          description: 音訊長度（毫秒）。Lyria 固定 ~32800ms。
+        title:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+
+    ProviderInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Provider 識別碼
+        display_name:
+          type: string
+          description: 顯示名稱
+        available:
+          type: boolean
+          description: 是否可用（健康檢查）
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: ["song", "instrumental", "lyrics"]
+          description: 支援的生成類型
+        supported_models:
+          type: array
+          items:
+            type: string
+          description: 支援的模型列表
+        limitations:
+          type: array
+          items:
+            type: string
+          description: 已知限制說明
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: 錯誤代碼
+          enum:
+            - validation_error
+            - quota_exceeded
+            - provider_unavailable
+            - safety_filtered
+            - generation_failed
+            - not_supported
+        message:
+          type: string
+          description: 使用者可讀的錯誤訊息

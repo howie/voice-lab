@@ -8,8 +8,8 @@ Revises: 96b1d21df7c8
 Create Date: 2026-02-20
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "20260220_100000"

@@ -7,6 +7,7 @@ Supports multiple providers (Mureka, Suno, etc.) via the provider field.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -44,6 +45,7 @@ class MusicProvider(StrEnum):
 
     MUREKA = "mureka"
     SUNO = "suno"
+    LYRIA = "lyria"
 
 
 class MusicModel(StrEnum):
@@ -110,6 +112,7 @@ class MusicGenerationJob:
     completed_at: datetime | None = None
     error_message: str | None = None
     retry_count: int = 0
+    provider_metadata: dict[str, Any] | None = None
 
     @property
     def mureka_task_id(self) -> str | None:

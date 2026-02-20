@@ -5,8 +5,9 @@ Infrastructure layer provides concrete implementations (Mureka, Suno, etc.)
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 
 class MusicTaskStatus(StrEnum):
@@ -20,11 +21,20 @@ class MusicTaskStatus(StrEnum):
 
 @dataclass
 class MusicSubmitResult:
-    """Unified result from submitting a generation task."""
+    """Unified result from submitting a generation task.
+
+    For synchronous providers (e.g., Lyria), audio_bytes and file_ext
+    are populated immediately. For async providers (e.g., Mureka),
+    only task_id is set and audio is fetched later via query_task.
+    """
 
     task_id: str
     provider: str
     status: MusicTaskStatus
+    audio_bytes: bytes | None = None
+    file_ext: str | None = None
+    duration_ms: int | None = None
+    extra_results: list[dict[str, Any]] | None = field(default=None)
 
 
 @dataclass
@@ -132,6 +142,15 @@ class IMusicProvider(ABC):
             MusicTaskResult with current status and results
         """
         ...
+
+    @property
+    def capabilities(self) -> list[str]:
+        """Get list of supported generation types.
+
+        Returns:
+            List of capabilities (e.g., ["song", "instrumental", "lyrics"])
+        """
+        return ["song", "instrumental", "lyrics"]
 
     async def health_check(self) -> bool:
         """Check if provider is available and configured.

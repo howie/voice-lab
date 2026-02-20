@@ -20,9 +20,14 @@ export type MusicGenerationType = 'song' | 'instrumental' | 'lyrics'
 export type MusicGenerationStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 /**
- * Mureka AI model selection
+ * Music generation provider
  */
-export type MusicModel = 'auto' | 'mureka-01' | 'v7.5' | 'v6'
+export type MusicProvider = 'mureka' | 'lyria'
+
+/**
+ * Model selection (provider-specific)
+ */
+export type MusicModel = 'auto' | 'mureka-01' | 'v7.5' | 'v6' | 'lyria-002'
 
 // =============================================================================
 // Request Types
@@ -34,8 +39,10 @@ export type MusicModel = 'auto' | 'mureka-01' | 'v7.5' | 'v6'
 export interface InstrumentalRequest {
   /** Scene/style description (10-500 chars) */
   prompt: string
-  /** Mureka model selection */
+  /** Model selection */
   model?: MusicModel
+  /** Music generation provider */
+  provider?: MusicProvider
 }
 
 /**
@@ -79,6 +86,7 @@ export interface MusicJob {
   id: string
   type: MusicGenerationType
   status: MusicGenerationStatus
+  provider: MusicProvider
   prompt: string | null
   lyrics: string | null
   model: MusicModel
@@ -182,4 +190,10 @@ export const MUSIC_MODEL_LABELS: Record<MusicModel, string> = {
   'mureka-01': 'Mureka-01',
   'v7.5': 'V7.5',
   v6: 'V6',
+  'lyria-002': 'Lyria 2',
+}
+
+export const MUSIC_PROVIDER_LABELS: Record<MusicProvider, string> = {
+  mureka: 'Mureka AI',
+  lyria: 'Google Lyria',
 }

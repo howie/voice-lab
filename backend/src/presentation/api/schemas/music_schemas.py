@@ -34,6 +34,7 @@ class MusicProviderEnum(StrEnum):
 
     MUREKA = "mureka"
     SUNO = "suno"
+    LYRIA = "lyria"
 
 
 class MusicModel(StrEnum):
@@ -43,6 +44,7 @@ class MusicModel(StrEnum):
     MUREKA_01 = "mureka-01"
     V7_5 = "v7.5"
     V6 = "v6"
+    LYRIA_002 = "lyria-002"
 
 
 # =============================================================================

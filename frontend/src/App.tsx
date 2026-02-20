@@ -24,6 +24,7 @@ const VoiceManagementPage = lazy(() => import('@/routes/voice-management').then(
 const QuotaDashboardPage = lazy(() => import('@/routes/quota/QuotaDashboardPage').then(m => ({ default: m.QuotaDashboardPage })))
 const MusicPage = lazy(() => import('@/routes/music').then(m => ({ default: m.MusicPage })))
 const GeminiLiveTestPage = lazy(() => import('@/routes/gemini-live-test/GeminiLiveTestPage').then(m => ({ default: m.GeminiLiveTestPage })))
+const StoryPalPage = lazy(() => import('@/routes/storypal/StoryPalPage').then(m => ({ default: m.StoryPalPage })))
 
 function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
@@ -84,6 +85,7 @@ function AppContent() {
         <Route path="settings/providers" element={<ProviderSettings />} />
         <Route path="voice-management" element={<VoiceManagementPage />} />
         <Route path="gemini-live-test" element={<GeminiLiveTestPage />} />
+        <Route path="storypal" element={<StoryPalPage />} />
       </Route>
     </Routes>
     </Suspense>

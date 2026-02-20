@@ -121,6 +121,14 @@ class Settings(BaseSettings):
     mureka_api_key: str = ""
     mureka_api_base_url: str = "https://api.mureka.ai"
 
+    # ==========================================================================
+    # Google Lyria Music Generation (Feature 016)
+    # ==========================================================================
+    lyria_gcp_project_id: str = ""  # Optional — ADC auto-detects if empty
+    lyria_gcp_location: str = "us-central1"
+    lyria_model: str = "lyria-002"
+    lyria_timeout: float = 30.0
+
     # Music Generation Quota Configuration
     music_daily_limit_per_user: int = 10
     music_monthly_limit_per_user: int = 100

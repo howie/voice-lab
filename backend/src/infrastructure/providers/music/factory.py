@@ -19,7 +19,7 @@ class MusicProviderFactory:
     Supports lazy imports to avoid loading unused provider dependencies.
     """
 
-    SUPPORTED_PROVIDERS = ["mureka"]
+    SUPPORTED_PROVIDERS = ["mureka", "lyria"]
 
     @classmethod
     def get_supported_providers(cls) -> list[str]:
@@ -62,6 +62,18 @@ class MusicProviderFactory:
                 api_key=api_key,
                 base_url=kwargs.get("base_url"),
                 timeout=kwargs.get("timeout", 60.0),
+            )
+
+        if provider_name == "lyria":
+            from src.infrastructure.providers.music.lyria_music import (
+                LyriaMusicProvider,
+            )
+
+            return LyriaMusicProvider(
+                project_id=kwargs.get("project_id"),
+                location=kwargs.get("location"),
+                model=kwargs.get("model"),
+                timeout=kwargs.get("timeout"),
             )
 
         # Future: uncomment when Suno official API is available

@@ -844,5 +844,8 @@ class MusicGenerationJobModel(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # Provider-specific metadata (Feature 016: negative_prompt, seed, sample_count, batch_id)
+    provider_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
     # Relationships
     user: Mapped["User"] = relationship("User")

@@ -1,19 +1,20 @@
-# Music AI API Research: Suno AI vs Mureka
+# Music AI API Research
 
-> Research Date: 2026-01-30
+> Last Updated: 2026-02-19
 
 ## Purpose
 
-Compare Suno AI and Mureka AI music generation APIs, evaluate their capabilities, and assess the feasibility of using a factory pattern to abstract both services behind a unified interface.
+Research and compare music generation APIs for integration into voice-lab, evaluating capabilities, pricing, and feasibility.
 
 ## Documents
 
 | File | Description |
 |------|-------------|
-| [comparison.md](./comparison.md) | Side-by-side feature comparison |
+| [comparison.md](./comparison.md) | Suno vs Mureka side-by-side feature comparison |
 | [suno-api.md](./suno-api.md) | Suno AI API detailed research |
 | [mureka-api.md](./mureka-api.md) | Mureka API detailed research |
 | [factory-pattern-proposal.md](./factory-pattern-proposal.md) | Factory pattern feasibility analysis and proposed architecture |
+| [gemini-lyria-music.md](./gemini-lyria-music.md) | Google Gemini / Lyria 音樂生成研究 (Lyria 2, Lyria 3, Lyria RealTime) |
 
 ## TL;DR
 

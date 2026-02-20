@@ -52,6 +52,7 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
             completed_at=model.completed_at,
             error_message=model.error_message,
             retry_count=model.retry_count,
+            provider_metadata=model.provider_metadata,
         )
 
     def _to_model(self, entity: MusicGenerationJob) -> MusicGenerationJobModel:
@@ -77,6 +78,7 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
             completed_at=entity.completed_at,
             error_message=entity.error_message,
             retry_count=entity.retry_count,
+            provider_metadata=entity.provider_metadata,
         )
 
     async def save(self, job: MusicGenerationJob) -> MusicGenerationJob:
@@ -163,6 +165,7 @@ class MusicGenerationJobRepository(IMusicGenerationJobRepository):
         model.completed_at = job.completed_at
         model.error_message = job.error_message
         model.retry_count = job.retry_count
+        model.provider_metadata = job.provider_metadata
 
         await self.session.flush()
         await self.session.refresh(model)

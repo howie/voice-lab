@@ -166,19 +166,24 @@ class Container:
 
         # GCP Cloud TTS - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
         # or running in GCP environment (Cloud Run uses ADC automatically)
-        gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
-        enable_gcp_tts = (
-            gcp_credentials
-            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            or os.getenv("K_SERVICE")  # Cloud Run sets this
+        gcp_tts_credentials = os.getenv("GCP_CREDENTIALS_PATH") or os.getenv(
+            "GOOGLE_APPLICATION_CREDENTIALS"
+        )
+        is_gcp_tts_env = bool(
+            os.getenv("K_SERVICE")  # Cloud Run sets this
             or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
             or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
         )
+        # Validate file-based credentials exist before attempting init
+        if gcp_tts_credentials and not os.path.isfile(gcp_tts_credentials):
+            print(f"GCP TTS skipped: credentials file not found: {gcp_tts_credentials}")
+            gcp_tts_credentials = None
+        enable_gcp_tts = bool(gcp_tts_credentials) or is_gcp_tts_env
         if enable_gcp_tts:
             try:
                 from src.infrastructure.providers.tts.gcp_tts import GCPTTSProvider
 
-                providers["gcp"] = GCPTTSProvider(credentials_path=gcp_credentials)
+                providers["gcp"] = GCPTTSProvider(credentials_path=gcp_tts_credentials)
             except Exception as e:
                 print(f"Failed to initialize GCP TTS: {e}")
 
@@ -190,14 +195,19 @@ class Container:
 
         # GCP STT - Enable if credentials path set, GOOGLE_APPLICATION_CREDENTIALS set,
         # or running in GCP environment (Cloud Run uses ADC automatically)
-        gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH")
-        enable_gcp = (
-            gcp_credentials
-            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            or os.getenv("K_SERVICE")  # Cloud Run sets this
+        gcp_credentials = os.getenv("GCP_CREDENTIALS_PATH") or os.getenv(
+            "GOOGLE_APPLICATION_CREDENTIALS"
+        )
+        is_gcp_env = bool(
+            os.getenv("K_SERVICE")  # Cloud Run sets this
             or os.getenv("GCP_PROJECT")  # Alternative GCP indicator
             or os.getenv("ENABLE_GCP_PROVIDERS", "").lower() == "true"
         )
+        # Validate file-based credentials exist before attempting init
+        if gcp_credentials and not os.path.isfile(gcp_credentials):
+            print(f"GCP STT skipped: credentials file not found: {gcp_credentials}")
+            gcp_credentials = None
+        enable_gcp = bool(gcp_credentials) or is_gcp_env
         if enable_gcp:
             try:
                 from src.infrastructure.providers.stt import GCPSTTProvider

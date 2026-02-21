@@ -35,12 +35,49 @@ api.interceptors.request.use(
   }
 )
 
+// Retry logic for network errors and Cloud Run cold start 503s
+const MAX_RETRIES = 2
+const RETRY_DELAY_MS = 1000
+
+function shouldRetry(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false
+  // Network error (no response) — typical of Cloud Run cold start CORS failures
+  if (!error.response) return true
+  // Retry on server errors that indicate transient issues
+  return [502, 503, 504].includes(error.response.status)
+}
+
+async function retryRequest(error: unknown): Promise<unknown> {
+  if (!axios.isAxiosError(error) || !error.config) return Promise.reject(error)
+
+  const config = error.config as typeof error.config & { _retryCount?: number }
+  config._retryCount = config._retryCount ?? 0
+
+  if (config._retryCount >= MAX_RETRIES || !shouldRetry(error)) {
+    return Promise.reject(error)
+  }
+
+  config._retryCount += 1
+  const delay = RETRY_DELAY_MS * config._retryCount
+  await new Promise((resolve) => setTimeout(resolve, delay))
+  return api.request(config)
+}
+
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // Retry on network / cold-start errors before handling anything else
+    if (axios.isAxiosError(error) && shouldRetry(error)) {
+      try {
+        return await retryRequest(error)
+      } catch {
+        // Fall through to normal error handling
+      }
+    }
+
     // Handle common errors
-    if (error.response?.status === 401 && !DISABLE_AUTH) {
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !DISABLE_AUTH) {
       // Handle unauthorized (skip redirect in dev mode with auth disabled)
       localStorage.removeItem('auth_token')
       // Only redirect if not already on login page

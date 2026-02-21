@@ -51,6 +51,15 @@ class QuotaExceededError(Exception):
         self.quota_status = quota_status
 
 
+class MusicJobCancelError(Exception):
+    """Raised when a job cannot be cancelled."""
+
+    def __init__(self, message: str, job_id: uuid.UUID, status: str):
+        super().__init__(message)
+        self.job_id = job_id
+        self.status = status
+
+
 class MusicGenerationService:
     """Service for music generation operations.
 
@@ -340,3 +349,86 @@ class MusicGenerationService:
 
         logger.info(f"Retried job {job_id}, retry_count={job.retry_count}")
         return job
+
+    async def cancel_job(
+        self,
+        job_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> MusicGenerationJob:
+        """Cancel a pending or processing job.
+
+        Args:
+            job_id: Job ID to cancel
+            user_id: User ID for ownership verification
+
+        Returns:
+            Cancelled job
+
+        Raises:
+            ValueError: If job not found
+            MusicJobCancelError: If job cannot be cancelled
+        """
+        job = await self.get_job(job_id, user_id)
+
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+
+        if not job.can_cancel():
+            raise MusicJobCancelError(
+                f"Job {job_id} cannot be cancelled (status={job.status})",
+                job_id=job_id,
+                status=job.status.value,
+            )
+
+        job.cancel()
+        job = await self.repository.update(job)
+
+        logger.info(f"Cancelled job {job_id}")
+        return job
+
+    async def restart_job(
+        self,
+        job_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> MusicGenerationJob:
+        """Restart a cancelled or exhausted-retry job by creating a new job with the same parameters.
+
+        Args:
+            job_id: Original job ID to restart from
+            user_id: User ID for ownership verification
+
+        Returns:
+            Newly created job
+
+        Raises:
+            ValueError: If job not found or cannot be restarted
+            QuotaExceededError: If quota is exceeded
+        """
+        job = await self.get_job(job_id, user_id)
+
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+
+        if not job.can_restart():
+            raise ValueError(
+                f"Job {job_id} cannot be restarted "
+                f"(status={job.status}, retry_count={job.retry_count})"
+            )
+
+        # Check quota before creating a new job
+        await self._check_quota(user_id)
+
+        # Create a new job with the same parameters
+        new_job = MusicGenerationJob(
+            user_id=user_id,
+            type=job.type,
+            prompt=job.prompt,
+            lyrics=job.lyrics,
+            model=job.model,
+            provider=job.provider,
+        )
+
+        new_job = await self.repository.save(new_job)
+
+        logger.info(f"Restarted job {job_id} as new job {new_job.id}")
+        return new_job

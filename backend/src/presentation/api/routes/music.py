@@ -19,6 +19,7 @@ from src.domain.entities.music import (
 )
 from src.domain.services.music.service import (
     MusicGenerationService,
+    MusicJobCancelError,
     QuotaExceededError,
 )
 from src.infrastructure.adapters.mureka.client import MurekaAPIError
@@ -508,6 +509,109 @@ async def retry_job(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
+        ) from e
+
+
+@router.delete(
+    "/jobs/{job_id}",
+    response_model=MusicJobResponse,
+    summary="取消音樂生成任務",
+    description="取消等待中或處理中的音樂生成任務",
+)
+async def cancel_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MusicJobResponse:
+    """Cancel a pending or processing job.
+
+    Args:
+        job_id: Job ID to cancel
+        current_user: Current authenticated user
+        session: Database session
+
+    Returns:
+        Cancelled job response
+
+    Raises:
+        HTTPException: 404 if job not found, 409 if cannot cancel
+    """
+    service = _get_music_service(session)
+    user_id = uuid.UUID(current_user.id)
+
+    try:
+        job = await service.cancel_job(job_id, user_id)
+        await session.commit()
+        return _to_response(job)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
+    except MusicJobCancelError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CANNOT_CANCEL",
+                "message": str(e),
+                "status": e.status,
+            },
+        ) from e
+
+
+@router.post(
+    "/jobs/{job_id}/restart",
+    response_model=MusicJobResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="重新建立音樂生成任務",
+    description="以相同參數建立全新的音樂生成任務（原始任務保留不變）",
+)
+async def restart_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MusicJobResponse:
+    """Restart a cancelled or exhausted-retry job by creating a new job.
+
+    Args:
+        job_id: Original job ID to restart from
+        current_user: Current authenticated user
+        session: Database session
+
+    Returns:
+        Newly created job response
+
+    Raises:
+        HTTPException: 404 if not found, 400 if cannot restart, 429 if quota exceeded
+    """
+    service = _get_music_service(session)
+    user_id = uuid.UUID(current_user.id)
+
+    try:
+        job = await service.restart_job(job_id, user_id)
+        await session.commit()
+        return _to_response(job)
+
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    except QuotaExceededError as e:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "QUOTA_EXCEEDED",
+                "message": str(e),
+            },
         ) from e
 
 

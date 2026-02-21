@@ -27,6 +27,7 @@ class MusicGenerationStatus(StrEnum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class MusicProviderEnum(StrEnum):

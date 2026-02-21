@@ -17,7 +17,7 @@ export type MusicGenerationType = 'song' | 'instrumental' | 'lyrics'
 /**
  * Status of music generation job
  */
-export type MusicGenerationStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type MusicGenerationStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
 
 /**
  * Music generation provider
@@ -183,6 +183,7 @@ export const MUSIC_STATUS_LABELS: Record<MusicGenerationStatus, string> = {
   processing: '處理中',
   completed: '完成',
   failed: '失敗',
+  cancelled: '已取消',
 }
 
 export const MUSIC_MODEL_LABELS: Record<MusicModel, string> = {

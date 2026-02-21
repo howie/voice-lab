@@ -23,6 +23,7 @@ const STATUS_FILTERS: Array<{ value: MusicGenerationStatus | null; label: string
   { value: 'processing', label: '處理中' },
   { value: 'completed', label: '完成' },
   { value: 'failed', label: '失敗' },
+  { value: 'cancelled', label: '已取消' },
 ]
 
 const TYPE_FILTERS: Array<{ value: MusicGenerationType | null; label: string }> = [
@@ -49,6 +50,8 @@ export function MusicJobList({ onSelectJob, selectedJobId }: MusicJobListProps) 
     error,
     fetchJobs,
     retryJob,
+    cancelJob,
+    restartJob,
     clearError,
     startPolling,
     stopPolling,
@@ -78,6 +81,18 @@ export function MusicJobList({ onSelectJob, selectedJobId }: MusicJobListProps) 
   const handleRetry = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation()
     await retryJob(jobId)
+  }
+
+  const handleCancel = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation()
+    if (confirm('確定要取消此任務？')) {
+      await cancelJob(jobId)
+    }
+  }
+
+  const handleRestart = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation()
+    await restartJob(jobId)
   }
 
   // Pagination
@@ -166,6 +181,8 @@ export function MusicJobList({ onSelectJob, selectedJobId }: MusicJobListProps) 
               isSelected={selectedJobId === job.id}
               onSelect={() => onSelectJob?.(job)}
               onRetry={(e) => handleRetry(e, job.id)}
+              onCancel={(e) => handleCancel(e, job.id)}
+              onRestart={(e) => handleRestart(e, job.id)}
             />
           ))
         )}
@@ -205,10 +222,14 @@ interface MusicJobListItemProps {
   isSelected: boolean
   onSelect: () => void
   onRetry: (e: React.MouseEvent) => void
+  onCancel: (e: React.MouseEvent) => void
+  onRestart: (e: React.MouseEvent) => void
 }
 
-function MusicJobListItem({ job, isSelected, onSelect, onRetry }: MusicJobListItemProps) {
+function MusicJobListItem({ job, isSelected, onSelect, onRetry, onCancel, onRestart }: MusicJobListItemProps) {
+  const canCancel = job.status === 'pending' || job.status === 'processing'
   const canRetry = job.status === 'failed'
+  const canRestart = job.status === 'cancelled'
 
   return (
     <div
@@ -231,15 +252,37 @@ function MusicJobListItem({ job, isSelected, onSelect, onRetry }: MusicJobListIt
         </div>
       </div>
 
-      {canRetry && (
-        <button
-          onClick={onRetry}
-          className="ml-2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          title="重新嘗試"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-      )}
+      <div className="ml-2 flex items-center gap-1">
+        {canCancel && (
+          <button
+            onClick={onCancel}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+            title="取消任務"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+
+        {canRetry && (
+          <button
+            onClick={onRetry}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="重新嘗試"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        )}
+
+        {canRestart && (
+          <button
+            onClick={onRestart}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="重新建立"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

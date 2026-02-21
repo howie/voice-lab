@@ -35,6 +35,8 @@ interface MusicStoreState extends MusicState {
   submitLyrics: (prompt: string) => Promise<MusicJob | null>
   extendLyrics: (lyrics: string, prompt?: string) => Promise<MusicJob | null>
   retryJob: (jobId: string) => Promise<MusicJob | null>
+  cancelJob: (jobId: string) => Promise<MusicJob | null>
+  restartJob: (jobId: string) => Promise<MusicJob | null>
 
   // === Quota Actions ===
   fetchQuota: () => Promise<void>
@@ -227,6 +229,58 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
     }
   },
 
+  cancelJob: async (jobId) => {
+    set({ error: null })
+    try {
+      const response = await musicApi.cancelJob(jobId)
+      const job = response.data
+
+      // Stop polling for this job
+      get().stopPolling(jobId)
+
+      // Update job in list
+      set((state) => ({
+        jobs: state.jobs.map((j) => (j.id === job.id ? job : j)),
+        currentJob: state.currentJob?.id === job.id ? job : state.currentJob,
+      }))
+
+      // Refresh quota (cancelled job frees up concurrent slot)
+      get().fetchQuota()
+
+      return job
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to cancel job'
+      set({ error: message })
+      return null
+    }
+  },
+
+  restartJob: async (jobId) => {
+    set({ isSubmitting: true, error: null })
+    try {
+      const response = await musicApi.restartJob(jobId)
+      const job = response.data
+
+      // Insert new job at the beginning of the list
+      set((state) => ({
+        jobs: [job, ...state.jobs],
+        currentJob: job,
+        isSubmitting: false,
+      }))
+
+      // Start polling for new job
+      get().startPolling(job.id)
+      // Refresh quota
+      get().fetchQuota()
+
+      return job
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to restart job'
+      set({ error: message, isSubmitting: false })
+      return null
+    }
+  },
+
   // === Quota Actions ===
   fetchQuota: async () => {
     try {
@@ -251,8 +305,8 @@ export const useMusicStore = create<MusicStoreState>((set, get) => ({
     const interval = setInterval(async () => {
       const job = await get().fetchJob(jobId)
 
-      // Stop polling if job is completed or failed
-      if (job && (job.status === 'completed' || job.status === 'failed')) {
+      // Stop polling if job reached a terminal state
+      if (job && (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')) {
         get().stopPolling(jobId)
       }
     }, POLLING_INTERVAL_MS)

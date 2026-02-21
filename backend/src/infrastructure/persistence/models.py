@@ -809,6 +809,7 @@ class MusicGenerationJobModel(Base):
             "processing",
             "completed",
             "failed",
+            "cancelled",
             name="music_generation_status",
             create_type=False,
         ),

@@ -75,6 +75,18 @@ export const musicApi = {
     api.post<MusicJob>(`/music/jobs/${jobId}/retry`),
 
   /**
+   * Cancel a pending or processing job
+   */
+  cancelJob: (jobId: string) =>
+    api.delete<MusicJob>(`/music/jobs/${jobId}`),
+
+  /**
+   * Restart a cancelled or exhausted-retry job as a new job
+   */
+  restartJob: (jobId: string) =>
+    api.post<MusicJob>(`/music/jobs/${jobId}/restart`),
+
+  /**
    * Get download URL for completed job (redirects to audio file)
    */
   getDownloadUrl: (jobId: string) =>

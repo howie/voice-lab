@@ -32,12 +32,15 @@ class MusicGenerationStatus(StrEnum):
     - PROCESSING -> COMPLETED: Mureka returns completed result
     - PROCESSING -> FAILED: Error or timeout occurs
     - FAILED -> PENDING: User retries the job (if retry_count < MAX_RETRY)
+    - PENDING -> CANCELLED: User cancels the job
+    - PROCESSING -> CANCELLED: User cancels the job
     """
 
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class MusicProvider(StrEnum):
@@ -126,6 +129,34 @@ class MusicGenerationJob:
     # Constants
     MAX_RETRY_COUNT: int = field(default=3, init=False, repr=False)
     TIMEOUT_MINUTES: int = field(default=5, init=False, repr=False)
+
+    def can_cancel(self) -> bool:
+        """Check if the job can be cancelled.
+
+        Jobs can be cancelled if status is PENDING or PROCESSING.
+        """
+        return self.status in (MusicGenerationStatus.PENDING, MusicGenerationStatus.PROCESSING)
+
+    def cancel(self) -> None:
+        """Cancel the job.
+
+        Raises:
+            ValueError: If job cannot be cancelled
+        """
+        if not self.can_cancel():
+            raise ValueError(f"Cannot cancel job in {self.status} status")
+        self.status = MusicGenerationStatus.CANCELLED
+        self.completed_at = datetime.utcnow()
+
+    def can_restart(self) -> bool:
+        """Check if the job can be restarted as a new job.
+
+        Jobs can be restarted if status is CANCELLED,
+        or FAILED with retry_count >= MAX_RETRY_COUNT (retries exhausted).
+        """
+        return self.status == MusicGenerationStatus.CANCELLED or (
+            self.status == MusicGenerationStatus.FAILED and self.retry_count >= self.MAX_RETRY_COUNT
+        )
 
     def can_retry(self) -> bool:
         """Check if the job can be retried.
@@ -219,7 +250,11 @@ class MusicGenerationJob:
 
     def is_terminal(self) -> bool:
         """Check if the job is in a terminal state."""
-        return self.status in (MusicGenerationStatus.COMPLETED, MusicGenerationStatus.FAILED)
+        return self.status in (
+            MusicGenerationStatus.COMPLETED,
+            MusicGenerationStatus.FAILED,
+            MusicGenerationStatus.CANCELLED,
+        )
 
     def is_active(self) -> bool:
         """Check if the job is actively being processed or waiting."""

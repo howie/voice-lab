@@ -5,7 +5,7 @@
  * Display music generation job status with appropriate colors.
  */
 
-import { Clock, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Clock, Loader2, CheckCircle, XCircle, Ban } from 'lucide-react'
 import type { MusicGenerationStatus } from '@/types/music'
 
 interface MusicJobStatusProps {
@@ -51,6 +51,13 @@ const STATUS_CONFIG: Record<
     bgColor: 'bg-red-50 dark:bg-red-900/20',
     textColor: 'text-red-700 dark:text-red-400',
     borderColor: 'border-red-200 dark:border-red-800',
+  },
+  cancelled: {
+    label: '已取消',
+    icon: Ban,
+    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+    textColor: 'text-gray-700 dark:text-gray-400',
+    borderColor: 'border-gray-200 dark:border-gray-800',
   },
 }
 
